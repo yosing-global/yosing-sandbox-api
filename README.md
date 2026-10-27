@@ -1,0 +1,2 @@
+# yosing-sandbox-api
+sandboxアプリのバックエンドAPIのリポジトリ
