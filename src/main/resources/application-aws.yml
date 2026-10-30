@@ -1,0 +1,7 @@
+# AWS（ECS）で動くときの共通の設定（pr / dev / test / stg / prod）
+
+logging:
+  structured:
+    format:
+      # CloudWatch Logs で検索しやすいよう、標準出力のログを JSON にする
+      console: ecs

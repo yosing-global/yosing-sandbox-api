@@ -4,10 +4,42 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 ## 状況（2026-10-30 時点）
 
-- リポジトリは README と本ファイルだけ。次は Spring Boot の土台と CI（nonprod へのデプロイ）。
+- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）まで。次は Dockerfile・DynamoDB Local・暗号化と署名の抽象化・CI（nonprod へのデプロイ）。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
-- 未決定：Java と Spring Boot のバージョン、ビルドツール（Gradle / Maven）、パッケージ構成、ライブラリ（TOTP 等）。
+- 未決定：機能ごとのパッケージの分け方。Notion の DB 設計の未確定事項（有効期間、失敗回数の閾値、パスワードのハッシュ方式、ログイン ID の正規化等）は、各機能の実装のときに決める。
+
+## 技術
+
+| 項目 | 内容 |
+| :--- | :--- |
+| 言語・フレームワーク | Java 25（LTS）、Spring Boot 4.1.2 |
+| ビルド | Gradle（Kotlin DSL）。Java 25 は Gradle のツールチェーンで用意する（無ければ foojay で自動ダウンロード） |
+| group ID・artifact ID | `net.yosing.sandbox`・`api`（ベースのパッケージは `net.yosing.sandbox.api`） |
+| TOTP | `com.eatthepath:java-otp`。一致したステップを返す検証（前後のステップの照合）は自前で書く（再利用の防止に、一致したステップが要るため） |
+| JWT | `nimbus-jose-jwt`。署名・検証は KMS（GenerateMac / VerifyMac）とローカル（HmacSHA256）で差し替える |
+| AWS | AWS SDK for Java 2.x（`dynamodb-enhanced`、`kms`）。Spring Cloud AWS は使わない |
+| ヘルスチェック | Actuator の `/actuator/health`（`/healthz` はリバースプロキシの NGINX が先に応答するため使わない） |
+| テスト | JUnit 5。DynamoDB を使う結合テストは Testcontainers（DynamoDB Local） |
+| イメージ | Dockerfile。GitHub の ARM64 のランナー（`ubuntu-24.04-arm`）でビルドする（公開リポジトリは無料。公開前は x86 ＋ buildx で `COPY` だけにする案もある） |
+
+### プロファイル
+
+`SPRING_PROFILES_ACTIVE` には環境名を指定し、`application.yml` のグループで、動き方のプロファイルを有効にする。設定ファイルは動き方の単位で書き、環境ごとのファイルは必要になるまで作らない。環境ごとの値（テーブル名・KMS の鍵の ARN・環境名）はファイルに書かず、環境変数で渡す。
+
+| 指定する（環境名） | 有効になるもの | DynamoDB | 暗号化・署名 |
+| :--- | :--- | :--- | :--- |
+| `local` | `local`、`dynamodb-local` | DynamoDB Local（Docker） | AES-GCM・HmacSHA256 |
+| `pr` | `pr`、`aws`、`dynamodb-local` | DynamoDB Local（サイドカー） | KMS |
+| `dev` / `test` / `stg` / `prod` | 環境名、`aws` | 本物のテーブル | KMS |
+
+- 実装の切り替え（`@Profile`）は、環境名ではなく `aws` / `dynamodb-local` / `local` の単位で書く。
+- KMS の暗号化コンテキストの `env` は環境名（PR 環境はすべて `pr`。`pr<番号>` ではない）。IAM の条件で強制されている。
+- dev / test のタスクロールに許可されている DynamoDB の操作は `GetItem` / `PutItem` / `UpdateItem` / `DeleteItem` / `ConditionCheckItem` だけ（`TransactWriteItems` は中の操作で判定される）。テーブルの作成・確認は `dynamodb-local` のときだけ行う。
+
+### 手元のビルド
+
+Norton の TLS 検査で、Claude のシェルからの Gradle の通信（wrapper・依存ライブラリ・JDK のダウンロード）が PKIX のエラーで失敗する。`./gradlew build` はユーザーに PowerShell か IntelliJ で実行してもらう。
 
 ## 関連リポジトリ（`../` に clone 済み）
 
