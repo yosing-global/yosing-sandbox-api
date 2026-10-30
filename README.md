@@ -35,6 +35,16 @@ Java 25 が無い場合は、初回のビルドで Gradle が自動でダウン�
 .\gradlew.bat bootRun --args='--spring.profiles.active=local'
 ```
 
+### イメージ
+
+```powershell
+# jar を作ってから、イメージを作る（Dockerfile は build/libs/app.jar を読む）
+.\gradlew.bat build
+docker buildx build --platform linux/arm64 --tag api .
+```
+
+本番は linux/arm64 で動かします。手元で起動して確かめる場合は、PC の CPU に合わせて `--platform linux/amd64` で作ります。
+
 ### プロファイル
 
 `SPRING_PROFILES_ACTIVE`（または `--spring.profiles.active`）には、環境名を指定します。

@@ -4,7 +4,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 ## 状況（2026-10-30 時点）
 
-- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）まで。次は Dockerfile・DynamoDB Local・暗号化と署名の抽象化・CI（nonprod へのデプロイ）。
+- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、CI（ビルド・テストとイメージのビルドの確認だけ）まで。次は CI（ECR への push と nonprod へのデプロイ）・DynamoDB Local・暗号化と署名の抽象化。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 未決定：機能ごとのパッケージの分け方。Notion の DB 設計の未確定事項（有効期間、失敗回数の閾値、パスワードのハッシュ方式、ログイン ID の正規化等）は、各機能の実装のときに決める。
@@ -21,7 +21,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 | AWS | AWS SDK for Java 2.x（`dynamodb-enhanced`、`kms`）。Spring Cloud AWS は使わない |
 | ヘルスチェック | Actuator の `/actuator/health`（`/healthz` はリバースプロキシの NGINX が先に応答するため使わない） |
 | テスト | JUnit 5。DynamoDB を使う結合テストは Testcontainers（DynamoDB Local） |
-| イメージ | Dockerfile。GitHub の ARM64 のランナー（`ubuntu-24.04-arm`）でビルドする（公開リポジトリは無料。公開前は x86 ＋ buildx で `COPY` だけにする案もある） |
+| イメージ | Dockerfile。jar は先に `./gradlew build` で作り（`build/libs/app.jar`）、Dockerfile では層に分けて入れるだけ。層に分ける段は `--platform=$BUILDPLATFORM` で動かすため、x86 のランナーでも arm64 のイメージをエミュレーションなしで作れる（ARM64 のランナー `ubuntu-24.04-arm` は、公開リポジトリなら無料）。ベースは `eclipse-temurin:25-jre-noble`（ダイジェストで固定） |
 
 ### プロファイル
 
