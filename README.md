@@ -25,4 +25,24 @@ sandbox は、個人の学習とポートフォリオを兼ねたアプリです
 
 ## ローカルでの開発
 
-（Spring Boot の土台を作ったあとに記載します）
+Java 25 が無い場合は、初回のビルドで Gradle が自動でダウンロードします（Gradle 自体は Java 17 以上で動きます）。
+
+```powershell
+# ビルドとテスト
+.\gradlew.bat build
+
+# 起動（http://localhost:8080/actuator/health で確認できる）
+.\gradlew.bat bootRun --args='--spring.profiles.active=local'
+```
+
+### プロファイル
+
+`SPRING_PROFILES_ACTIVE`（または `--spring.profiles.active`）には、環境名を指定します。
+
+| 環境名 | 用途 |
+| :--- | :--- |
+| `local` | 手元の PC での開発 |
+| `pr` | Pull Request ごとの環境 |
+| `dev` / `test` / `stg` / `prod` | 各環境 |
+
+環境ごとの値（テーブル名等）は、設定ファイルではなく環境変数で渡します。

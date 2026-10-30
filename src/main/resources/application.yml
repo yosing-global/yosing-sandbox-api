@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: api
+  profiles:
+    # SPRING_PROFILES_ACTIVE には環境名（local / pr / dev / test / stg / prod）を指定する
+    #   設定は環境名ではなく、動き方の単位（aws / dynamodb-local）でまとめる
+    #   環境ごとの値（テーブル名・KMS の鍵等）はファイルに書かず、環境変数で渡す
+    group:
+      local:
+        - dynamodb-local
+      pr:
+        - aws
+        - dynamodb-local
+      dev:
+        - aws
+      test:
+        - aws
+      stg:
+        - aws
+      prod:
+        - aws
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # /healthz はリバースプロキシ（NGINX）が先に応答するため、ヘルスチェックは /actuator/health を使う
+        include: health
