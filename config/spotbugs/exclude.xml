@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	SpotBugs で検出しないもの（理由を書いてから足す）
+-->
+<FindBugsFilter>
+	<!--
+		可変のオブジェクトを受け取る・返す（EI_EXPOSE_REP / EI_EXPOSE_REP2）
+		  Spring のコンストラクターインジェクション（Bean を受け取ってフィールドに持つ）のたびに検出され、誤検出がほとんどのため
+	-->
+	<Match>
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+	</Match>
+</FindBugsFilter>

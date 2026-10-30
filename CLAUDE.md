@@ -4,7 +4,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 ## 状況（2026-10-30 時点）
 
-- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、CI（ビルド・テストとイメージのビルドの確認だけ）まで。次は CI（ECR への push と nonprod へのデプロイ）・DynamoDB Local・暗号化と署名の抽象化。
+- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テストとイメージのビルドの確認だけ）まで。次は CI（ECR への push と nonprod へのデプロイ）・DynamoDB Local・暗号化と署名の抽象化。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 未決定：機能ごとのパッケージの分け方。Notion の DB 設計の未確定事項（有効期間、失敗回数の閾値、パスワードのハッシュ方式、ログイン ID の正規化等）は、各機能の実装のときに決める。
@@ -20,7 +20,8 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 | JWT | `nimbus-jose-jwt`。署名・検証は KMS（GenerateMac / VerifyMac）とローカル（HmacSHA256）で差し替える |
 | AWS | AWS SDK for Java 2.x（`dynamodb-enhanced`、`kms`）。Spring Cloud AWS は使わない |
 | ヘルスチェック | Actuator の `/actuator/health`（`/healthz` はリバースプロキシの NGINX が先に応答するため使わない） |
-| テスト | JUnit 5。DynamoDB を使う結合テストは Testcontainers（DynamoDB Local） |
+| テスト | JUnit 5。DynamoDB を使う結合テストは Testcontainers（DynamoDB Local）。単体テストと同じ `./gradlew build` で流す |
+| 静的チェック | Checkstyle（独自の設定 `config/checkstyle/checkstyle.xml`。字下げはタブのため、字下げのルールは使わない）、SpotBugs ＋ Find Security Bugs（`config/spotbugs/exclude.xml`。テストのコードは対象外）。`./gradlew build` で動き、1件でも検出したら失敗する |
 | イメージ | Dockerfile。jar は先に `./gradlew build` で作り（`build/libs/app.jar`）、Dockerfile では層に分けて入れるだけ。層に分ける段は `--platform=$BUILDPLATFORM` で動かすため、x86 のランナーでも arm64 のイメージをエミュレーションなしで作れる（ARM64 のランナー `ubuntu-24.04-arm` は、公開リポジトリなら無料）。ベースは `eclipse-temurin:25-jre-noble`（ダイジェストで固定） |
 
 ### プロファイル
@@ -36,6 +37,11 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 - 実装の切り替え（`@Profile`）は、環境名ではなく `aws` / `dynamodb-local` / `local` の単位で書く。
 - KMS の暗号化コンテキストの `env` は環境名（PR 環境はすべて `pr`。`pr<番号>` ではない）。IAM の条件で強制されている。
 - dev / test のタスクロールに許可されている DynamoDB の操作は `GetItem` / `PutItem` / `UpdateItem` / `DeleteItem` / `ConditionCheckItem` だけ（`TransactWriteItems` は中の操作で判定される）。テーブルの作成・確認は `dynamodb-local` のときだけ行う。
+
+### コードを書くときの注意
+
+- Spring の Bean は1つのインスタンスを全部の要求で共有する。Bean に書き換えられるフィールド（要求ごとの状態）を持たせない（SpotBugs でも検出しきれない）。
+- 静的チェックの検出を外すときは、外す範囲を最小にし（`@SuppressWarnings("checkstyle:...")` / `@SuppressFBWarnings`、または除外のファイル）、理由を書く。
 
 ### 手元のビルド
 
@@ -78,6 +84,22 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
 - nonprod（dev / test / PR 環境）は1つの AWS アカウント（NonProd）を共有する。
 - nonprod の URL は `https://<env>.api.local.sandbox.yosing.net:8090`。SSM のポートフォワーディング（ローカルの 8090 → リバースプロキシの 443）でアクセスする。手順は `../aws-infra-env/README.md`。
 - nonprod の稼働時間は毎日 9:00〜翌 1:00（JST）。それ以外はタスクが 0 になる。
+
+## CI の流れ（予定。作るのは PR → develop の順、stg / prod はインフラができてから）
+
+| 契機 | 内容 |
+| :--- | :--- |
+| PR（作成・更新） | 静的チェック・テスト → イメージの push → PR 環境 `pr<番号>` へのデプロイ（Cloud Map の設定を含む） → 確認 |
+| PR を閉じたとき | PR 環境の削除（ECS のサービス・Cloud Map のサービス・スケジュール） |
+| develop へのマージ | PR とほぼ同じ。デプロイ先は dev と test、確認は test に向けて |
+| main へのマージ | イメージの push → stg へのデプロイ → 確認 |
+| release（手動） | stg と同じイメージを prod にデプロイ |
+
+- イメージは1コミットにつき1つ（タグはコミットのハッシュ、環境名は入れない）。環境の違いはタスク定義の環境変数だけ。
+- ジョブは `check → image → deploy → verify` の順に分ける。今の `verify` はヘルスチェックだけ。E2E（`yosing-sandbox-e2e`）ができたら、その再利用できるワークフロー（`workflow_call`）を呼ぶ `e2e` のジョブを後ろに足す。
+- test 環境の排他：GitHub の `concurrency` は同じリポジトリの中でしか効かない。今はリポジトリの中だけで直列にし、web と api の重なりは許す。E2E ができたら、DynamoDB の条件付き書き込み（期限付き）のロックで、デプロイから E2E までを web と api の間で直列にする（テーブルと権限は `aws-infra-env` に足す）。
+- ランナーは `ubuntu-latest`（x86）。Dockerfile の作りでエミュレーションなしに arm64 を作れるため。ARM のランナーに替えるのは `runs-on` の変更だけで済む。
+- stg / prod を作るときの課題：main で push する CI ロールが無い（信頼ポリシーは `pull_request` と develop だけ）、ECR は直近の30個しか残さない（prod のイメージが消えないようにする）、release で stg と同じイメージを特定する方法、stg は毎日 3:00 に削除される（再構築とデプロイの順番）。
 
 ## nonprod へのデプロイ
 
