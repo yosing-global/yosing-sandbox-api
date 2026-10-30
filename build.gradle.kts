@@ -31,3 +31,13 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+// Dockerfile が読む jar の名前を固定する（build/libs/app.jar）
+tasks.bootJar {
+	archiveFileName = "app.jar"
+}
+
+// 実行できない jar（-plain.jar）は使わないため作らない
+tasks.jar {
+	enabled = false
+}

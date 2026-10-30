@@ -1,0 +1,55 @@
+name: ci
+
+# ビルド・テストと、イメージのビルドの確認（ECR への push・デプロイはしない）
+#   イメージの2つの確認（arm64 のビルド・amd64 での起動）は、デプロイの CI ができたら、
+#   ECR への push と PR 環境でのヘルスチェックに置き換える
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - name: ビルド・テスト
+        run: ./gradlew build
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # 本番と同じ arm64 で作れることを確認する（x86 のランナーでも、Dockerfile の作りでエミュレーションは要らない）
+      - name: イメージのビルド（arm64）
+        run: docker buildx build --platform linux/arm64 --output type=cacheonly .
+
+      # 起動の確認は、ランナーの CPU（amd64）で作ったイメージで行う（arm64 のイメージは x86 のランナーでは動かない）
+      - name: 起動の確認（amd64）
+        run: |
+          docker buildx build --platform linux/amd64 --load --tag api:smoke .
+          docker run --detach --name api --publish 8080:8080 --env SPRING_PROFILES_ACTIVE=local api:smoke
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8080/actuator/health; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs api
+          exit 1
