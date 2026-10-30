@@ -1,8 +1,9 @@
 name: ci
 
-# ビルド・テストと、イメージのビルドの確認（ECR への push・デプロイはしない）
-#   イメージの2つの確認（arm64 のビルド・amd64 での起動）は、デプロイの CI ができたら、
-#   ECR への push と PR 環境でのヘルスチェックに置き換える
+# PR・develop の CI
+#   check：静的チェック・テスト・jar の作成、イメージの起動の確認（amd64）
+#   image：arm64 のイメージを ECR（Shared-Infra の sandbox/api）に push する
+#   デプロイ（deploy・verify）は、この後ろにジョブを足す
 on:
   pull_request:
   push:
@@ -16,8 +17,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REPOSITORY: sandbox/api
+
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -43,13 +48,17 @@ jobs:
           path: build/reports/
           retention-days: 7
 
+      # image のジョブで同じ jar をイメージに入れる（もう一度ビルドしない）
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: app-jar
+          path: build/libs/app.jar
+          retention-days: 1
+
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      # 本番と同じ arm64 で作れることを確認する（x86 のランナーでも、Dockerfile の作りでエミュレーションは要らない）
-      - name: イメージのビルド（arm64）
-        run: docker buildx build --platform linux/arm64 --output type=cacheonly .
-
       # 起動の確認は、ランナーの CPU（amd64）で作ったイメージで行う（arm64 のイメージは x86 のランナーでは動かない）
+      #   PR 環境でのヘルスチェックができたら、ここは消す
       - name: 起動の確認（amd64）
         run: |
           docker buildx build --platform linux/amd64 --load --tag api:smoke .
@@ -63,3 +72,63 @@ jobs:
           done
           docker logs api
           exit 1
+
+  image:
+    needs: check
+    # フォークからの PR では OIDC のトークンが発行されず、AWS に入れないため動かさない
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      # 公開リポジトリでは Actions のログも公開されるため、アカウント ID・ロールの ARN・レジストリをログに出さない
+      - name: 値の伏せ字
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+        run: |
+          echo "::add-mask::${AWS_ROLE_ARN}"
+          echo "::add-mask::${ECR_REGISTRY}"
+          echo "::add-mask::${ECR_REGISTRY%%.*}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: app-jar
+          path: build/libs/
+
+      # タグはコミットのハッシュ（PR では、PR を develop に取り込んだ状態のコミット。ビルドした中身と一致する）
+      - name: タグ
+        id: meta
+        run: echo "tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      # ECR は Shared-Infra にある。NonProd の CI ロールのトークンで、リポジトリポリシーにより push できる
+      - name: ECR へのログイン
+        env:
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+        run: aws ecr get-login-password | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # タグは上書きできない（IMMUTABLE）ため、同じコミットのイメージがあれば作らない（ジョブの再実行等）
+      #   来歴（provenance）・SBOM の添付はしない（1つのマニフェストにして、ECR のライフサイクルで扱いやすくする）
+      - name: イメージのビルドと push（arm64）
+        env:
+          IMAGE: ${{ vars.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+        run: |
+          if docker buildx imagetools inspect "${IMAGE}" > /dev/null 2>&1; then
+            echo "同じタグのイメージがあるため、push しない"
+            exit 0
+          fi
+          docker buildx build --platform linux/arm64 --provenance=false --sbom=false --tag "${IMAGE}" --push .
