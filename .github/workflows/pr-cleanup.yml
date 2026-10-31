@@ -28,6 +28,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      # PR へのコメント（PR 環境の URL）を「削除済み」に書き換える
+      pull-requests: write
     env:
       APP_ENV: pr${{ github.event.pull_request.number }}
     steps:
@@ -105,3 +107,18 @@ jobs:
           done
           echo "登録が外れないため、消せなかった"
           exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # ci.yml が出した PR 環境のコメントを「削除済み」に書き換える（コメントが無ければ何もしない）
+      - name: PR へのコメント
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          deleted_at=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M')
+          bash .github/scripts/pr-env-comment.sh "${PR_NUMBER}" update <<EOF
+          ### PR 環境：${APP_ENV}（削除済み）
+
+          PR を閉じたため、PR 環境を削除しました（${deleted_at} JST）。
+          EOF

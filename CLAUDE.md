@@ -106,6 +106,7 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
 
 - デプロイは **ecspresso**。定義は `deploy/`（`ecspresso.jsonnet`・`task-def.jsonnet`・`service-def.jsonnet`）。値は SSM パラメータから読み（ecspresso の `ssm` / `ssm_list`）、環境ごとの値は CI が環境変数で渡す（`APP_ENV`：`dev` / `test` / `pr<番号>`、`ROLE_ENV`：`dev` / `test` / `pr`、`ECS_CLUSTER`、`IMAGE`、`CLOUD_MAP_SERVICE_ARN`）。
 - ワークフロー：`ci.yml`（`check → image → deploy`。deploy は今は PR 環境だけ）、`pr-cleanup.yml`（PR を閉じたら PR 環境を消す）。
+  - PR の Conversation に、PR 環境のヘルスチェックの URL をコメントで出す（`.github/scripts/pr-env-comment.sh`。目印 `<!-- pr-env -->` のコメントを1つだけ作り、デプロイのたびに書き換え、PR を閉じたら「削除済み」にする）。ジョブに `environment:` を付ける方法は使わない（OIDC のトークンの `sub` が `environment:<名前>` に変わり、CI ロールの信頼ポリシーに合わなくなるため）。
 - CI ロール：NonProd の `github-actions-sandbox-api-role`（GitHub の OIDC。引き受けられるのは `pull_request` と develop ブランチ）。
 - アカウント ID・ロールの ARN・ECR の URL はファイルに書かず、GitHub の Variables に置く（インフラの情報を公開しないため）。公開リポジトリでは Actions のログも公開されるため、ワークフローの最初に `::add-mask::` で伏せる。
   - Repository variables：`AWS_ROLE_ARN`（NonProd の CI ロールの ARN）、`ECR_REGISTRY`（`<Shared-Infra のアカウント ID>.dkr.ecr.ap-northeast-1.amazonaws.com`）。stg / prod は Environments に同じ名前で置く予定（Environment の値が優先される）。

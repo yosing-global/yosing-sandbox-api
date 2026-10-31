@@ -143,6 +143,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      # PR へのコメント（PR 環境の URL）
+      pull-requests: write
     env:
       APP_ENV: pr${{ github.event.pull_request.number }}
       ROLE_ENV: pr
@@ -212,3 +214,24 @@ jobs:
             --scheduled-action-name "${APP_ENV}-api-stop" \
             --schedule "cron(0 1 * * ? *)" --timezone Asia/Tokyo \
             --scalable-target-action MinCapacity=0,MaxCapacity=0
+
+      # PR の Conversation に、PR 環境の URL を出す（コメントは1つだけにし、デプロイのたびに書き換える）
+      - name: PR へのコメント
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          IMAGE_TAG: ${{ needs.image.outputs.tag }}
+        run: |
+          deployed_at=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M')
+          bash .github/scripts/pr-env-comment.sh "${PR_NUMBER}" upsert <<EOF
+          ### PR 環境：${APP_ENV}
+
+          | | |
+          | :--- | :--- |
+          | ヘルスチェック | https://${APP_ENV}.api.local.sandbox.yosing.net:8090/actuator/health |
+          | イメージ | \`${IMAGE_TAG:0:7}\` |
+          | デプロイ | ${deployed_at}（JST） |
+
+          開くには SSM のポートフォワーディングが要ります（手順は aws-infra-env の README の「開発環境へのアクセス」）。
+          稼働時間は 9:00〜翌 1:00（JST）です。
+          EOF
