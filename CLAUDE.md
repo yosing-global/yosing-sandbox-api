@@ -4,7 +4,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 ## 状況（2026-10-30 時点）
 
-- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push）まで。次は CI（nonprod へのデプロイ）・DynamoDB Local・暗号化と署名の抽象化。
+- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境へのデプロイと削除）まで。次は CI（PR 環境の確認、dev / test へのデプロイ）・DynamoDB Local・暗号化と署名の抽象化。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 未決定：機能ごとのパッケージの分け方。Notion の DB 設計の未確定事項（有効期間、失敗回数の閾値、パスワードのハッシュ方式、ログイン ID の正規化等）は、各機能の実装のときに決める。
@@ -99,11 +99,14 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
 - ジョブは `check → image → deploy → verify` の順に分ける。今の `verify` はヘルスチェックだけ。E2E（`yosing-sandbox-e2e`）ができたら、その再利用できるワークフロー（`workflow_call`）を呼ぶ `e2e` のジョブを後ろに足す。
 - test 環境の排他：GitHub の `concurrency` は同じリポジトリの中でしか効かない。今はリポジトリの中だけで直列にし、web と api の重なりは許す。E2E ができたら、DynamoDB の条件付き書き込み（期限付き）のロックで、デプロイから E2E までを web と api の間で直列にする（テーブルと権限は `aws-infra-env` に足す）。
 - ランナーは `ubuntu-latest`（x86）。Dockerfile の作りでエミュレーションなしに arm64 を作れるため。ARM のランナーに替えるのは `runs-on` の変更だけで済む。
-- stg / prod を作るときの課題：main で push する CI ロールが無い（信頼ポリシーは `pull_request` と develop だけ）、ECR は直近の30個しか残さない（prod のイメージが消えないようにする）、release で stg と同じイメージを特定する方法、stg は毎日 3:00 に削除される（再構築とデプロイの順番）。
+- イメージのタグ：PR / develop / main はコミットのハッシュ。release（手動）でバージョン（例：`1.2.0`）を入力し、stg に出したイメージ（同じダイジェスト）に `v1.2.0` のタグを足して prod に出す（git にも同じタグを付ける）。バージョンは release のときに決めるため、アプリ（jar）にはバージョンを入れず、コミットのハッシュを返す。`build.gradle.kts` の `version` は手で上げない。
+- stg / prod を作るときの課題：main で push する CI ロールが無い（信頼ポリシーは `pull_request` と develop だけ）、ECR のライフサイクルに「`v` で始まるタグは直近の10個を残す」ルールを足す（直近の30個だけだと prod のイメージが消える。`aws-infra-global`）、stg は毎日 3:00 に削除される（再構築とデプロイの順番）、Application Auto Scaling のサービスにリンクされたロール（`AWSServiceRoleForApplicationAutoScaling_ECSService`）を Terraform で先に作る（初めての登録で自動で作られるが、作った直後は使えずに失敗することがある。NonProd では一度失敗し、再実行で通った）。
 
 ## nonprod へのデプロイ
 
-- デプロイは **ecspresso**。タスク定義・サービスの定義を本リポジトリに置き、値は SSM パラメータから読む。
+- デプロイは **ecspresso**。定義は `deploy/`（`ecspresso.jsonnet`・`task-def.jsonnet`・`service-def.jsonnet`）。値は SSM パラメータから読み（ecspresso の `ssm` / `ssm_list`）、環境ごとの値は CI が環境変数で渡す（`APP_ENV`：`dev` / `test` / `pr<番号>`、`ROLE_ENV`：`dev` / `test` / `pr`、`ECS_CLUSTER`、`IMAGE`、`CLOUD_MAP_SERVICE_ARN`）。
+- ワークフロー：`ci.yml`（`check → image → deploy`。deploy は今は PR 環境だけ）、`pr-cleanup.yml`（PR を閉じたら PR 環境を消す）。
+  - PR の Conversation に、PR 環境のヘルスチェックの URL をコメントで出す（`.github/scripts/pr-env-comment.sh`。目印 `<!-- pr-env -->` のコメントを1つだけ作り、デプロイのたびに書き換え、PR を閉じたら「削除済み」にする）。ジョブに `environment:` を付ける方法は使わない（OIDC のトークンの `sub` が `environment:<名前>` に変わり、CI ロールの信頼ポリシーに合わなくなるため）。
 - CI ロール：NonProd の `github-actions-sandbox-api-role`（GitHub の OIDC。引き受けられるのは `pull_request` と develop ブランチ）。
 - アカウント ID・ロールの ARN・ECR の URL はファイルに書かず、GitHub の Variables に置く（インフラの情報を公開しないため）。公開リポジトリでは Actions のログも公開されるため、ワークフローの最初に `::add-mask::` で伏せる。
   - Repository variables：`AWS_ROLE_ARN`（NonProd の CI ロールの ARN）、`ECR_REGISTRY`（`<Shared-Infra のアカウント ID>.dkr.ecr.ap-northeast-1.amazonaws.com`）。stg / prod は Environments に同じ名前で置く予定（Environment の値が優先される）。
@@ -121,6 +124,8 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
 - PR 環境は本物のテーブルを使わず、タスクに DynamoDB Local（`amazon/dynamodb-local`、`-inMemory`）をサイドカーで同居させ、api から `localhost:8000` で使う。データはデプロイ・Spot の中断・毎日の停止で消えるため、api の起動時にテーブル作成と初期データを流す。テーブルの定義は `aws-infra-env` の `dynamodb.tf` と揃える。
 - Cloud Map のサービスと、稼働時間のスケジュール（Application Auto Scaling。9:00 に 1、翌 1:00 に 0、タイムゾーン `Asia/Tokyo`）は、CI が AWS CLI で作る。PR 環境の削除のときに一緒に消す。
 - CI で AccessDenied が出たら、CI ロールの権限（`aws-infra-env` の `products/sandbox/nonprod/iam.tf`）を直す。
+  - エラーに出ているリソースの ARN の形で許可する（AWS が権限を確かめるリソースは、操作の名前から推測すると外れることがある。例：`ecs:DescribeServiceDeployments` はサービスの ARN、`servicediscovery:CreateService` は名前空間と `service/*` の両方）。
+  - 直した後は、`aws-infra-env` の main への apply が終わってから、少し待って再実行する（IAM の反映に時間がかかる）。
 - E2E：GitHub のランナーから SSM のポートフォワーディングでリバースプロキシ（Name タグ `nonprod-nat-ec2`、文書 `AWS-StartPortForwardingSession`）につなぎ、`https://<env>.api.local.sandbox.yosing.net:8090` を叩く（DNS は 127.0.0.1 を返す）。
 
 使う SSM パラメータ（NonProd、すべて String。サブネットは StringList）：

@@ -3,7 +3,8 @@ name: ci
 # PR・develop の CI
 #   check：静的チェック・テスト・jar の作成、イメージの起動の確認（amd64）
 #   image：arm64 のイメージを ECR（Shared-Infra の sandbox/api）に push する
-#   デプロイ（deploy・verify）は、この後ろにジョブを足す
+#   deploy：PR 環境（pr<番号>）へのデプロイ（Cloud Map のサービス・稼働時間のスケジュールを含む）
+#   確認（verify）・dev / test へのデプロイは、この後ろに足す
 on:
   pull_request:
   push:
@@ -132,3 +133,105 @@ jobs:
             exit 0
           fi
           docker buildx build --platform linux/arm64 --provenance=false --sbom=false --tag "${IMAGE}" --push .
+
+  # PR 環境（pr<番号>）へのデプロイ。develop（dev / test）は後で足す
+  deploy:
+    needs: image
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      # PR へのコメント（PR 環境の URL）
+      pull-requests: write
+    env:
+      APP_ENV: pr${{ github.event.pull_request.number }}
+      ROLE_ENV: pr
+    steps:
+      # ecspresso の差分の表示等で、ロールの ARN・イメージの URL がログに出るため伏せる
+      - name: 値の伏せ字
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+        run: |
+          echo "::add-mask::${AWS_ROLE_ARN}"
+          echo "::add-mask::${ECR_REGISTRY}"
+          echo "::add-mask::${ECR_REGISTRY%%.*}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - uses: kayac/ecspresso@aff803a87548687aa8e6aa0fdc45ea8f00b6fbef # v2.8.7
+        with:
+          version: v2.8.7
+
+      - name: 設定値の取得（SSM パラメータ）
+        run: |
+          get() { aws ssm get-parameter --name "$1" --query Parameter.Value --output text; }
+          echo "ECS_CLUSTER=$(get /products/sandbox/ecs/cluster-name)" >> "$GITHUB_ENV"
+          echo "NAMESPACE_ID=$(get /products/sandbox/cloud-map/namespace-id)" >> "$GITHUB_ENV"
+
+      # リバースプロキシ・web が <アプリの環境>-api.sandbox.internal で解決するための名前（無ければ作る）
+      - name: Cloud Map のサービス
+        run: |
+          name="${APP_ENV}-api"
+          arn=$(aws servicediscovery list-services \
+            --filters "Name=NAMESPACE_ID,Values=${NAMESPACE_ID},Condition=EQ" \
+            --query "Services[?Name=='${name}'].Arn | [0]" --output text)
+          if [ -z "${arn}" ] || [ "${arn}" = "None" ]; then
+            arn=$(aws servicediscovery create-service --name "${name}" --namespace-id "${NAMESPACE_ID}" \
+              --dns-config "RoutingPolicy=MULTIVALUE,DnsRecords=[{Type=A,TTL=10}]" \
+              --health-check-custom-config FailureThreshold=1 \
+              --query Service.Arn --output text)
+            echo "作成した：${name}"
+          fi
+          echo "CLOUD_MAP_SERVICE_ARN=${arn}" >> "$GITHUB_ENV"
+
+      # サービスが無ければ作る。タスクが起動し、デプロイが終わるまで待つ
+      #   --tasks 1：稼働時間の外（スケジュールで 0 になっている）にデプロイしても起動させる（次の 1:00 に 0 に戻る）
+      - name: デプロイ
+        env:
+          IMAGE: ${{ vars.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ needs.image.outputs.tag }}
+        run: ecspresso deploy --config deploy/ecspresso.jsonnet --tasks 1
+
+      # 稼働時間（9:00〜翌 1:00、日本時間）。それ以外はタスクを 0 にする
+      - name: 稼働時間のスケジュール
+        run: |
+          target=(--service-namespace ecs --scalable-dimension ecs:service:DesiredCount
+            --resource-id "service/${ECS_CLUSTER}/${APP_ENV}-api")
+          aws application-autoscaling register-scalable-target "${target[@]}" --min-capacity 0 --max-capacity 1
+          aws application-autoscaling put-scheduled-action "${target[@]}" \
+            --scheduled-action-name "${APP_ENV}-api-start" \
+            --schedule "cron(0 9 * * ? *)" --timezone Asia/Tokyo \
+            --scalable-target-action MinCapacity=1,MaxCapacity=1
+          aws application-autoscaling put-scheduled-action "${target[@]}" \
+            --scheduled-action-name "${APP_ENV}-api-stop" \
+            --schedule "cron(0 1 * * ? *)" --timezone Asia/Tokyo \
+            --scalable-target-action MinCapacity=0,MaxCapacity=0
+
+      # PR の Conversation に、PR 環境の URL を出す（コメントは1つだけにし、デプロイのたびに書き換える）
+      - name: PR へのコメント
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          IMAGE_TAG: ${{ needs.image.outputs.tag }}
+        run: |
+          deployed_at=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M')
+          bash .github/scripts/pr-env-comment.sh "${PR_NUMBER}" upsert <<EOF
+          ### PR 環境：${APP_ENV}
+
+          | | |
+          | :--- | :--- |
+          | ヘルスチェック | https://${APP_ENV}.api.local.sandbox.yosing.net:8090/actuator/health |
+          | イメージ | \`${IMAGE_TAG:0:7}\` |
+          | デプロイ | ${deployed_at}（JST） |
+
+          開くには SSM のポートフォワーディングが要ります（手順は aws-infra-env の README の「開発環境へのアクセス」）。
+          稼働時間は 9:00〜翌 1:00（JST）です。
+          EOF
