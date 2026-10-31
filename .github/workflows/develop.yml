@@ -1,7 +1,7 @@
 name: develop
 
-# develop へのマージ：ビルド（イメージの push）
-#   dev / test へのデプロイ・ヘルスチェックは、この後ろに _deploy.yml を呼ぶジョブを足す
+# develop へのマージ：ビルド（イメージの push）→ dev と test へのデプロイ・ヘルスチェック（並べて動かす）
+#   E2E ができたら、deploy-test の後ろに e2e のジョブ（test に向けて）を足す
 on:
   push:
     branches:
@@ -21,3 +21,25 @@ jobs:
     permissions:
       contents: read
       id-token: write
+
+  deploy-dev:
+    needs: build
+    uses: ./.github/workflows/_deploy.yml
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      app_env: dev
+      role_env: dev
+      image_tag: ${{ needs.build.outputs.image_tag }}
+
+  deploy-test:
+    needs: build
+    uses: ./.github/workflows/_deploy.yml
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      app_env: test
+      role_env: test
+      image_tag: ${{ needs.build.outputs.image_tag }}
