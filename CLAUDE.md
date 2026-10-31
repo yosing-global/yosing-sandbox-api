@@ -100,7 +100,7 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
 - test 環境の排他：GitHub の `concurrency` は同じリポジトリの中でしか効かない。今はリポジトリの中だけで直列にし、web と api の重なりは許す。E2E ができたら、DynamoDB の条件付き書き込み（期限付き）のロックで、デプロイから E2E までを web と api の間で直列にする（テーブルと権限は `aws-infra-env` に足す）。
 - ランナーは `ubuntu-latest`（x86）。Dockerfile の作りでエミュレーションなしに arm64 を作れるため。ARM のランナーに替えるのは `runs-on` の変更だけで済む。
 - イメージのタグ：PR / develop / main はコミットのハッシュ。release（手動）でバージョン（例：`1.2.0`）を入力し、stg に出したイメージ（同じダイジェスト）に `v1.2.0` のタグを足して prod に出す（git にも同じタグを付ける）。バージョンは release のときに決めるため、アプリ（jar）にはバージョンを入れず、コミットのハッシュを返す。`build.gradle.kts` の `version` は手で上げない。
-- stg / prod を作るときの課題：main で push する CI ロールが無い（信頼ポリシーは `pull_request` と develop だけ）、ECR のライフサイクルに「`v` で始まるタグは直近の10個を残す」ルールを足す（直近の30個だけだと prod のイメージが消える。`aws-infra-global`）、stg は毎日 3:00 に削除される（再構築とデプロイの順番）。
+- stg / prod を作るときの課題：main で push する CI ロールが無い（信頼ポリシーは `pull_request` と develop だけ）、ECR のライフサイクルに「`v` で始まるタグは直近の10個を残す」ルールを足す（直近の30個だけだと prod のイメージが消える。`aws-infra-global`）、stg は毎日 3:00 に削除される（再構築とデプロイの順番）、Application Auto Scaling のサービスにリンクされたロール（`AWSServiceRoleForApplicationAutoScaling_ECSService`）を Terraform で先に作る（初めての登録で自動で作られるが、作った直後は使えずに失敗することがある。NonProd では一度失敗し、再実行で通った）。
 
 ## nonprod へのデプロイ
 
@@ -123,6 +123,8 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
 - PR 環境は本物のテーブルを使わず、タスクに DynamoDB Local（`amazon/dynamodb-local`、`-inMemory`）をサイドカーで同居させ、api から `localhost:8000` で使う。データはデプロイ・Spot の中断・毎日の停止で消えるため、api の起動時にテーブル作成と初期データを流す。テーブルの定義は `aws-infra-env` の `dynamodb.tf` と揃える。
 - Cloud Map のサービスと、稼働時間のスケジュール（Application Auto Scaling。9:00 に 1、翌 1:00 に 0、タイムゾーン `Asia/Tokyo`）は、CI が AWS CLI で作る。PR 環境の削除のときに一緒に消す。
 - CI で AccessDenied が出たら、CI ロールの権限（`aws-infra-env` の `products/sandbox/nonprod/iam.tf`）を直す。
+  - エラーに出ているリソースの ARN の形で許可する（AWS が権限を確かめるリソースは、操作の名前から推測すると外れることがある。例：`ecs:DescribeServiceDeployments` はサービスの ARN、`servicediscovery:CreateService` は名前空間と `service/*` の両方）。
+  - 直した後は、`aws-infra-env` の main への apply が終わってから、少し待って再実行する（IAM の反映に時間がかかる）。
 - E2E：GitHub のランナーから SSM のポートフォワーディングでリバースプロキシ（Name タグ `nonprod-nat-ec2`、文書 `AWS-StartPortForwardingSession`）につなぎ、`https://<env>.api.local.sandbox.yosing.net:8090` を叩く（DNS は 127.0.0.1 を返す）。
 
 使う SSM パラメータ（NonProd、すべて String。サブネットは StringList）：
