@@ -4,11 +4,10 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 ## 状況（2026-10-30 時点）
 
-- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境へのデプロイ・確認・削除）まで。
+- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境と dev / test へのデプロイ・確認、PR 環境の削除）まで。
 - これからの作業の順番：
-  1. dev / test へのデプロイ（develop へのマージ）
-  2. API の仕様を Notion にまとめる
-  3. アプリの中身の準備（DynamoDB Local、暗号化と署名の抽象化）
+  1. API の仕様を Notion にまとめる
+  2. アプリの中身の準備（DynamoDB Local、暗号化と署名の抽象化）
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 未決定：機能ごとのパッケージの分け方。Notion の DB 設計の未確定事項（有効期間、失敗回数の閾値、パスワードのハッシュ方式、ログイン ID の正規化等）は、各機能の実装のときに決める。
@@ -114,7 +113,7 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
 | ファイル | 契機 | 内容 |
 | :--- | :--- | :--- |
 | `pr.yml` | PR（作成・更新） | `_build` → `_deploy`（`pr<番号>`）→ PR へのコメント |
-| `develop.yml` | develop へのマージ | `_build`（dev / test へのデプロイは次に足す） |
+| `develop.yml` | develop へのマージ | `_build` → `_deploy`（`dev`）と `_deploy`（`test`）を並べて動かす |
 | `pr-cleanup.yml` | PR を閉じたとき | PR 環境の削除 |
 | `_build.yml` | 呼ばれる側 | `check`（静的チェック・テスト・jar）→ `image`（arm64 のイメージの push。タグを返す） |
 | `_deploy.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`・`role_env`・`image_tag`）への `deploy` → `verify` |
