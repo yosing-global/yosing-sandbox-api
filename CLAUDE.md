@@ -4,7 +4,11 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 ## 状況（2026-10-30 時点）
 
-- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境へのデプロイと削除）まで。次は CI（PR 環境の確認、dev / test へのデプロイ）・DynamoDB Local・暗号化と署名の抽象化。
+- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境へのデプロイ・確認・削除）まで。
+- これからの作業の順番：
+  1. dev / test へのデプロイ（develop へのマージ）
+  2. API の仕様を Notion にまとめる
+  3. アプリの中身の準備（DynamoDB Local、暗号化と署名の抽象化）
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 未決定：機能ごとのパッケージの分け方。Notion の DB 設計の未確定事項（有効期間、失敗回数の閾値、パスワードのハッシュ方式、ログイン ID の正規化等）は、各機能の実装のときに決める。
@@ -105,7 +109,8 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
 ## nonprod へのデプロイ
 
 - デプロイは **ecspresso**。定義は `deploy/`（`ecspresso.jsonnet`・`task-def.jsonnet`・`service-def.jsonnet`）。値は SSM パラメータから読み（ecspresso の `ssm` / `ssm_list`）、環境ごとの値は CI が環境変数で渡す（`APP_ENV`：`dev` / `test` / `pr<番号>`、`ROLE_ENV`：`dev` / `test` / `pr`、`ECS_CLUSTER`、`IMAGE`、`CLOUD_MAP_SERVICE_ARN`）。
-- ワークフロー：`ci.yml`（`check → image → deploy`。deploy は今は PR 環境だけ）、`pr-cleanup.yml`（PR を閉じたら PR 環境を消す）。
+- ワークフロー：`ci.yml`（`check → image → deploy → verify`。deploy・verify は今は PR 環境だけ）、`pr-cleanup.yml`（PR を閉じたら PR 環境を消す）。
+  - verify：ランナーに Session Manager のプラグイン（バージョンとチェックサムを固定）を入れ、SSM のポートフォワーディングでリバースプロキシにつなぎ、`https://<env>.api.local.sandbox.yosing.net:8090/actuator/health` が `UP` になるまで待つ（デプロイの直後は DNS の TTL の分だけ待つことがある）。
   - PR の Conversation に、PR 環境のヘルスチェックの URL をコメントで出す（`.github/scripts/pr-env-comment.sh`。目印 `<!-- pr-env -->` のコメントを1つだけ作り、デプロイのたびに書き換え、PR を閉じたら「削除済み」にする）。ジョブに `environment:` を付ける方法は使わない（OIDC のトークンの `sub` が `environment:<名前>` に変わり、CI ロールの信頼ポリシーに合わなくなるため）。
 - CI ロール：NonProd の `github-actions-sandbox-api-role`（GitHub の OIDC。引き受けられるのは `pull_request` と develop ブランチ）。
 - アカウント ID・ロールの ARN・ECR の URL はファイルに書かず、GitHub の Variables に置く（インフラの情報を公開しないため）。公開リポジトリでは Actions のログも公開されるため、ワークフローの最初に `::add-mask::` で伏せる。

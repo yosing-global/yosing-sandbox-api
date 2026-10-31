@@ -1,10 +1,11 @@
 name: ci
 
 # PR・develop の CI
-#   check：静的チェック・テスト・jar の作成、イメージの起動の確認（amd64）
+#   check：静的チェック・テスト・jar の作成
 #   image：arm64 のイメージを ECR（Shared-Infra の sandbox/api）に push する
 #   deploy：PR 環境（pr<番号>）へのデプロイ（Cloud Map のサービス・稼働時間のスケジュールを含む）
-#   確認（verify）・dev / test へのデプロイは、この後ろに足す
+#   verify：PR 環境のヘルスチェック（SSM のポートフォワーディングでリバースプロキシを通す）
+#   dev / test へのデプロイは後で足す。E2E ができたら verify の後ろに e2e を足す
 on:
   pull_request:
   push:
@@ -55,24 +56,6 @@ jobs:
           name: app-jar
           path: build/libs/app.jar
           retention-days: 1
-
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      # 起動の確認は、ランナーの CPU（amd64）で作ったイメージで行う（arm64 のイメージは x86 のランナーでは動かない）
-      #   PR 環境でのヘルスチェックができたら、ここは消す
-      - name: 起動の確認（amd64）
-        run: |
-          docker buildx build --platform linux/amd64 --load --tag api:smoke .
-          docker run --detach --name api --publish 8080:8080 --env SPRING_PROFILES_ACTIVE=local api:smoke
-          for i in $(seq 1 30); do
-            if curl --fail --silent http://localhost:8080/actuator/health; then
-              echo
-              exit 0
-            fi
-            sleep 2
-          done
-          docker logs api
-          exit 1
 
   image:
     needs: check
@@ -235,3 +218,83 @@ jobs:
           開くには SSM のポートフォワーディングが要ります（手順は aws-infra-env の README の「開発環境へのアクセス」）。
           稼働時間は 9:00〜翌 1:00（JST）です。
           EOF
+
+  # PR 環境のヘルスチェック。手元からつなぐときと同じ経路（SSM のポートフォワーディング → リバースプロキシ → Cloud Map → api）で確かめる
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      APP_ENV: pr${{ github.event.pull_request.number }}
+      # Session Manager のプラグイン（バージョンとチェックサムを固定する）
+      SSM_PLUGIN_VERSION: 1.2.896.0
+      SSM_PLUGIN_SHA256: 53f51fcc67314a4bf85888a38a3967cd41f8d0f28a60a9469a63acf935ba713e
+    steps:
+      - name: 値の伏せ字
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+        run: |
+          echo "::add-mask::${AWS_ROLE_ARN}"
+          echo "::add-mask::${ECR_REGISTRY}"
+          echo "::add-mask::${ECR_REGISTRY%%.*}"
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - name: Session Manager のプラグインの導入
+        run: |
+          curl --fail --silent --show-error --location --output /tmp/session-manager-plugin.deb \
+            "https://s3.amazonaws.com/session-manager-downloads/plugin/${SSM_PLUGIN_VERSION}/ubuntu_64bit/session-manager-plugin.deb"
+          echo "${SSM_PLUGIN_SHA256}  /tmp/session-manager-plugin.deb" | sha256sum --check
+          sudo dpkg --install /tmp/session-manager-plugin.deb
+
+      # リバースプロキシ（NAT インスタンスに同居）の 443 を、ランナーの 8090 につなぐ
+      #   インスタンス ID は作り直すと変わるため、Name タグで探す
+      - name: ポートフォワーディングの開始
+        run: |
+          id=$(aws ec2 describe-instances \
+            --filters Name=tag:Name,Values=nonprod-nat-ec2 Name=instance-state-name,Values=running \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          if [ -z "${id}" ] || [ "${id}" = "None" ]; then
+            echo "リバースプロキシ（nonprod-nat-ec2）が起動していない"
+            exit 1
+          fi
+          nohup aws ssm start-session --target "${id}" \
+            --document-name AWS-StartPortForwardingSession \
+            --parameters portNumber=443,localPortNumber=8090 > /tmp/ssm-session.log 2>&1 &
+          for i in $(seq 1 30); do
+            if grep --quiet 'Waiting for connections' /tmp/ssm-session.log; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/ssm-session.log
+          exit 1
+
+      # デプロイの直後は、リバースプロキシが新しいタスクの IP を引くまで（DNS の TTL）少しかかるため、やり直しながら待つ
+      #   /healthz はリバースプロキシ（NGINX）が先に応答するため、アプリの /actuator/health を見る
+      - name: ヘルスチェック
+        run: |
+          url="https://${APP_ENV}.api.local.sandbox.yosing.net:8090/actuator/health"
+          for i in $(seq 1 24); do
+            body=$(curl --silent --show-error --max-time 10 "${url}" || true)
+            if echo "${body}" | grep --quiet '"status":"UP"'; then
+              echo "${url} → ${body}"
+              exit 0
+            fi
+            echo "待機中（${i}）：${body}"
+            sleep 5
+          done
+          echo "ヘルスチェックに失敗した：${url}"
+          exit 1
+
+      - name: ポートフォワーディングのログ
+        if: always()
+        run: cat /tmp/ssm-session.log || true
