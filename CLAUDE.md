@@ -4,7 +4,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 ## 状況（2026-10-30 時点）
 
-- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テストとイメージのビルドの確認だけ）まで。次は CI（ECR への push と nonprod へのデプロイ）・DynamoDB Local・暗号化と署名の抽象化。
+- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push）まで。次は CI（nonprod へのデプロイ）・DynamoDB Local・暗号化と署名の抽象化。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 未決定：機能ごとのパッケージの分け方。Notion の DB 設計の未確定事項（有効期間、失敗回数の閾値、パスワードのハッシュ方式、ログイン ID の正規化等）は、各機能の実装のときに決める。
@@ -105,7 +105,9 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
 
 - デプロイは **ecspresso**。タスク定義・サービスの定義を本リポジトリに置き、値は SSM パラメータから読む。
 - CI ロール：NonProd の `github-actions-sandbox-api-role`（GitHub の OIDC。引き受けられるのは `pull_request` と develop ブランチ）。
-- アカウント ID・ロールの ARN・ECR の URL はファイルに書かず、GitHub の Variables に置く（インフラの情報を公開しないため）。
+- アカウント ID・ロールの ARN・ECR の URL はファイルに書かず、GitHub の Variables に置く（インフラの情報を公開しないため）。公開リポジトリでは Actions のログも公開されるため、ワークフローの最初に `::add-mask::` で伏せる。
+  - Repository variables：`AWS_ROLE_ARN`（NonProd の CI ロールの ARN）、`ECR_REGISTRY`（`<Shared-Infra のアカウント ID>.dkr.ecr.ap-northeast-1.amazonaws.com`）。stg / prod は Environments に同じ名前で置く予定（Environment の値が優先される）。
+  - ECR で使える操作は push と取得だけ（`ecr:DescribeImages` は無い）。イメージがあるかは `docker buildx imagetools inspect` で確かめる。
 - イメージ：Shared-Infra の ECR `sandbox/api`。**linux/arm64**（Fargate Spot の ARM64 で動かす）。タグはコミットのハッシュ（上書き禁止）。develop では作り直す。
 - 名前（`<env>` は `dev` / `test` / `pr<番号>`）：
 
