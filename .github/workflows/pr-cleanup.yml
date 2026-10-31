@@ -11,9 +11,9 @@ on:
 permissions:
   contents: read
 
-# ci.yml と同じグループ。PR 環境へのデプロイが動いていれば止めてから消す
+# pr.yml と同じグループ。PR 環境へのデプロイが動いていれば止めてから消す
 concurrency:
-  group: ci-${{ github.ref }}
+  group: pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 env:
@@ -110,7 +110,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # ci.yml が出した PR 環境のコメントを「削除済み」に書き換える（コメントが無ければ何もしない）
+      # pr.yml が出した PR 環境のコメントを「削除済み」に書き換える（コメントが無ければ何もしない）
       - name: PR へのコメント
         env:
           GH_TOKEN: ${{ github.token }}

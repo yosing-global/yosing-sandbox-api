@@ -1,0 +1,23 @@
+name: develop
+
+# develop へのマージ：ビルド（イメージの push）
+#   dev / test へのデプロイ・ヘルスチェックは、この後ろに _deploy.yml を呼ぶジョブを足す
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+# 止めずに順番に流す（デプロイを途中で止めない。待っている実行は最新の1つだけ残る）
+concurrency:
+  group: develop
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+    permissions:
+      contents: read
+      id-token: write
