@@ -1,4 +1,5 @@
 import com.github.spotbugs.snom.Effort
+import com.github.spotbugs.snom.SpotBugsTask
 
 plugins {
 	java
@@ -47,6 +48,41 @@ dependencies {
 	spotbugsPlugins("com.h3xstream.findsecbugs:findsecbugs-plugin:1.14.0")
 }
 
+// テストは2つに分ける
+//   test（src/test）：単体テスト。Spring の Bean を作らず、Docker なしで速く動く（./gradlew test）
+//   integrationTest（src/integrationTest）：結合テスト。Spring を起動し、Testcontainers の DynamoDB Local を使う（Docker が要る）
+//   ./gradlew check・build は両方を流す
+testing {
+	suites {
+		register<JvmTestSuite>("integrationTest") {
+			// アプリのクラス・設定ファイル（jar は作らないため、project() ではなくコンパイル結果を直接使う）
+			sources {
+				compileClasspath += sourceSets.main.get().output
+				runtimeClasspath += sourceSets.main.get().output
+			}
+			targets {
+				all {
+					testTask.configure {
+						shouldRunAfter(tasks.test)
+					}
+				}
+			}
+		}
+	}
+}
+
+// 結合テストは、単体テストと同じライブラリ（と、アプリの依存）を使う
+configurations.named("integrationTestImplementation") {
+	extendsFrom(configurations.testImplementation.get())
+}
+configurations.named("integrationTestRuntimeOnly") {
+	extendsFrom(configurations.testRuntimeOnly.get())
+}
+
+tasks.check {
+	dependsOn(testing.suites.named("integrationTest"))
+}
+
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
@@ -63,9 +99,9 @@ spotbugs {
 	excludeFilter = file("config/spotbugs/exclude.xml")
 }
 
-// テストのコードは SpotBugs の対象にしない（モック等で誤検出が多いため。Checkstyle は対象にする）
-tasks.spotbugsTest {
-	enabled = false
+// テストのコード（単体・結合）は SpotBugs の対象にしない（モック等で誤検出が多いため。Checkstyle は対象にする）
+tasks.withType<SpotBugsTask>().configureEach {
+	enabled = name == "spotbugsMain"
 }
 
 tasks.spotbugsMain {

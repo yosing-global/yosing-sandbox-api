@@ -24,7 +24,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 | JWT | `nimbus-jose-jwt`。署名・検証は KMS（GenerateMac / VerifyMac）とローカル（HmacSHA256）で差し替える |
 | AWS | AWS SDK for Java 2.x（`dynamodb`、`kms`）。Enhanced Client は使わず、ドメインの型と DynamoDB の項目の変換は infrastructure で書く。Spring Cloud AWS は使わない |
 | ヘルスチェック | Actuator の `/actuator/health`（`/healthz` はリバースプロキシの NGINX が先に応答するため使わない） |
-| テスト | JUnit 5。DynamoDB を使う結合テストは Testcontainers（DynamoDB Local）。単体テストと同じ `./gradlew build` で流す |
+| テスト | JUnit。単体テスト（`src/test`）と結合テスト（`src/integrationTest`。Testcontainers の DynamoDB Local）に分ける。`./gradlew build` で両方を流す（下の「テスト」） |
 | 静的チェック | Checkstyle（独自の設定 `config/checkstyle/checkstyle.xml`。字下げはタブのため、字下げのルールは使わない）、SpotBugs ＋ Find Security Bugs（`config/spotbugs/exclude.xml`。テストのコードは対象外）。`./gradlew build` で動き、1件でも検出したら失敗する |
 | イメージ | Dockerfile。jar は先に `./gradlew build` で作り（`build/libs/app.jar`）、Dockerfile では層に分けて入れるだけ。層に分ける段は `--platform=$BUILDPLATFORM` で動かすため、x86 のランナーでも arm64 のイメージをエミュレーションなしで作れる（ARM64 のランナー `ubuntu-24.04-arm` は、公開リポジトリなら無料）。ベースは `eclipse-temurin:25-jre-noble`（ダイジェストで固定） |
 
@@ -62,6 +62,20 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 - 集約どうしは ID（`UserId` 等）だけで参照し、ほかの集約のエンティティは持たない（例：`Registration` は `UserId` を持つが `User` は持たない）。
 - 型は層ごとに分ける：API のリクエスト・レスポンス（presentation）、ユースケースの入出力（application）、ドメインモデル（domain）、DynamoDB の項目（infrastructure）。
 - 集約をまたぐトランザクション（登録の確定・ログインの確定）は、`application/port` のユースケース専用の保存のインターフェースで表し、`infrastructure/dynamodb` で `TransactWriteItems` を使って実装する。
+
+### テスト
+
+| 種類 | 置き場所（Gradle のタスク） | 内容 |
+| :--- | :--- | :--- |
+| 単体テスト | `src/test`（`test`） | ドメインの決まり（ロック・期限・ログイン ID の規則・TOTP の照合等）、ユースケースの流れ（port を偽物に差し替える）、ArchUnit、プロファイルの解決。Spring の Bean を作らず、Docker なしで速く動く |
+| 結合テスト | `src/integrationTest`（`integrationTest`） | API のテスト（`@SpringBootTest` ＋ MockMvc でリクエストを送り、ステータス・本文・エラーの `code`、必要なら DB の内容を確かめる）と、技術の実装のテスト（Repository の条件付き書き込み・トランザクション・項目の変換を DynamoDB Local で動かす）。Docker が要る |
+| E2E | `yosing-sandbox-e2e` と CI | デプロイした環境で、画面・BFF・API を通して確かめる |
+
+- テストのパッケージは `main` と同じ形にする（package-private のクラスを使うため。`integration` のようなパッケージは作らない）。
+- 結合テストは `local` のプロファイルと `DynamoDbLocalContainerConfiguration`（Testcontainers）で動かす。
+- TOTP のコードは時刻で決まるため、時刻は `application/port` の時計（`Clock`）から取り、テストでは決まった時刻の時計に差し替える。
+- KMS の実装は結合テストでは動かせない（手元とテストはローカルの暗号化）。AWS SDK を偽物に差し替えた単体テストで呼び出し方（暗号化コンテキスト等）を確かめ、実際の動きは PR 環境で確かめる。
+- テストのコード（単体・結合）は SpotBugs の対象外、Checkstyle の対象。
 
 ### コードを書くときの注意
 
@@ -107,7 +121,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - 設定は `sandbox.dynamodb.table-name`（dev / test 等はタスク定義の環境変数 `DYNAMODB_TABLE_NAME`）と `sandbox.dynamodb.endpoint`（`dynamodb-local` のプロファイルだけ `http://localhost:8000`）。リージョンは `sandbox.aws.region`。
   - `dynamodb-local` のプロファイルでは、起動時にテーブルを作る（`DynamoDbLocalTableInitializer`。DynamoDB Local に接続できるまで1秒おきに最大30回待つ）。接続先が DynamoDB Local のときは、固定のダミーの認証情報を使う。
   - DynamoDB Local のイメージは ECR Public の `aws-dynamodb-local` 3.3.2（ダイジェストで固定、`-inMemory -sharedDb`）。`compose.yaml`（手元）、`deploy/task-def.jsonnet`（PR 環境のサイドカー）、`DynamoDbLocalContainerConfiguration`（テスト）の3か所で揃える。
-  - `@SpringBootTest` のテストは `local` のプロファイルと `DynamoDbLocalContainerConfiguration`（Testcontainers）で動かす（手元のテストにも Docker が要る）。
+  - 結合テスト（`src/integrationTest`）は `local` のプロファイルと `DynamoDbLocalContainerConfiguration`（Testcontainers）で動かす（Docker が要る）。
 
 ## 環境とブランチ
 
