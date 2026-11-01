@@ -52,7 +52,8 @@ sandbox は、個人の学習とポートフォリオを兼ねたアプリです
 │   │   └── service/       複数のモデルにまたがる業務の決まり（TOTP の検証等）
 │   └── infrastructure/    技術の実装（aws・dynamodb・crypto・jwt）と、その設定
 ├── src/main/resources/    設定ファイル（application.yml と、プロファイルごとの application-*.yml）
-├── src/test/              テスト（Testcontainers の DynamoDB Local を使う結合テスト、ArchUnit）
+├── src/test/              単体テスト（ドメインの決まり・ユースケース・ArchUnit。Docker なしで動く）
+├── src/integrationTest/   結合テスト（アプリを起動し、Testcontainers の DynamoDB Local を使う。API のリクエストとレスポンス等）
 ├── config/                静的チェック（Checkstyle・SpotBugs）の設定
 ├── deploy/                ECS のタスク定義・サービスの定義（ecspresso）
 ├── .github/               GitHub Actions のワークフロー（PR・develop・PR 環境の削除）と PR のテンプレート
@@ -71,11 +72,17 @@ sandbox は、個人の学習とポートフォリオを兼ねたアプリです
 
 ## ローカルでの開発
 
-Java 25 が無い場合は、初回のビルドで Gradle が自動でダウンロードします（Gradle 自体は Java 17 以上で動きます）。テストと手元での起動には Docker が要ります（DynamoDB Local を動かすため）。
+Java 25 が無い場合は、初回のビルドで Gradle が自動でダウンロードします（Gradle 自体は Java 17 以上で動きます）。結合テストと手元での起動には Docker が要ります（DynamoDB Local を動かすため）。単体テストだけなら Docker は要りません。
 
 ```powershell
-# ビルドとテスト（テストは Testcontainers で DynamoDB Local を自動で起動する）
+# ビルドとテスト（単体テスト・結合テスト・静的チェック。結合テストは Testcontainers で DynamoDB Local を自動で起動する）
 .\gradlew.bat build
+
+# 単体テストだけ（Docker なしで速く動く）
+.\gradlew.bat test
+
+# 結合テストだけ
+.\gradlew.bat integrationTest
 
 # DynamoDB Local の起動（止めるとデータは消える）
 docker compose up -d
