@@ -1,0 +1,10 @@
+# 手元の開発用の DynamoDB Local（docker compose up -d で起動し、local のプロファイルで api を動かす）
+#   イメージは PR 環境のサイドカー（deploy/task-def.jsonnet）・テスト（DynamoDbLocalContainerConfiguration）と揃える
+#   -inMemory：止めるとデータは消える（api の起動時にテーブルを作り直す）
+#   -sharedDb：認証情報・リージョンに関係なく、同じデータを見る
+services:
+  dynamodb-local:
+    image: public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:3.3.2@sha256:6ada631ec7aa5fc83446855eb17233e3dad184fec47477e8140c6c569cfe0c86
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    ports:
+      - "8000:8000"

@@ -29,3 +29,7 @@ management:
       exposure:
         # /healthz はリバースプロキシ（NGINX）が先に応答するため、ヘルスチェックは /actuator/health を使う
         include: health
+
+sandbox:
+  aws:
+    region: ap-northeast-1

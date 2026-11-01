@@ -12,6 +12,8 @@
 <module name="Checker">
 	<property name="charset" value="UTF-8"/>
 	<property name="severity" value="error"/>
+	<!-- メッセージは英語にする（日本語だと、Windows のコンソールで文字化けするため） -->
+	<property name="localeLanguage" value="en"/>
 
 	<module name="NewlineAtEndOfFile"/>
 	<module name="SuppressWarningsFilter"/>

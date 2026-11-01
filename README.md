@@ -8,11 +8,57 @@ sandbox は、個人の学習とポートフォリオを兼ねたアプリです
 
 | 項目 | 内容 |
 | :--- | :--- |
-| 言語・フレームワーク | Java、Spring Boot |
+| 言語・フレームワーク | Java 25、Spring Boot 4.1 |
 | データ | Amazon DynamoDB（単一テーブル設計） |
 | 暗号化・署名 | AWS KMS（TOTP の秘密情報の暗号化、仮認証のトークンの署名） |
 | 実行環境 | Amazon ECS on AWS Fargate（ARM64） |
 | デプロイ | GitHub Actions、ecspresso |
+
+## アーキテクチャ
+
+軽量な DDD（ドメイン駆動設計）を、オニオンアーキテクチャで構成しています。
+
+```text
+        presentation          infrastructure
+     （API の入出口）     （DynamoDB・KMS 等の実装）
+               \               /
+                ▼             ▼
+                  application
+               （ユースケース）
+                      │
+                      ▼
+               domain/service
+                      │
+                      ▼
+                domain/model
+          （エンティティ・値オブジェクト）
+```
+
+- 矢印は依存の向きです。中心の domain は、Spring や AWS SDK などのライブラリに依存しない、ふつうの Java で書きます。
+- 外の技術（DynamoDB・KMS・JWT 等）は、domain と application が持つインターフェースを infrastructure が実装する形にしています。そのため、手元では DynamoDB Local やローカルの暗号化に、AWS では本物の DynamoDB と KMS に、Spring のプロファイルで差し替えられます。
+- 依存の決まりは、ArchUnit のテスト（`ArchitectureTests`）で確かめています。
+
+### ディレクトリ構成
+
+```text
+.
+├── src/main/java/net/yosing/sandbox/api/
+│   ├── presentation/      API の入出口。コントローラー、リクエスト・レスポンスの型、エラー応答（Problem Details）への変換
+│   ├── application/       ユースケース（登録・ログイン・セッション）の処理の流れ
+│   │   └── port/          アプリが外の技術に求めるもののインターフェース（暗号化・署名・トランザクションの保存等）
+│   ├── domain/
+│   │   ├── model/         集約ごとのエンティティ・値オブジェクト・Repository のインターフェース（user・registration・session）
+│   │   │   └── shared/    2つ以上の集約から使う値オブジェクト（totp 等）
+│   │   └── service/       複数のモデルにまたがる業務の決まり（TOTP の検証等）
+│   └── infrastructure/    技術の実装（aws・dynamodb・crypto・jwt）と、その設定
+├── src/main/resources/    設定ファイル（application.yml と、プロファイルごとの application-*.yml）
+├── src/test/              テスト（Testcontainers の DynamoDB Local を使う結合テスト、ArchUnit）
+├── config/                静的チェック（Checkstyle・SpotBugs）の設定
+├── deploy/                ECS のタスク定義・サービスの定義（ecspresso）
+├── .github/               GitHub Actions のワークフロー（PR・develop・PR 環境の削除）と PR のテンプレート
+├── compose.yaml           手元の開発用の DynamoDB Local
+└── Dockerfile             イメージ（linux/arm64）
+```
 
 ## ブランチと環境
 
@@ -25,14 +71,20 @@ sandbox は、個人の学習とポートフォリオを兼ねたアプリです
 
 ## ローカルでの開発
 
-Java 25 が無い場合は、初回のビルドで Gradle が自動でダウンロードします（Gradle 自体は Java 17 以上で動きます）。
+Java 25 が無い場合は、初回のビルドで Gradle が自動でダウンロードします（Gradle 自体は Java 17 以上で動きます）。テストと手元での起動には Docker が要ります（DynamoDB Local を動かすため）。
 
 ```powershell
-# ビルドとテスト
+# ビルドとテスト（テストは Testcontainers で DynamoDB Local を自動で起動する）
 .\gradlew.bat build
 
-# 起動（http://localhost:8080/actuator/health で確認できる）
+# DynamoDB Local の起動（止めるとデータは消える）
+docker compose up -d
+
+# 起動（http://localhost:8080/actuator/health で確認できる。起動時に DynamoDB Local にテーブルを作る）
 .\gradlew.bat bootRun --args='--spring.profiles.active=local'
+
+# DynamoDB Local の停止
+docker compose down
 ```
 
 ### イメージ
