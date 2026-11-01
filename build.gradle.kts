@@ -29,11 +29,19 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	// AWS SDK for Java 2.x（モジュールのバージョンは BOM で揃える）
+	implementation(platform("software.amazon.awssdk:bom:2.57.8"))
+	implementation("software.amazon.awssdk:dynamodb")
 	// SpotBugs の検出を個別に外すとき（@SuppressFBWarnings）に使う。実行時には要らない
 	compileOnly("com.github.spotbugs:spotbugs-annotations:$spotbugsVersion")
 	testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+	// DynamoDB Local をコンテナで動かす（Docker が要る）
+	testImplementation("org.springframework.boot:spring-boot-testcontainers")
+	testImplementation("org.testcontainers:testcontainers")
+	// パッケージの依存の決まり（オニオンアーキテクチャ）の確認
+	testImplementation("com.tngtech.archunit:archunit-junit5:1.5.1")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	// SpotBugs のセキュリティ向けの検出（弱い乱数・暗号やハッシュの誤用等）
 	spotbugsPlugins("com.h3xstream.findsecbugs:findsecbugs-plugin:1.14.0")

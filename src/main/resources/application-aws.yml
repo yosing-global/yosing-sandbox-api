@@ -5,3 +5,9 @@ logging:
     format:
       # CloudWatch Logs で検索しやすいよう、標準出力のログを JSON にする
       console: ecs
+
+sandbox:
+  dynamodb:
+    # dev / test / stg / prod はタスク定義の環境変数で渡す（無ければ起動しない）
+    #   PR 環境（pr）は、後に有効になる dynamodb-local の設定が優先される
+    table-name: ${DYNAMODB_TABLE_NAME}

@@ -5,12 +5,13 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 ## 状況（2026-10-30 時点）
 
 - Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境と dev / test へのデプロイ・確認、PR 環境の削除）まで。
+- API の仕様は Notion の「4.2 API設計」にまとめ済み。アプリの中身の準備は、DynamoDB の土台（クライアント・DynamoDB Local・起動時のテーブル作成）まで。
 - これからの作業の順番：
-  1. API の仕様を Notion にまとめる
-  2. アプリの中身の準備（DynamoDB Local、暗号化と署名の抽象化）
+  1. 暗号化と署名の抽象化（KMS とローカルの差し替え）
+  2. API の実装（4.2 API設計のエンドポイント）
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
-- 未決定：機能ごとのパッケージの分け方。Notion の DB 設計の未確定事項（有効期間、失敗回数の閾値、パスワードのハッシュ方式、ログイン ID の正規化等）は、各機能の実装のときに決める。
+- 属性名・型（DynamoDB の項目）は、各機能の実装のときに決める（Notion の DB 設計の未確定事項）。
 
 ## 技術
 
@@ -21,7 +22,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 | group ID・artifact ID | `net.yosing.sandbox`・`api`（ベースのパッケージは `net.yosing.sandbox.api`） |
 | TOTP | `com.eatthepath:java-otp`。一致したステップを返す検証（前後のステップの照合）は自前で書く（再利用の防止に、一致したステップが要るため） |
 | JWT | `nimbus-jose-jwt`。署名・検証は KMS（GenerateMac / VerifyMac）とローカル（HmacSHA256）で差し替える |
-| AWS | AWS SDK for Java 2.x（`dynamodb-enhanced`、`kms`）。Spring Cloud AWS は使わない |
+| AWS | AWS SDK for Java 2.x（`dynamodb`、`kms`）。Enhanced Client は使わず、ドメインの型と DynamoDB の項目の変換は infrastructure で書く。Spring Cloud AWS は使わない |
 | ヘルスチェック | Actuator の `/actuator/health`（`/healthz` はリバースプロキシの NGINX が先に応答するため使わない） |
 | テスト | JUnit 5。DynamoDB を使う結合テストは Testcontainers（DynamoDB Local）。単体テストと同じ `./gradlew build` で流す |
 | 静的チェック | Checkstyle（独自の設定 `config/checkstyle/checkstyle.xml`。字下げはタブのため、字下げのルールは使わない）、SpotBugs ＋ Find Security Bugs（`config/spotbugs/exclude.xml`。テストのコードは対象外）。`./gradlew build` で動き、1件でも検出したら失敗する |
@@ -40,6 +41,27 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 - 実装の切り替え（`@Profile`）は、環境名ではなく `aws` / `dynamodb-local` / `local` の単位で書く。
 - KMS の暗号化コンテキストの `env` は環境名（PR 環境はすべて `pr`。`pr<番号>` ではない）。IAM の条件で強制されている。
 - dev / test のタスクロールに許可されている DynamoDB の操作は `GetItem` / `PutItem` / `UpdateItem` / `DeleteItem` / `ConditionCheckItem` だけ（`TransactWriteItems` は中の操作で判定される）。テーブルの作成・確認は `dynamodb-local` のときだけ行う。
+
+### パッケージ構成（軽量 DDD・オニオンアーキテクチャ）
+
+`net.yosing.sandbox.api` の下を、一番上は層で、層の中は機能（集約）で分ける。
+
+| パッケージ | 置くもの |
+| :--- | :--- |
+| `presentation/<機能>/` | Spring MVC のコントローラー、API のリクエスト・レスポンスの型（Jackson・Bean Validation の注釈はここ）。`presentation/error/` に例外 → Problem Details（`code`）の変換 |
+| `application/<機能>/` | ユースケース（`*UseCase`。4.2 API設計の「処理概要」の流れ）、その入出力の型（`*Command` / `*Result`） |
+| `application/port/` | アプリが外の技術に求めるもののインターフェース（秘密情報の暗号化、JWT の署名、時計、集約をまたぐトランザクションの保存等） |
+| `domain/model/<集約>/` | 集約ごとのエンティティ・値オブジェクト・Repository のインターフェース（`user`・`registration`・`session`） |
+| `domain/model/shared/<概念>/` | 2つ以上の集約から使う値オブジェクト（`totp`：`TotpSecret`・`OtpCode`・`TotpStep`） |
+| `domain/service/` | 複数のモデルにまたがるか、どのモデルにも属さない業務の決まり（例：`TotpVerifier`。名前に `Service` は付けない） |
+| `infrastructure/<技術>/` | 技術の実装（`aws`・`dynamodb`（Repository の実装、項目の変換）・`crypto`（KMS とローカル）・`jwt`）と、その Spring の設定 |
+
+- 依存の向き：`domain/model` ← `domain/service` ← `application` ← `presentation` / `infrastructure`。`presentation` と `infrastructure` は互いに依存しない。`domain` は Spring・AWS SDK・Nimbus・Jakarta・Jackson に依存しない（ふつうの Java）。`ArchitectureTests`（ArchUnit）で確かめる。
+- 1つのモデルで完結する決まり（ロックの判定、期限の延長、失敗回数の上限、ログイン ID の規則等）はモデルの中に書き、`domain/service` には寄せない（モデルがただのデータ入れにならないようにする）。
+- `domain/model` の直下は集約だけにする。`shared/` に置くのは2つ以上の集約から使う値オブジェクトだけで、1つの集約でしか使わないものはその集約に置く（`shared/` を何でも置き場にしない）。
+- 集約どうしは ID（`UserId` 等）だけで参照し、ほかの集約のエンティティは持たない（例：`Registration` は `UserId` を持つが `User` は持たない）。
+- 型は層ごとに分ける：API のリクエスト・レスポンス（presentation）、ユースケースの入出力（application）、ドメインモデル（domain）、DynamoDB の項目（infrastructure）。
+- 集約をまたぐトランザクション（登録の確定・ログインの確定）は、`application/port` のユースケース専用の保存のインターフェースで表し、`infrastructure/dynamodb` で `TransactWriteItems` を使って実装する。
 
 ### コードを書くときの注意
 
@@ -64,7 +86,7 @@ Norton の TLS 検査で、Claude のシェルからの Gradle の通信（wrapp
 
 ## 設計
 
-Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索できる）。要点：
+Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API設計」「4.3 DB設計」（Notion MCP で検索できる）。要点：
 
 - **構成**：web（BFF）→ api を VPC 内で呼ぶ（Cloud Map の `<env>-api.sandbox.internal:8080`）。api は公開しない。待ち受けは 8080。
 - **データ**：DynamoDB の単一テーブル `sandbox-<env>-app`。キーは `PK` / `SK`（文字列）、TTL の属性は `expiresAt`。
@@ -73,7 +95,19 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
   - ログインはメールアドレスではなく、任意のログイン ID。
 - **KMS（TOTP の秘密情報）**：`kms:Encrypt` / `kms:Decrypt` に、暗号化コンテキスト `{"userId": <userId>, "env": <アプリの環境>}` を必ず渡す（渡さないと KMS の呼び出しが拒否される。詳細は `../aws-infra-env/README.md`）。復号のときのコンテキストは DB から読まず、処理中のユーザーと環境から組み立てる。
 - **KMS（仮認証 JWT の署名）**：HMAC の鍵で `kms:GenerateMac` / `kms:VerifyMac`。鍵は dev / test / pr で共有するため、JWT の `aud` に環境名を入れ、他の環境の JWT を受け付けない。
+- **API**（詳細は 4.2 API設計）：
+  - エンドポイント：`POST /v1/registrations`、`POST /v1/registrations/{registrationId}/verify`、`POST /v1/logins`、`POST /v1/logins/verify`、`GET /v1/me`、`DELETE /v1/sessions/current`。JSON、項目名は lowerCamelCase、日時は ISO 8601 の UTC。
+  - セッション ID は `Authorization: Bearer <sessionId>`（API は Cookie を扱わない）。仮認証 JWT は本文の `loginToken`（有効期間5分、`aud` に環境名、`sub` に userId、`jti` を USER に保存して照合する）。
+  - エラーは Problem Details（RFC 9457）に `code`（`VALIDATION_FAILED` / `INVALID_CREDENTIALS` / `OTP_INVALID` / `LOGIN_TOKEN_INVALID` / `SESSION_INVALID` / `REGISTRATION_NOT_FOUND` / `LOGIN_ID_TAKEN` / `OTP_ATTEMPTS_EXCEEDED` / `INTERNAL_ERROR`）を加える。
+  - 入力：`loginId` は3〜32文字の英小文字・数字・`_`・`-`（小文字にそろえる）、`password` は12〜64文字、`code` は数字6桁。
+  - TOTP は6桁・30秒、前後1ステップを許容。仮登録は10分。OTP の失敗は1回の仮登録・仮認証につき5回まで。パスワードは5回続けて失敗したら15分ロック（ロック中もふつうの失敗と同じ応答）。セッションは最終操作から30日、または発行から90日の早い方。
+  - パスワードは bcrypt（強さ12、`DelegatingPasswordEncoder`）。レート制限は API では行わない（送信元単位は公開の入口の WAF）。
 - **ローカルの開発**：DynamoDB は DynamoDB Local。KMS は使わず、暗号化・署名をインターフェースで抽象化して、ローカルでは Java 標準の AES-GCM（コンテキストを AAD に）・HmacSHA256 に差し替える（Spring のプロファイルで切り替え）。
+- **DynamoDB の実装**（`net.yosing.sandbox.api.infrastructure.dynamodb`）：
+  - 設定は `sandbox.dynamodb.table-name`（dev / test 等はタスク定義の環境変数 `DYNAMODB_TABLE_NAME`）と `sandbox.dynamodb.endpoint`（`dynamodb-local` のプロファイルだけ `http://localhost:8000`）。リージョンは `sandbox.aws.region`。
+  - `dynamodb-local` のプロファイルでは、起動時にテーブルを作る（`DynamoDbLocalTableInitializer`。DynamoDB Local に接続できるまで1秒おきに最大30回待つ）。接続先が DynamoDB Local のときは、固定のダミーの認証情報を使う。
+  - DynamoDB Local のイメージは ECR Public の `aws-dynamodb-local` 3.3.2（ダイジェストで固定、`-inMemory -sharedDb`）。`compose.yaml`（手元）、`deploy/task-def.jsonnet`（PR 環境のサイドカー）、`DynamoDbLocalContainerConfiguration`（テスト）の3か所で揃える。
+  - `@SpringBootTest` のテストは `local` のプロファイルと `DynamoDbLocalContainerConfiguration`（Testcontainers）で動かす（手元のテストにも Docker が要る）。
 
 ## 環境とブランチ
 
@@ -136,7 +170,7 @@ Notion の「方式設計」と「4.3 DB設計」（Notion MCP で検索でき�
 | ロググループ | `/sandbox/nonprod/api`（ログストリームの先頭を `<env>/` にする） |
 
 - タスクのサイズ：dev / test は 0.5 vCPU / 1GB。PR 環境は 0.5 vCPU / 2GB（api 1GB ＋ DynamoDB Local 1GB）。
-- PR 環境は本物のテーブルを使わず、タスクに DynamoDB Local（`amazon/dynamodb-local`、`-inMemory`）をサイドカーで同居させ、api から `localhost:8000` で使う。データはデプロイ・Spot の中断・毎日の停止で消えるため、api の起動時にテーブル作成と初期データを流す。テーブルの定義は `aws-infra-env` の `dynamodb.tf` と揃える。
+- PR 環境は本物のテーブルを使わず、タスクに DynamoDB Local（ECR Public の `aws-dynamodb-local`、`-inMemory -sharedDb`）をサイドカーで同居させ、api から `localhost:8000` で使う。データはデプロイ・Spot の中断・毎日の停止で消えるため、api の起動時にテーブルを作る（初期データは、必要になったら足す）。テーブルの定義は `aws-infra-env` の `dynamodb.tf` と揃える。
 - Cloud Map のサービスと、稼働時間のスケジュール（Application Auto Scaling。9:00 に 1、翌 1:00 に 0、タイムゾーン `Asia/Tokyo`）は、CI が AWS CLI で作る。PR 環境の削除のときに一緒に消す。
 - CI で AccessDenied が出たら、CI ロールの権限（`aws-infra-env` の `products/sandbox/nonprod/iam.tf`）を直す。
   - エラーに出ているリソースの ARN の形で許可する（AWS が権限を確かめるリソースは、操作の名前から推測すると外れることがある。例：`ecs:DescribeServiceDeployments` はサービスの ARN、`servicediscovery:CreateService` は名前空間と `service/*` の両方）。
