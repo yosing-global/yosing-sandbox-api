@@ -1,9 +1,16 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
+import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
+import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
+import net.yosing.sandbox.api.domain.model.user.LoginId;
+import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.User;
+import net.yosing.sandbox.api.domain.model.user.UserId;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -61,6 +68,24 @@ final class UserItemMapper {
 		user.loginTokenId().ifPresent(tokenId -> item.put(LOGIN_TOKEN_ID, AttributeValue.fromS(tokenId)));
 		item.put(CREATED_AT, AttributeValue.fromS(user.createdAt().toString()));
 		return item;
+	}
+
+	static User fromItem(Map<String, AttributeValue> item) {
+		return User.restore(UserId.parse(item.get(USER_ID).s()), new LoginId(item.get(LOGIN_ID).s()),
+				new PasswordHash(item.get(PASSWORD_HASH).s()),
+				new EncryptedTotpSecret(item.get(TOTP_SECRET).b().asByteArray()),
+				new TotpStep(Long.parseLong(item.get(LAST_USED_TOTP_STEP).n())),
+				Integer.parseInt(item.get(PASSWORD_FAILURE_COUNT).n()), Integer.parseInt(item.get(OTP_FAILURE_COUNT).n()),
+				Optional.ofNullable(item.get(LOCKED_UNTIL)).map(value -> Instant.parse(value.s())),
+				Optional.ofNullable(item.get(LOGIN_TOKEN_ID)).map(AttributeValue::s),
+				Instant.parse(item.get(CREATED_AT).s()));
+	}
+
+	/**
+	 * ログイン ID の項目から、ユーザーの ID を読む。
+	 */
+	static UserId userIdOfLoginIdItem(Map<String, AttributeValue> item) {
+		return UserId.parse(item.get(USER_ID).s());
 	}
 
 	static Map<String, AttributeValue> toLoginIdItem(User user) {

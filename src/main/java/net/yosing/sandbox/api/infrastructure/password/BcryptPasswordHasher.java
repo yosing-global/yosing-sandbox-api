@@ -38,4 +38,9 @@ final class BcryptPasswordHasher implements PasswordHasher {
 		return new PasswordHash(hash);
 	}
 
+	@Override
+	public boolean matches(Password password, PasswordHash hash) {
+		return encoder.matches(password.value(), hash.value());
+	}
+
 }
