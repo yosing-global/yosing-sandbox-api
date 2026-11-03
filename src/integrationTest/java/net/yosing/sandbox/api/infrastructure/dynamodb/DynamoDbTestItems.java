@@ -8,6 +8,7 @@ import net.yosing.sandbox.api.domain.model.registration.Registration;
 import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
 import net.yosing.sandbox.api.domain.model.session.SessionIdHash;
 import net.yosing.sandbox.api.domain.model.user.LoginId;
+import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -37,6 +38,21 @@ public final class DynamoDbTestItems {
 		Map<String, AttributeValue> item = new HashMap<>(ItemKeys.loginId(loginId));
 		item.put(UserItemMapper.USER_ID, AttributeValue.fromS(userId.toString()));
 		client.putItem(request -> request.tableName(tableName).item(item));
+	}
+
+	/**
+	 * ユーザーとログイン ID の項目を作る（本登録済みのユーザーの準備）。
+	 */
+	public void putUser(User user) {
+		client.putItem(request -> request.tableName(tableName).item(UserItemMapper.toItem(user)));
+		client.putItem(request -> request.tableName(tableName).item(UserItemMapper.toLoginIdItem(user)));
+	}
+
+	/**
+	 * ユーザーを読む。
+	 */
+	public Optional<User> user(UserId id) {
+		return get(ItemKeys.user(id)).map(UserItemMapper::fromItem);
 	}
 
 	/**

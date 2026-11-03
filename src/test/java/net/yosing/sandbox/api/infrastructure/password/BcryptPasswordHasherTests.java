@@ -29,6 +29,17 @@ class BcryptPasswordHasherTests {
 	}
 
 	/**
+	 * 作ったハッシュは、同じパスワードとだけ合う。
+	 */
+	@Test
+	void matchesOnlySamePassword() {
+		PasswordHash hash = hasher.hash(PASSWORD);
+
+		assertThat(hasher.matches(PASSWORD, hash)).isTrue();
+		assertThat(hasher.matches(new Password("dummy wrong horse battery"), hash)).isFalse();
+	}
+
+	/**
 	 * 同じパスワードでも、毎回違うハッシュになる（ソルト）。
 	 */
 	@Test

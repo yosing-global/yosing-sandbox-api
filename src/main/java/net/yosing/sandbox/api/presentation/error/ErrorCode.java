@@ -12,6 +12,9 @@ enum ErrorCode {
 	/** 入力の形式の誤り。 */
 	VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "入力の形式が正しくありません。"),
 
+	/** ログイン ID かパスワードが違う（どちらが違うか、ロック中かは返さない）。 */
+	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "ログイン ID かパスワードが正しくありません。"),
+
 	/** OTP コードが違う、または使用済み。 */
 	OTP_INVALID(HttpStatus.UNAUTHORIZED, "OTP コードが正しくありません。"),
 
