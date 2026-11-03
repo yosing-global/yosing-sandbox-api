@@ -1,6 +1,7 @@
 package net.yosing.sandbox.api.domain.model.shared.totp;
 
 import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -10,6 +11,9 @@ import java.util.Objects;
  * <p>ログ等に出ないよう、toString では中身を出さない。保存するときは暗号化する（{@link EncryptedTotpSecret}）。
  */
 public final class TotpSecret {
+
+	// SecureRandom はスレッドセーフ（全部の要求で共有してよい）
+	private static final SecureRandom RANDOM = new SecureRandom();
 
 	private final byte[] value;
 
@@ -22,6 +26,17 @@ public final class TotpSecret {
 			throw new IllegalArgumentException("秘密情報が空");
 		}
 		this.value = value.clone();
+	}
+
+	/**
+	 * 新しい秘密情報をランダムに作る（{@link TotpParameters#SECRET_BYTES} バイト）。
+	 *
+	 * @return 秘密情報
+	 */
+	public static TotpSecret generate() {
+		byte[] value = new byte[TotpParameters.SECRET_BYTES];
+		RANDOM.nextBytes(value);
+		return new TotpSecret(value);
 	}
 
 	/**

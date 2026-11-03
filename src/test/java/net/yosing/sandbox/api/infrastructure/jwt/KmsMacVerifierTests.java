@@ -27,9 +27,9 @@ import software.amazon.awssdk.services.kms.model.VerifyMacResponse;
  */
 class KmsMacVerifierTests {
 
-	private static final String KEY_ARN = "arn:aws:kms:ap-northeast-1:000000000000:key/test";
+	private static final String KEY_ARN = "arn:aws:kms:ap-northeast-1:000000000000:key/dummy";
 
-	private static final byte[] SIGNING_INPUT = "header.payload".getBytes(StandardCharsets.US_ASCII);
+	private static final byte[] SIGNING_INPUT = "dummy-header.dummy-payload".getBytes(StandardCharsets.US_ASCII);
 
 	private static final JWSHeader HS256 = new JWSHeader(JWSAlgorithm.HS256);
 
@@ -63,7 +63,7 @@ class KmsMacVerifierTests {
 	@Test
 	void returnsFalseForInvalidMac() {
 		when(kms.verifyMac(any(VerifyMacRequest.class)))
-			.thenThrow(KmsInvalidMacException.builder().message("invalid").build());
+			.thenThrow(KmsInvalidMacException.builder().message("dummy invalid mac").build());
 
 		assertThat(verifier.verify(HS256, SIGNING_INPUT, SIGNATURE)).isFalse();
 	}
@@ -73,7 +73,7 @@ class KmsMacVerifierTests {
 	 */
 	@Test
 	void propagatesOtherKmsFailure() {
-		when(kms.verifyMac(any(VerifyMacRequest.class))).thenThrow(KmsException.builder().message("failure").build());
+		when(kms.verifyMac(any(VerifyMacRequest.class))).thenThrow(KmsException.builder().message("dummy failure").build());
 
 		assertThatExceptionOfType(KmsException.class)
 			.isThrownBy(() -> verifier.verify(HS256, SIGNING_INPUT, SIGNATURE));

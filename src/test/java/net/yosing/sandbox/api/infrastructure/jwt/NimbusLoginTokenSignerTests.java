@@ -2,9 +2,9 @@ package net.yosing.sandbox.api.infrastructure.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 
 import com.nimbusds.jose.JOSEException;
@@ -24,15 +24,16 @@ import org.junit.jupiter.api.Test;
  */
 class NimbusLoginTokenSignerTests {
 
-	private static final byte[] KEY = new byte[32];
+	// HS256 の鍵（32バイト）
+	private static final byte[] KEY = "dummy-hmac-key-0123456789abcdefg".getBytes(StandardCharsets.US_ASCII);
 
 	private static final Instant ISSUED_AT = Instant.parse("2026-11-01T00:00:00Z");
 
 	private static final Instant EXPIRES_AT = ISSUED_AT.plusSeconds(300);
 
-	private final NimbusLoginTokenSigner signer = signer(KEY, "pr12");
+	private final NimbusLoginTokenSigner signer = signer(KEY, "dummy-pr12");
 
-	private final LoginTokenClaims claims = new LoginTokenClaims(UserId.generate(), "token-id", ISSUED_AT,
+	private final LoginTokenClaims claims = new LoginTokenClaims(UserId.generate(), "dummy-token-id", ISSUED_AT,
 			EXPIRES_AT);
 
 	/**
@@ -51,7 +52,7 @@ class NimbusLoginTokenSignerTests {
 		SignedJWT jwt = SignedJWT.parse(signer.sign(claims));
 
 		assertThat(jwt.getHeader().getAlgorithm()).isEqualTo(JWSAlgorithm.HS256);
-		assertThat(jwt.getJWTClaimsSet().getAudience()).isEqualTo(List.of("pr12"));
+		assertThat(jwt.getJWTClaimsSet().getAudience()).isEqualTo(List.of("dummy-pr12"));
 	}
 
 	/**
@@ -59,7 +60,7 @@ class NimbusLoginTokenSignerTests {
 	 */
 	@Test
 	void rejectsTokenForAnotherEnvironment() {
-		String token = signer(KEY, "pr13").sign(claims);
+		String token = signer(KEY, "dummy-pr13").sign(claims);
 
 		assertThat(signer.verify(token, ISSUED_AT)).isEmpty();
 	}
@@ -80,9 +81,8 @@ class NimbusLoginTokenSignerTests {
 	 */
 	@Test
 	void rejectsTokenSignedWithAnotherKey() {
-		byte[] anotherKey = new byte[32];
-		Arrays.fill(anotherKey, (byte) 1);
-		String token = signer(anotherKey, "pr12").sign(claims);
+		byte[] anotherKey = "dummy-another-key-0123456789abcd".getBytes(StandardCharsets.US_ASCII);
+		String token = signer(anotherKey, "dummy-pr12").sign(claims);
 
 		assertThat(signer.verify(token, ISSUED_AT)).isEmpty();
 	}
@@ -93,7 +93,7 @@ class NimbusLoginTokenSignerTests {
 	@Test
 	void rejectsTamperedToken() {
 		String[] original = signer.sign(claims).split("\\.");
-		LoginTokenClaims anotherUser = new LoginTokenClaims(UserId.generate(), "token-id", ISSUED_AT, EXPIRES_AT);
+		LoginTokenClaims anotherUser = new LoginTokenClaims(UserId.generate(), "dummy-token-id", ISSUED_AT, EXPIRES_AT);
 		String[] another = signer.sign(anotherUser).split("\\.");
 		String tampered = original[0] + "." + another[1] + "." + original[2];
 
@@ -115,7 +115,7 @@ class NimbusLoginTokenSignerTests {
 	 */
 	@Test
 	void rejectsMalformedOrTooLongToken() {
-		assertThat(signer.verify("not-a-jwt", ISSUED_AT)).isEmpty();
+		assertThat(signer.verify("dummy-not-a-jwt", ISSUED_AT)).isEmpty();
 		assertThat(signer.verify("a".repeat(1025), ISSUED_AT)).isEmpty();
 	}
 

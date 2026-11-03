@@ -29,7 +29,7 @@ class LoginTokenClaimsTests {
 	@Test
 	void rejectsExpiresAtNotAfterIssuedAt() {
 		assertThatIllegalArgumentException()
-			.isThrownBy(() -> new LoginTokenClaims(UserId.generate(), "token-id", ISSUED_AT, ISSUED_AT));
+			.isThrownBy(() -> new LoginTokenClaims(UserId.generate(), "dummy-token-id", ISSUED_AT, ISSUED_AT));
 	}
 
 }

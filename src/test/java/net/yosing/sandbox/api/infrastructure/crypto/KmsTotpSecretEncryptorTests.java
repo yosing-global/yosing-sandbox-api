@@ -25,11 +25,11 @@ import software.amazon.awssdk.services.kms.model.EncryptResponse;
  */
 class KmsTotpSecretEncryptorTests {
 
-	private static final String KEY_ARN = "arn:aws:kms:ap-northeast-1:000000000000:key/test";
+	private static final String KEY_ARN = "arn:aws:kms:ap-northeast-1:000000000000:key/dummy";
 
 	private final KmsClient kms = mock(KmsClient.class);
 
-	private final KmsTotpSecretEncryptor encryptor = new KmsTotpSecretEncryptor(kms, KEY_ARN, "pr");
+	private final KmsTotpSecretEncryptor encryptor = new KmsTotpSecretEncryptor(kms, KEY_ARN, "dummy-pr");
 
 	/**
 	 * 暗号化で、鍵の ARN・秘密情報・暗号化コンテキスト（userId と環境名）を KMS に渡し、KMS の返した暗号文を返す。
@@ -47,7 +47,7 @@ class KmsTotpSecretEncryptorTests {
 		assertThat(request.getValue().keyId()).isEqualTo(KEY_ARN);
 		assertThat(request.getValue().plaintext().asByteArray()).containsExactly(1, 2, 3);
 		assertThat(request.getValue().encryptionContext())
-			.isEqualTo(Map.of("userId", userId.toString(), "env", "pr"));
+			.isEqualTo(Map.of("userId", userId.toString(), "env", "dummy-pr"));
 		assertThat(encrypted).isEqualTo(new EncryptedTotpSecret(new byte[] { 9, 9 }));
 	}
 
@@ -67,7 +67,7 @@ class KmsTotpSecretEncryptorTests {
 		assertThat(request.getValue().keyId()).isEqualTo(KEY_ARN);
 		assertThat(request.getValue().ciphertextBlob().asByteArray()).containsExactly(9, 9);
 		assertThat(request.getValue().encryptionContext())
-			.isEqualTo(Map.of("userId", userId.toString(), "env", "pr"));
+			.isEqualTo(Map.of("userId", userId.toString(), "env", "dummy-pr"));
 		assertThat(secret).isEqualTo(new TotpSecret(new byte[] { 1, 2, 3 }));
 	}
 

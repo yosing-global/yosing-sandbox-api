@@ -31,7 +31,7 @@ class LocalJwtConfigurationTests {
 	@Test
 	void usesLocalSigner() {
 		Instant issuedAt = Instant.parse("2026-11-01T00:00:00Z");
-		LoginTokenClaims claims = new LoginTokenClaims(UserId.generate(), "token-id", issuedAt,
+		LoginTokenClaims claims = new LoginTokenClaims(UserId.generate(), "dummy-token-id", issuedAt,
 				issuedAt.plusSeconds(300));
 
 		assertThat(signer).isInstanceOf(NimbusLoginTokenSigner.class);

@@ -6,7 +6,8 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 - Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境と dev / test へのデプロイ・確認、PR 環境の削除）まで。
 - API の仕様は Notion の「4.2 API設計」にまとめ済み。アプリの中身の準備は、DynamoDB の土台（クライアント・DynamoDB Local・起動時のテーブル作成）、TOTP の秘密情報の暗号化、仮認証 JWT の署名（どちらも KMS とローカルの差し替え）まで。
-- 次の作業：API の実装（4.2 API設計のエンドポイント。登録 → ログイン → セッションの順に、機能ごとに PR を分ける。時計の port とエラーの形（Problem Details）は最初の PR で作る）。
+- API の実装（4.2 API設計のエンドポイント）を、登録の開始 → 登録の確定 → ログイン → セッションの順に、PR を分けて進めている。登録の開始（`POST /v1/registrations`）と、共通の部品（エラーの形・時計・パスワードのハッシュ）まで。
+- 次の作業：登録の確定（`POST /v1/registrations/{registrationId}/verify`。TOTP の照合（java-otp）、セッションの発行、`TransactWriteItems` での本登録）。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 属性名・型（DynamoDB の項目）は、各機能の実装のときに決める（Notion の DB 設計の未確定事項）。
@@ -48,7 +49,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 | :--- | :--- |
 | `presentation/<機能>/` | Spring MVC のコントローラー、API のリクエスト・レスポンスの型（Jackson・Bean Validation の注釈はここ）。`presentation/error/` に例外 → Problem Details（`code`）の変換 |
 | `application/<機能>/` | ユースケース（`*UseCase`。4.2 API設計の「処理概要」の流れ）、その入出力の型（`*Command` / `*Result`） |
-| `application/port/` | アプリが外の技術に求めるもののインターフェース（秘密情報の暗号化、JWT の署名、時計、集約をまたぐトランザクションの保存等） |
+| `application/port/` | アプリが外の技術に求めるもののインターフェース（秘密情報の暗号化、JWT の署名、パスワードのハッシュ、集約をまたぐトランザクションの保存等）。時計は port を作らず、Java 標準の `java.time.Clock` の Bean（`infrastructure/time`）を使う |
 | `domain/model/<集約>/` | 集約ごとのエンティティ・値オブジェクト・Repository のインターフェース（`user`・`registration`・`session`） |
 | `domain/model/shared/<概念>/` | 2つ以上の集約から使う値オブジェクト（`totp`：`TotpSecret`・`OtpCode`・`TotpStep`） |
 | `domain/service/` | 複数のモデルにまたがるか、どのモデルにも属さない業務の決まり（例：`TotpVerifier`。名前に `Service` は付けない） |
@@ -70,12 +71,13 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 | E2E | `yosing-sandbox-e2e` と CI | デプロイした環境で、画面・BFF・API を通して確かめる |
 
 - テストのクラスとメソッド（ArchUnit のルールを含む）には、何を確かめるかを簡潔に書いた JavaDoc を付ける（メソッドは期待する動きを1文で。理由があれば括弧で添える）。
+- テスト用の仮の値（ログイン ID・パスワード・鍵・ARN・環境名・jti 等）は、先頭か末尾に `dummy`（`DUMMY`）を入れ、本物の値でないと分かるようにする（例：`dummy_alice`、`dummy correct horse battery`、`arn:...:key/dummy`、`dummy-pr12`）。形式の規則のため入れられないもの（UUID・日時・3文字の境界値・バイト列）と、規格の試験用の値（RFC の試験ベクトル）はそのままにする。
 - テストのパッケージは `main` と同じ形にする（package-private のクラスを使うため。`integration` のようなパッケージは作らない）。
 - 結合テストは `local` のプロファイルと `DynamoDbLocalContainerConfiguration`（Testcontainers）で動かす。
-- TOTP のコードは時刻で決まるため、時刻は `application/port` の時計（`Clock`）から取り、テストでは決まった時刻の時計に差し替える。
+- TOTP のコードや期限は時刻で決まるため、ユースケースは今の日時を `java.time.Clock` の Bean から取り、テストでは `Clock.fixed` に差し替える。domain には日時を引数で渡す。
 - KMS の実装は結合テストでは動かせない（手元とテストはローカルの暗号化）。AWS SDK を偽物に差し替えた単体テストで呼び出し方（暗号化コンテキスト等）を確かめ、実際の動きは PR 環境で確かめる。
 - テストのコード（単体・結合）は SpotBugs の対象外、Checkstyle の対象。
-- 差し替えの方針：domain のテストは本物のオブジェクトだけ（時刻は引数で渡す）。application（ユースケース）のテストは、Repository・port を手書きのフェイク（メモリ上の実装、決まった時刻の時計等。`src/test` の port と同じパッケージに置く）に差し替え、結果の状態を確かめる。Mockito は、infrastructure で外のライブラリ（AWS SDK 等）の呼び出し方を確かめるときと、フェイクでは作りにくい失敗を起こすときだけに使う。presentation は単体で確かめず、結合テスト（API のテスト）で確かめる。
+- 差し替えの方針：domain のテストは本物のオブジェクトだけ（時刻は引数で渡す）。application（ユースケース）のテストは、Repository・port を手書きのフェイク（メモリ上の実装 `InMemory*`、決まった動きの `Fake*`。`src/test` の、インターフェースと同じパッケージに置く。時計は `Clock.fixed`）に差し替え、結果の状態を確かめる。Mockito は、infrastructure で外のライブラリ（AWS SDK 等）の呼び出し方を確かめるときと、フェイクでは作りにくい失敗を起こすときだけに使う。presentation は単体で確かめず、結合テスト（API のテスト）で確かめる。
 
 ### コードを書くときの注意
 
@@ -128,11 +130,22 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - aws のプロファイル：`KmsMacSigner` / `KmsMacVerifier`（Nimbus の `JWSSigner` / `JWSVerifier` を KMS の GenerateMac / VerifyMac で実装。鍵の ARN は `sandbox.kms.jwt-key-arn` ＝ 環境変数 `JWT_KMS_KEY_ARN`）。署名が合わないとき KMS は `KmsInvalidMacException` を返すため false にする。KMS のほかの失敗は例外のまま（不正な JWT とは扱わない）。
   - local のプロファイル：Nimbus の `MACSigner` / `MACVerifier`（HmacSHA256）。鍵は `application-local.yml` の手元専用の固定の鍵（256 ビット）。
   - `nimbus-jose-jwt` は Spring Boot の BOM で管理されていないため、`build.gradle.kts` にバージョンを書いている。
+- **エラー応答**（`presentation/error/ApiExceptionHandler`・`ErrorCode`）：Spring の `ResponseEntityExceptionHandler` を継承し、Problem Details に `code` を加える。
+  - 入力の検証（Bean Validation）と JSON の形式の誤り：400 `VALIDATION_FAILED`。`errors` は `field`・`message` だけ（入力の値は返さない）。並び順は項目名の順。
+  - アプリの例外（`LoginIdTakenException` 等）は `@ExceptionHandler` で `ErrorCode` に対応させる。`ErrorCode` は API を作るときに足していく。
+  - 想定外の例外：500 `INTERNAL_ERROR`（内容はログだけ）。Spring MVC の例外（404・405 等）は Spring の既定のまま（`code` なし）。
+- **入力の検証**：形式の規則はドメインの型が持ち（`LoginId.PATTERN`・`Password.PATTERN`）、presentation の Bean Validation の注釈は同じ定数を使う（規則を1か所にする）。presentation で検証した後にドメインの型に変える。
+  - パスワードは、表示できる ASCII（空白を含む）だけにしている。bcrypt は72バイトまでしか扱わず（Spring Security は超えると例外）、64文字でも72バイトを超えないようにするため。
+- **パスワードのハッシュ**（port：`application/port/PasswordHasher`、実装：`infrastructure/password/BcryptPasswordHasher`）：`spring-security-crypto` の `DelegatingPasswordEncoder`（bcrypt、強さ12）。Spring Security の認証の仕組みは入れない。
+- **認証アプリの設定 URI**（`domain/model/shared/totp/OtpauthUri`）：`otpauth://totp/<issuer>:<loginId>?secret=<Base32>&issuer=...&algorithm=SHA1&digits=6&period=30`。issuer は `sandbox.otpauth.issuer`（`sandbox-<app-env>`。同じ端末に複数の環境を登録しても見分けられるように）。秘密情報は20バイト（`TotpSecret.generate`）。
 - **DynamoDB の実装**（`net.yosing.sandbox.api.infrastructure.dynamodb`）：
   - 設定は `sandbox.dynamodb.table-name`（dev / test 等はタスク定義の環境変数 `DYNAMODB_TABLE_NAME`）と `sandbox.dynamodb.endpoint`（`dynamodb-local` のプロファイルだけ `http://localhost:8000`）。リージョンは `sandbox.aws.region`。
   - `dynamodb-local` のプロファイルでは、起動時にテーブルを作る（`DynamoDbLocalTableInitializer`。DynamoDB Local に接続できるまで1秒おきに最大30回待つ）。接続先が DynamoDB Local のときは、固定のダミーの認証情報を使う。
   - DynamoDB Local のイメージは ECR Public の `aws-dynamodb-local` 3.3.2（ダイジェストで固定、`-inMemory -sharedDb`）。`compose.yaml`（手元）、`deploy/task-def.jsonnet`（PR 環境のサイドカー）、`DynamoDbLocalContainerConfiguration`（テスト）の3か所で揃える。
-  - 結合テスト（`src/integrationTest`）は `local` のプロファイルと `DynamoDbLocalContainerConfiguration`（Testcontainers）で動かす（Docker が要る）。
+  - 結合テスト（`src/integrationTest`）は `local` のプロファイルと `DynamoDbLocalContainerConfiguration`（Testcontainers）で動かす（Docker が要る）。テーブルはテストの間で共有するため、テストごとに違うキー（ログイン ID 等）を使う。
+  - 低レベルの `DynamoDbClient` を使い、項目の変換は種類ごとの `*ItemMapper`（属性名は定数）に書く。キーは `ItemKeys`。属性名は lowerCamelCase、日時は ISO 8601 の文字列（S）、TTL の `expiresAt` は Unix 時刻の秒（N）、暗号文はバイナリ（B）。
+  - 仮登録（`REG#`）の属性：`userId`・`loginId`・`passwordHash`・`totpSecret`・`otpFailureCount`・`createdAt`・`expiresAt`。保存は `attribute_not_exists` の条件付き。
+  - 認証の判定に使う読み取りは `consistentRead(true)`。
 
 ## 環境とブランチ
 

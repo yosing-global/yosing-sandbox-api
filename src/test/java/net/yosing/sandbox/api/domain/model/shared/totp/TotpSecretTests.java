@@ -44,6 +44,17 @@ class TotpSecretTests {
 	}
 
 	/**
+	 * ランダムに作る秘密情報は20バイト（160 ビット）で、毎回違う。
+	 */
+	@Test
+	void generatesRandomSecret() {
+		TotpSecret secret = TotpSecret.generate();
+
+		assertThat(secret.bytes()).hasSize(20);
+		assertThat(secret).isNotEqualTo(TotpSecret.generate());
+	}
+
+	/**
 	 * 空の秘密情報は受け付けない。
 	 */
 	@Test
