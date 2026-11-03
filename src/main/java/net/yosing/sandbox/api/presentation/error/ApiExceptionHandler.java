@@ -10,6 +10,7 @@ import net.yosing.sandbox.api.application.login.InvalidCredentialsException;
 import net.yosing.sandbox.api.application.login.LoginTokenInvalidException;
 import net.yosing.sandbox.api.application.registration.LoginIdTakenException;
 import net.yosing.sandbox.api.application.registration.RegistrationNotFoundException;
+import net.yosing.sandbox.api.application.session.SessionInvalidException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -71,6 +72,13 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(LoginTokenInvalidException.class)
 	ResponseEntity<Object> handleLoginTokenInvalid(LoginTokenInvalidException ex) {
 		return response(problem(ErrorCode.LOGIN_TOKEN_INVALID));
+	}
+
+	@ExceptionHandler(SessionInvalidException.class)
+	ResponseEntity<Object> handleSessionInvalid(SessionInvalidException ex) {
+		// Bearer の認証が要ることを示す（RFC 6750）
+		ProblemDetail problem = problem(ErrorCode.SESSION_INVALID);
+		return ResponseEntity.status(problem.getStatus()).header(HttpHeaders.WWW_AUTHENTICATE, "Bearer").body(problem);
 	}
 
 	@ExceptionHandler(RegistrationNotFoundException.class)

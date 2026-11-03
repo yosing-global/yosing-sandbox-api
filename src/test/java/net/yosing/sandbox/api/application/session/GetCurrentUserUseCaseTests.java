@@ -1,0 +1,114 @@
+package net.yosing.sandbox.api.application.session;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+
+import net.yosing.sandbox.api.domain.model.session.InMemorySessionRepository;
+import net.yosing.sandbox.api.domain.model.session.IssuedSession;
+import net.yosing.sandbox.api.domain.model.session.Session;
+import net.yosing.sandbox.api.domain.model.session.SessionId;
+import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
+import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
+import net.yosing.sandbox.api.domain.model.user.InMemoryUserRepository;
+import net.yosing.sandbox.api.domain.model.user.LoginId;
+import net.yosing.sandbox.api.domain.model.user.PasswordHash;
+import net.yosing.sandbox.api.domain.model.user.User;
+import net.yosing.sandbox.api.domain.model.user.UserId;
+import org.junit.jupiter.api.Test;
+
+/**
+ * ログイン中のユーザーの情報の流れ（成功と期限の延長・セッションが無い・期限切れ・同時のログアウト・ユーザーが無い）を確かめる。
+ */
+class GetCurrentUserUseCaseTests {
+
+	private static final Instant NOW = Instant.parse("2026-11-10T00:00:00Z");
+
+	private final InMemorySessionRepository sessions = new InMemorySessionRepository();
+
+	private final InMemoryUserRepository users = new InMemoryUserRepository();
+
+	private final GetCurrentUserUseCase useCase = new GetCurrentUserUseCase(sessions, users,
+			Clock.fixed(NOW, ZoneOffset.UTC));
+
+	private final User user = addUser();
+
+	/**
+	 * ログイン ID と登録した日時を返し、セッションの最終操作の日時を今にして期限を延ばす。
+	 */
+	@Test
+	void returnsUserAndExtendsSession() {
+		IssuedSession issued = addSession(Instant.parse("2026-11-01T00:00:00Z"));
+
+		CurrentUserResult result = useCase.get(issued.sessionId());
+
+		assertThat(result.loginId()).isEqualTo(user.loginId());
+		assertThat(result.createdAt()).isEqualTo(user.createdAt());
+		assertThat(sessions.findByIdHash(issued.session().idHash())).hasValueSatisfying(saved -> {
+			assertThat(saved.lastAccessedAt()).isEqualTo(NOW);
+			assertThat(saved.expiresAt()).isEqualTo(NOW.plus(Session.IDLE_TIMEOUT));
+		});
+	}
+
+	/**
+	 * 無いセッション・期限切れのセッションは、無効なセッションの失敗にする。
+	 */
+	@Test
+	void rejectsMissingOrExpiredSession() {
+		assertThatExceptionOfType(SessionInvalidException.class).isThrownBy(() -> useCase.get(SessionId.generate()));
+
+		IssuedSession expired = addSession(NOW.minus(Session.IDLE_TIMEOUT));
+		assertThatExceptionOfType(SessionInvalidException.class).isThrownBy(() -> useCase.get(expired.sessionId()));
+	}
+
+	/**
+	 * 読んだ後に同時にログアウトされていたら（延長を保存できない）、無効なセッションの失敗にする（セッションを作り直さない）。
+	 */
+	@Test
+	void rejectsSessionLoggedOutConcurrently() {
+		IssuedSession issued = Session.issue(user.id(), NOW.minusSeconds(60));
+		InMemorySessionRepository racing = new InMemorySessionRepository() {
+			@Override
+			public boolean saveAccess(Session touched) {
+				delete(touched.idHash());
+				return super.saveAccess(touched);
+			}
+		};
+		racing.add(issued.session());
+		GetCurrentUserUseCase racingUseCase = new GetCurrentUserUseCase(racing, users,
+				Clock.fixed(NOW, ZoneOffset.UTC));
+
+		assertThatExceptionOfType(SessionInvalidException.class)
+			.isThrownBy(() -> racingUseCase.get(issued.sessionId()));
+		assertThat(racing.findByIdHash(issued.session().idHash())).isEmpty();
+	}
+
+	/**
+	 * セッションのユーザーが無ければ、無効なセッションの失敗にする。
+	 */
+	@Test
+	void rejectsSessionOfMissingUser() {
+		IssuedSession issued = Session.issue(UserId.generate(), NOW.minusSeconds(60));
+		sessions.add(issued.session());
+
+		assertThatExceptionOfType(SessionInvalidException.class).isThrownBy(() -> useCase.get(issued.sessionId()));
+	}
+
+	private IssuedSession addSession(Instant issuedAt) {
+		IssuedSession issued = Session.issue(user.id(), issuedAt);
+		sessions.add(issued.session());
+		return issued;
+	}
+
+	private User addUser() {
+		User registered = User.register(UserId.generate(), LoginId.of("dummy_alice"),
+				new PasswordHash("{dummy}dummy-hash"), new EncryptedTotpSecret(new byte[] { 1 }), new TotpStep(123),
+				Instant.parse("2026-10-01T00:00:00Z"));
+		users.addUser(registered);
+		return registered;
+	}
+
+}

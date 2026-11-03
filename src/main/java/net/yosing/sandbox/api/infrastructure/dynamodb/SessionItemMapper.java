@@ -1,9 +1,12 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
 import net.yosing.sandbox.api.domain.model.session.Session;
+import net.yosing.sandbox.api.domain.model.session.SessionIdHash;
+import net.yosing.sandbox.api.domain.model.user.UserId;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 /**
@@ -37,6 +40,14 @@ final class SessionItemMapper {
 		item.put(LAST_ACCESSED_AT, AttributeValue.fromS(session.lastAccessedAt().toString()));
 		item.put(EXPIRES_AT, AttributeValue.fromN(Long.toString(session.expiresAt().getEpochSecond())));
 		return item;
+	}
+
+	/**
+	 * 項目からセッションを戻す。期限（expiresAt）は、発行と最終操作の日時から計算し直す（保存した値と同じになる）。
+	 */
+	static Session fromItem(SessionIdHash idHash, Map<String, AttributeValue> item) {
+		return Session.restore(idHash, UserId.parse(item.get(USER_ID).s()), Instant.parse(item.get(CREATED_AT).s()),
+				Instant.parse(item.get(LAST_ACCESSED_AT).s()));
 	}
 
 }

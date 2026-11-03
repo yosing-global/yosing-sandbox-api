@@ -6,8 +6,8 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 - Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境と dev / test へのデプロイ・確認、PR 環境の削除）まで。
 - API の仕様は Notion の「4.2 API設計」にまとめ済み。アプリの中身の準備は、DynamoDB の土台（クライアント・DynamoDB Local・起動時のテーブル作成）、TOTP の秘密情報の暗号化、仮認証 JWT の署名（どちらも KMS とローカルの差し替え）まで。
-- API の実装（4.2 API設計のエンドポイント）を、登録の開始 → 登録の確定 → ログインの開始 → ログインの確定 → セッションの順に、PR を分けて進めている。登録とログイン（`POST /v1/registrations`・`/v1/registrations/{registrationId}/verify`・`/v1/logins`・`/v1/logins/verify`）と、共通の部品（エラーの形・時計・パスワードのハッシュ・TOTP の照合・セッションの発行）まで。
-- 次の作業：セッション（`GET /v1/me`・`DELETE /v1/sessions/current`。`Authorization` のセッション ID の照合、期限の延長、ログアウト）。
+- API の実装（4.2 API設計のエンドポイント）は、登録の開始 → 登録の確定 → ログインの開始 → ログインの確定 → セッションの順に、PR を分けて進め、全部のエンドポイント（`POST /v1/registrations`・`/v1/registrations/{registrationId}/verify`・`/v1/logins`・`/v1/logins/verify`・`GET /v1/me`・`DELETE /v1/sessions/current`）まで。
+- 次の作業：web（BFF）からの呼び出しと E2E（`yosing-sandbox-e2e`）、stg / prod のインフラ。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 属性名・型（DynamoDB の項目）は、各機能の実装のときに決める（Notion の DB 設計の未確定事項）。
@@ -152,6 +152,10 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - 失敗したら、上限に達していれば、アカウントを15分ロックして仮認証を終え（`User.lockForOtpFailures` → `UserRepository.saveOtpLock`。jti が同じときだけ書き、新しい仮認証は消さない）429、それ以外は 401 `OTP_INVALID`（`remainingAttempts`）。
   - 成功したら `User.otpVerified` で、一致したステップを最後に使ったステップにし、OTP の失敗回数を0に戻して仮認証を終える。セッションの作成と一緒に `LoginCompletionStore` で保存する。条件に合わなければ（同じコードが同時に使われた）失敗と同じに扱う。応答は 200（`sessionId`・`sessionExpiresAt`）。
 - **セッション**（`domain/model/session`）：セッション ID は 256 ビットの乱数の Base64URL（43文字）。DB には SHA-256 の16進数（`SessionIdHash`）だけを保存し、元の値は発行したとき（`IssuedSession`）にしか持たない。期限は最終操作から30日・発行から90日の早い方。
+- **セッションの API**（`GetCurrentUserUseCase`・`LogoutUseCase`、`presentation/session`）：
+  - セッション ID は `Authorization: Bearer <sessionId>` で受け取る（`BearerSessionId`。方式の名前は大文字と小文字を区別しない）。ヘッダーが無い・Bearer でない・発行する形（43文字の Base64URL、`SessionId.fromClient`）でないときは、DB を読まずに 401 `SESSION_INVALID`。401 には `WWW-Authenticate: Bearer` を付ける。
+  - `GET /v1/me`：セッションを読み（無い・期限切れなら 401）、`Session.touch` で最終操作の日時を今にして期限を延ばし（発行から90日より後にはならない）、保存する（`SessionRepository.saveAccess`。セッションがあることが条件で、同時にログアウトされていたら 401）。応答は 200（`loginId`・`createdAt`）。
+  - `DELETE /v1/sessions/current`：セッションを削除して 204。既に無くても 204（何度呼んでも同じ結果）。
 - **DynamoDB の実装**（`net.yosing.sandbox.api.infrastructure.dynamodb`）：
   - 設定は `sandbox.dynamodb.table-name`（dev / test 等はタスク定義の環境変数 `DYNAMODB_TABLE_NAME`）と `sandbox.dynamodb.endpoint`（`dynamodb-local` のプロファイルだけ `http://localhost:8000`）。リージョンは `sandbox.aws.region`。
   - `dynamodb-local` のプロファイルでは、起動時にテーブルを作る（`DynamoDbLocalTableInitializer`。DynamoDB Local に接続できるまで1秒おきに最大30回待つ）。接続先が DynamoDB Local のときは、固定のダミーの認証情報を使う。
@@ -163,6 +167,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - セッション（`SESSION#<ハッシュ>`）の属性：`userId`・`createdAt`・`lastAccessedAt`・`expiresAt`（N、TTL）。
   - ユーザーは `DynamoDbUserRepository`：ログイン ID の項目 → ユーザーの項目の順に読む（GSI は使わない）。パスワードの試行は、失敗回数（パスワード・OTP）とロックの期限が読んだときと同じことを条件に `UpdateItem`（`ConditionalCheckFailedException` なら false を返す）。パスワードが合ったときは、パスワードの失敗回数を0、`loginTokenId` を新しい jti にして、`lockedUntil` を消す（OTP の失敗回数は変えない）。OTP の試行は `ADD`、OTP のロックは jti が同じことを条件に `lockedUntil` を書いて `loginTokenId` を消す。
   - ログインの確定は `DynamoDbLoginCompletionStore`（`TransactWriteItems`：USER の更新は、`loginTokenId` が読んだときと同じで `lastUsedTotpStep` が一致したステップより小さいこと、SESSION は無いこと）。USER の条件に合わなければ false を返す。
+  - セッションは `DynamoDbSessionRepository`：読み取りは強い整合性。延長は、項目があることを条件に `lastAccessedAt` と `expiresAt`（TTL）を更新する。期限（`expiresAt`）は、読むときに発行と最終操作の日時から計算し直す。
   - 登録の確定は `DynamoDbRegistrationCompletionStore`（`TransactWriteItems`：USER・LOGINID・SESSION は無いこと、REG はあること）。取り消しの理由（`CancellationReason`。書いた順に並ぶ）で、ログイン ID の先取り（409）と仮登録が無い（404）を見分ける。
   - 結合テストで項目を準備・確認するときは、`src/integrationTest` の `DynamoDbTestItems`（本体の `ItemKeys`・`*ItemMapper` を使う）を使い、キーや属性名をテストに文字列で書かない。
   - 認証の判定に使う読み取りは `consistentRead(true)`。
