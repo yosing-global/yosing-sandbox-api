@@ -26,13 +26,13 @@ public class InMemoryRegistrationRepository implements RegistrationRepository {
 	}
 
 	@Override
-	public Optional<Registration> recordOtpFailure(RegistrationId id) {
-		return findById(id).map(found -> {
-			Registration failed = Registration.restore(found.id(), found.userId(), found.loginId(),
+	public Optional<Registration> countOtpAttempt(RegistrationId id) {
+		return findById(id).filter(found -> !found.otpAttemptsExhausted()).map(found -> {
+			Registration counted = Registration.restore(found.id(), found.userId(), found.loginId(),
 					found.passwordHash(), found.totpSecret(), found.otpFailureCount() + 1, found.createdAt(),
 					found.expiresAt());
-			registrations.put(id, failed);
-			return failed;
+			registrations.put(id, counted);
+			return counted;
 		});
 	}
 

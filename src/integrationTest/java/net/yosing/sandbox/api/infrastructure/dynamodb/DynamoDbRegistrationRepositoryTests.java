@@ -20,7 +20,7 @@ import org.springframework.test.context.ActiveProfiles;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 /**
- * 仮登録の読み書き（保存の条件、項目の変換の往復、失敗回数の加算、削除）を、DynamoDB Local で確かめる。
+ * 仮登録の読み書き（保存の条件、項目の変換の往復、OTP の試行の数え方、削除）を、DynamoDB Local で確かめる。
  *
  * <p>登録 ID はテストごとにランダムに作るため、テーブルを共有してもぶつからない。
  */
@@ -65,20 +65,22 @@ class DynamoDbRegistrationRepositoryTests {
 	}
 
 	/**
-	 * OTP の失敗回数は、呼ぶたびに DB の値に1ずつ加わる。仮登録が無ければ空を返す（項目を作らない）。
+	 * OTP の試行は、呼ぶたびに DB の値に1ずつ加わり、上限（5回）に達したら数えない。仮登録が無ければ空を返す（項目を作らない）。
 	 */
 	@Test
-	void recordsOtpFailure() {
+	void countsOtpAttemptUpToLimit() {
 		Registration registration = newRegistration();
 		repository.add(registration);
 
-		assertThat(repository.recordOtpFailure(registration.id())).hasValueSatisfying(
-				found -> assertThat(found.otpFailureCount()).isEqualTo(1));
-		assertThat(repository.recordOtpFailure(registration.id())).hasValueSatisfying(
-				found -> assertThat(found.otpFailureCount()).isEqualTo(2));
+		for (int attempt = 1; attempt <= Registration.MAX_OTP_FAILURES; attempt++) {
+			int expected = attempt;
+			assertThat(repository.countOtpAttempt(registration.id())).hasValueSatisfying(
+					found -> assertThat(found.otpFailureCount()).isEqualTo(expected));
+		}
+		assertThat(repository.countOtpAttempt(registration.id())).isEmpty();
 
 		RegistrationId missing = RegistrationId.generate();
-		assertThat(repository.recordOtpFailure(missing)).isEmpty();
+		assertThat(repository.countOtpAttempt(missing)).isEmpty();
 		assertThat(repository.findById(missing)).isEmpty();
 	}
 
