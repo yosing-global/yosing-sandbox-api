@@ -33,6 +33,7 @@ dependencies {
 	// AWS SDK for Java 2.x（モジュールのバージョンは BOM で揃える）
 	implementation(platform("software.amazon.awssdk:bom:2.57.8"))
 	implementation("software.amazon.awssdk:dynamodb")
+	implementation("software.amazon.awssdk:kms")
 	// SpotBugs の検出を個別に外すとき（@SuppressFBWarnings）に使う。実行時には要らない
 	compileOnly("com.github.spotbugs:spotbugs-annotations:$spotbugsVersion")
 	testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")

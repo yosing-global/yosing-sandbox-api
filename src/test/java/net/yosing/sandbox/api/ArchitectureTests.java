@@ -20,6 +20,9 @@ import com.tngtech.archunit.lang.ArchRule;
 @AnalyzeClasses(packages = "net.yosing.sandbox.api", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTests {
 
+	/**
+	 * 層の依存が、内側（domain）に向かう向きだけになっている。
+	 */
 	@ArchTest
 	static final ArchRule ONION_ARCHITECTURE = onionArchitecture()
 		.domainModels("..domain.model..")
@@ -30,6 +33,9 @@ class ArchitectureTests {
 		// まだクラスが無い層があっても失敗させない
 		.withOptionalLayers(true);
 
+	/**
+	 * domain が Spring・AWS SDK・Nimbus・Jakarta・Jackson に依存していない。
+	 */
 	@ArchTest
 	static final ArchRule DOMAIN_IS_PLAIN_JAVA = noClasses().that()
 		.resideInAPackage("..domain..")

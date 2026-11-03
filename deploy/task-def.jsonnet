@@ -33,6 +33,11 @@ local api = {
   environment: [
     // 環境名のプロファイル（application.yml のグループで aws 等が有効になる）
     { name: 'SPRING_PROFILES_ACTIVE', value: roleEnv },
+    // 環境名（APP_ENV：仮認証 JWT の aud、ROLE_ENV：KMS の暗号化コンテキストの env）
+    { name: 'APP_ENV', value: appEnv },
+    { name: 'ROLE_ENV', value: roleEnv },
+    // TOTP の秘密情報の暗号化用の KMS の鍵
+    { name: 'KMS_KEY_ARN', value: ssm('/products/sandbox/api/kms-key-arn') },
   ] + (
     if isPr then [] else [
       // テーブル（dev / test。stg / prod はインフラを作るときに足す）

@@ -1,0 +1,10 @@
+# 手元の開発・結合テストの設定（local）
+
+sandbox:
+  environment:
+    app-env: local
+    role-env: local
+  # KMS の代わりに使う鍵（手元専用。本物の秘密ではない。AWS の環境では使わない）
+  #   手元の DynamoDB Local は api を再起動しても残るため、固定の鍵にする（変えると、保存済みの秘密情報を復号できなくなる）
+  local-crypto:
+    totp-secret-key: Yv+l3hXA8vWSZwxhZ0AlvmbcbfaetZvu+QQO48TwB5w=

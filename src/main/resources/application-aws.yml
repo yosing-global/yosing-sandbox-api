@@ -11,3 +11,10 @@ sandbox:
     # dev / test / stg / prod はタスク定義の環境変数で渡す（無ければ起動しない）
     #   PR 環境（pr）は、後に有効になる dynamodb-local の設定が優先される
     table-name: ${DYNAMODB_TABLE_NAME}
+  # 環境名（タスク定義の環境変数）。app-env：dev / test / pr<番号>、role-env：dev / test / pr
+  environment:
+    app-env: ${APP_ENV}
+    role-env: ${ROLE_ENV}
+  # KMS の鍵の ARN（タスク定義の環境変数。値は SSM パラメータから）
+  kms:
+    totp-secret-key-arn: ${KMS_KEY_ARN}

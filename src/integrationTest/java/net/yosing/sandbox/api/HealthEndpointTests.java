@@ -24,6 +24,9 @@ class HealthEndpointTests {
 	@Autowired
 	MockMvc mockMvc;
 
+	/**
+	 * /actuator/health が 200 と UP を返す。
+	 */
 	@Test
 	void healthIsUp() throws Exception {
 		mockMvc.perform(get("/actuator/health"))

@@ -15,16 +15,25 @@ import org.springframework.context.annotation.Configuration;
  */
 class ProfileGroupTests {
 
+	/**
+	 * local を指定すると、local と dynamodb-local が有効になる。
+	 */
 	@Test
 	void localActivatesDynamoDbLocal() {
 		assertThat(activeProfiles("local")).containsExactlyInAnyOrder("local", "dynamodb-local");
 	}
 
+	/**
+	 * pr を指定すると、pr・aws・dynamodb-local が有効になる（KMS は本物、DynamoDB はサイドカー）。
+	 */
 	@Test
 	void prActivatesAwsAndDynamoDbLocal() {
 		assertThat(activeProfiles("pr")).containsExactlyInAnyOrder("pr", "aws", "dynamodb-local");
 	}
 
+	/**
+	 * dev を指定すると、dev と aws が有効になる（test / stg / prod も同じ形）。
+	 */
 	@Test
 	void devActivatesAws() {
 		assertThat(activeProfiles("dev")).containsExactlyInAnyOrder("dev", "aws");
