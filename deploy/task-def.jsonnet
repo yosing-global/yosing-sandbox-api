@@ -38,6 +38,8 @@ local api = {
     { name: 'ROLE_ENV', value: roleEnv },
     // TOTP の秘密情報の暗号化用の KMS の鍵
     { name: 'KMS_KEY_ARN', value: ssm('/products/sandbox/api/kms-key-arn') },
+    // 仮認証 JWT の署名用の KMS の鍵（HMAC。dev / test / pr で共有し、JWT の aud で環境を分ける）
+    { name: 'JWT_KMS_KEY_ARN', value: ssm('/products/sandbox/api/jwt-kms-key-arn') },
   ] + (
     if isPr then [] else [
       // テーブル（dev / test。stg / prod はインフラを作るときに足す）

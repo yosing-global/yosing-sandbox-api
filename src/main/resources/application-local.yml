@@ -8,3 +8,5 @@ sandbox:
   #   手元の DynamoDB Local は api を再起動しても残るため、固定の鍵にする（変えると、保存済みの秘密情報を復号できなくなる）
   local-crypto:
     totp-secret-key: Yv+l3hXA8vWSZwxhZ0AlvmbcbfaetZvu+QQO48TwB5w=
+    # 仮認証 JWT の署名用の HMAC の鍵（256 ビット）
+    jwt-key: 9GAvMirgUnnEINvegSt41JJAXz5V6KRp0sLxlbwyIew=

@@ -2,13 +2,11 @@
 
 sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java）。sandbox は個人の学習とポートフォリオを兼ねたプロダクトで、最初の範囲は TOTP 認証（登録・ログイン）だけ。画面と BFF は `yosing-sandbox-web`（Next.js）。
 
-## 状況（2026-10-30 時点）
+## 状況（2026-11-03 時点）
 
 - Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境と dev / test へのデプロイ・確認、PR 環境の削除）まで。
-- API の仕様は Notion の「4.2 API設計」にまとめ済み。アプリの中身の準備は、DynamoDB の土台（クライアント・DynamoDB Local・起動時のテーブル作成）と、TOTP の秘密情報の暗号化（KMS とローカルの差し替え）まで。
-- これからの作業の順番：
-  1. 署名と仮認証 JWT（KMS の HMAC とローカルの HmacSHA256、Nimbus）
-  2. API の実装（4.2 API設計のエンドポイント）
+- API の仕様は Notion の「4.2 API設計」にまとめ済み。アプリの中身の準備は、DynamoDB の土台（クライアント・DynamoDB Local・起動時のテーブル作成）、TOTP の秘密情報の暗号化、仮認証 JWT の署名（どちらも KMS とローカルの差し替え）まで。
+- 次の作業：API の実装（4.2 API設計のエンドポイント。登録 → ログイン → セッションの順に、機能ごとに PR を分ける。時計の port とエラーの形（Problem Details）は最初の PR で作る）。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 属性名・型（DynamoDB の項目）は、各機能の実装のときに決める（Notion の DB 設計の未確定事項）。
@@ -124,6 +122,12 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - aws のプロファイル：`KmsTotpSecretEncryptor`（KMS の Encrypt / Decrypt。鍵の ARN は `sandbox.kms.totp-secret-key-arn` ＝ 環境変数 `KMS_KEY_ARN`。復号でも鍵の ARN と暗号化コンテキストを渡す）。
   - local のプロファイル：`LocalTotpSecretEncryptor`（AES-GCM。コンテキストを AAD に入れる。暗号文は IV 12バイト＋暗号文とタグ）。鍵は `application-local.yml` の手元専用の固定の鍵（本物の秘密ではない。手元の DynamoDB Local は api を再起動しても残るため、固定にしている）。
   - ドメインの型：`UserId`（UUID）、`TotpSecret`（toString で中身を出さない）、`EncryptedTotpSecret`（DB に保存する形）。
+- **仮認証 JWT の署名**（port：`application/port/LoginTokenSigner`・`LoginTokenClaims`、実装：`infrastructure/jwt`）：
+  - `NimbusLoginTokenSigner`：JWT（HS256、`typ` は JWT）の組み立てと検証。`aud` に app-env、`sub` に userId、`jti`・`iat`・`exp` を入れる。検証は、形式・アルゴリズム・`aud`・有効期限を先に確かめ、通ったものだけ署名を確かめる（KMS の呼び出しを減らす）。1024 文字を超える JWT は解析しない。不正な JWT は空の `Optional` を返す。
+  - 有効期間（5分）・`jti` の採番・`jti` と USER の値の照合はユースケースで行う（port は JWT にするだけ）。今の日時は引数で渡す。
+  - aws のプロファイル：`KmsMacSigner` / `KmsMacVerifier`（Nimbus の `JWSSigner` / `JWSVerifier` を KMS の GenerateMac / VerifyMac で実装。鍵の ARN は `sandbox.kms.jwt-key-arn` ＝ 環境変数 `JWT_KMS_KEY_ARN`）。署名が合わないとき KMS は `KmsInvalidMacException` を返すため false にする。KMS のほかの失敗は例外のまま（不正な JWT とは扱わない）。
+  - local のプロファイル：Nimbus の `MACSigner` / `MACVerifier`（HmacSHA256）。鍵は `application-local.yml` の手元専用の固定の鍵（256 ビット）。
+  - `nimbus-jose-jwt` は Spring Boot の BOM で管理されていないため、`build.gradle.kts` にバージョンを書いている。
 - **DynamoDB の実装**（`net.yosing.sandbox.api.infrastructure.dynamodb`）：
   - 設定は `sandbox.dynamodb.table-name`（dev / test 等はタスク定義の環境変数 `DYNAMODB_TABLE_NAME`）と `sandbox.dynamodb.endpoint`（`dynamodb-local` のプロファイルだけ `http://localhost:8000`）。リージョンは `sandbox.aws.region`。
   - `dynamodb-local` のプロファイルでは、起動時にテーブルを作る（`DynamoDbLocalTableInitializer`。DynamoDB Local に接続できるまで1秒おきに最大30回待つ）。接続先が DynamoDB Local のときは、固定のダミーの認証情報を使う。
@@ -162,7 +166,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 
 ## nonprod へのデプロイ
 
-- デプロイは **ecspresso**。定義は `deploy/`（`ecspresso.jsonnet`・`task-def.jsonnet`・`service-def.jsonnet`）。値は SSM パラメータから読み（ecspresso の `ssm` / `ssm_list`）、環境ごとの値は CI が環境変数で渡す（`APP_ENV`：`dev` / `test` / `pr<番号>`、`ROLE_ENV`：`dev` / `test` / `pr`、`ECS_CLUSTER`、`IMAGE`、`CLOUD_MAP_SERVICE_ARN`）。api のコンテナには、`SPRING_PROFILES_ACTIVE`（＝`ROLE_ENV`）、`APP_ENV`、`ROLE_ENV`、`KMS_KEY_ARN`、`DYNAMODB_TABLE_NAME`（dev / test だけ）を渡す。
+- デプロイは **ecspresso**。定義は `deploy/`（`ecspresso.jsonnet`・`task-def.jsonnet`・`service-def.jsonnet`）。値は SSM パラメータから読み（ecspresso の `ssm` / `ssm_list`）、環境ごとの値は CI が環境変数で渡す（`APP_ENV`：`dev` / `test` / `pr<番号>`、`ROLE_ENV`：`dev` / `test` / `pr`、`ECS_CLUSTER`、`IMAGE`、`CLOUD_MAP_SERVICE_ARN`）。api のコンテナには、`SPRING_PROFILES_ACTIVE`（＝`ROLE_ENV`）、`APP_ENV`、`ROLE_ENV`、`KMS_KEY_ARN`、`JWT_KMS_KEY_ARN`、`DYNAMODB_TABLE_NAME`（dev / test だけ）を渡す。
 - ワークフロー：契機ごとのファイルが、共通の手順（再利用できるワークフロー、ファイル名の先頭が `_`）を呼ぶ。手順を直すときは `_build.yml` / `_deploy.yml` の1か所だけを直す。
 
 | ファイル | 契機 | 内容 |

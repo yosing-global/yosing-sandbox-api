@@ -18,3 +18,4 @@ sandbox:
   # KMS の鍵の ARN（タスク定義の環境変数。値は SSM パラメータから）
   kms:
     totp-secret-key-arn: ${KMS_KEY_ARN}
+    jwt-key-arn: ${JWT_KMS_KEY_ARN}
