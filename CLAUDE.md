@@ -6,8 +6,8 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 - Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境と dev / test へのデプロイ・確認、PR 環境の削除）まで。
 - API の仕様は Notion の「4.2 API設計」にまとめ済み。アプリの中身の準備は、DynamoDB の土台（クライアント・DynamoDB Local・起動時のテーブル作成）、TOTP の秘密情報の暗号化、仮認証 JWT の署名（どちらも KMS とローカルの差し替え）まで。
-- API の実装（4.2 API設計のエンドポイント）を、登録の開始 → 登録の確定 → ログインの開始 → ログインの確定 → セッションの順に、PR を分けて進めている。登録の開始・登録の確定・ログインの開始（`POST /v1/registrations`・`/v1/registrations/{registrationId}/verify`・`/v1/logins`）と、共通の部品（エラーの形・時計・パスワードのハッシュ・TOTP の照合・セッションの発行）まで。
-- 次の作業：ログインの確定（`POST /v1/logins/verify`。仮認証 JWT と jti の照合、OTP の失敗の数え方、`TransactWriteItems` での最終使用ステップの条件付き更新とセッションの作成）。
+- API の実装（4.2 API設計のエンドポイント）を、登録の開始 → 登録の確定 → ログインの開始 → ログインの確定 → セッションの順に、PR を分けて進めている。登録とログイン（`POST /v1/registrations`・`/v1/registrations/{registrationId}/verify`・`/v1/logins`・`/v1/logins/verify`）と、共通の部品（エラーの形・時計・パスワードのハッシュ・TOTP の照合・セッションの発行）まで。
+- 次の作業：セッション（`GET /v1/me`・`DELETE /v1/sessions/current`。`Authorization` のセッション ID の照合、期限の延長、ログアウト）。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 属性名・型（DynamoDB の項目）は、各機能の実装のときに決める（Notion の DB 設計の未確定事項）。
@@ -117,7 +117,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - セッション ID は `Authorization: Bearer <sessionId>`（API は Cookie を扱わない）。仮認証 JWT は本文の `loginToken`（有効期間5分、`aud` に環境名、`sub` に userId、`jti` を USER に保存して照合する）。
   - エラーは Problem Details（RFC 9457）に `code`（`VALIDATION_FAILED` / `INVALID_CREDENTIALS` / `OTP_INVALID` / `LOGIN_TOKEN_INVALID` / `SESSION_INVALID` / `REGISTRATION_NOT_FOUND` / `LOGIN_ID_TAKEN` / `OTP_ATTEMPTS_EXCEEDED` / `INTERNAL_ERROR`）を加える。
   - 入力：`loginId` は3〜32文字の英小文字・数字・`_`・`-`（小文字にそろえる）、`password` は12〜64文字、`code` は数字6桁。
-  - TOTP は6桁・30秒、前後1ステップを許容。仮登録は10分。OTP の失敗は1回の仮登録・仮認証につき5回まで。パスワードは5回続けて失敗したら15分ロック（ロック中もふつうの失敗と同じ応答）。セッションは最終操作から30日、または発行から90日の早い方。
+  - TOTP は6桁・30秒、前後1ステップを許容。仮登録は10分。OTP の失敗は1回の仮登録につき5回まで。ログインは、パスワードまたは OTP を5回続けて間違えたら、アカウントを15分ロック（ロック中もふつうの失敗と同じ応答。OTP の失敗回数は仮認証をまたいで数える）。セッションは最終操作から30日、または発行から90日の早い方。
   - パスワードは bcrypt（強さ12、`DelegatingPasswordEncoder`）。レート制限は API では行わない（送信元単位は公開の入口の WAF）。
 - **ローカルの開発**：DynamoDB は DynamoDB Local。KMS は使わず、暗号化・署名をインターフェースで抽象化して、ローカルでは Java 標準の AES-GCM（コンテキストを AAD に）・HmacSHA256 に差し替える（Spring のプロファイルで切り替え）。
 - **環境名**（`infrastructure/environment/EnvironmentProperties`）：`sandbox.environment.app-env`（`dev` / `test` / `pr<番号>` / `local`。仮認証 JWT の `aud`）と `sandbox.environment.role-env`（`dev` / `test` / `pr` / `local`。KMS の暗号化コンテキストの `env`）。AWS ではタスク定義の環境変数 `APP_ENV`・`ROLE_ENV` で渡す。
@@ -142,10 +142,15 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 - **TOTP の照合**（`domain/service/TotpVerifier`）：java-otp（1.0.0）の HOTP でステップのコードを計算し、今のステップの前後1ステップを照合して、一致したステップを返す。最後に使ったステップを渡すと、それより後だけを受け付ける。一致したかで時間が変わらないよう、全部の候補を計算して一定時間で比べる。java-otp は計算だけのライブラリのため、domain から使っている（ArchUnit の禁止の対象外）。
 - **登録の確定**（`VerifyRegistrationUseCase`）：仮登録が無い・期限切れなら 404。OTP の失敗は DB の値に加え（`ADD`。同時の失敗でも数え漏れが無い）、5回目で仮登録を削除して 429、それ以外は 401（`remainingAttempts`）。成功したら `Registration.complete` でユーザーを作り（一致したステップを `lastUsedTotpStep` にする）、`Session.issue` でセッションを発行し、`RegistrationCompletionStore` で保存する。応答は 201（`sessionId`・`sessionExpiresAt`）。UUID の形でない登録 ID も 404。
 - **ログインの開始**（`StartLoginUseCase`）：
-  - ロック（`User`）：パスワードの失敗が5回続いたら15分ロックする。ロック中は照合しない。ロックの期限が過ぎた後の最初の試行で、失敗回数を0に戻す。パスワードが合ったら（`User.passwordVerified`）、失敗回数（パスワード・OTP）を0に戻してロックを解き、新しい jti を保存する。
+  - ロック（`User`）：パスワードまたは OTP の失敗が5回続いたら、アカウントを15分ロックする（期限は `lockedUntil` の1つで、どちらでロックしたかは区別しない）。ロック中は照合しない。ロックの期限が過ぎた後の最初のログインの開始で、パスワード・OTP の失敗回数を0から数え直す。パスワードが合ったら（`User.passwordVerified`）、パスワードの失敗回数を0に戻してロックを解き、新しい jti を保存する。OTP の失敗回数は、OTP が合ったときだけ0に戻す（パスワードが合っても戻さない。ログインを始め直して OTP を試し続けられないようにするため）。
   - 照合の前に、その試行を失敗として数えて保存する（`User.countPasswordAttempt` → `UserRepository.savePasswordAttempt`。5回目ならロックの期限も同時に書く）。保存は、読んだときから失敗回数・ロックの期限が変わっていないことを条件にし、同時の試行は先に書いた1つだけが照合に進む（bcrypt の照合の間に並べて試されても、上限を超えて照合しない）。先を越された試行は 401。
   - ユーザーが無い・ロック中・先を越されたときも、照合しないで返すのではなく、ダミーのハッシュと照合してから 401 を返す（応答時間で、ユーザーの有無やロックが分からないようにする）。応答はすべて 401 `INVALID_CREDENTIALS`。
   - 成功したら、jti（UUID）を保存してから仮認証 JWT（有効期間5分、`StartLoginUseCase.LOGIN_TOKEN_VALIDITY`）に署名し、200（`loginToken`・`expiresAt`）を返す。前の仮認証の JWT は jti が変わるため使えなくなる。
+- **ログインの確定**（`VerifyLoginUseCase`）：
+  - 仮認証 JWT を検証し（署名・`aud`・期限）、`sub` のユーザーの `loginTokenId` が JWT の `jti` と同じことを確かめる（`User.hasLoginToken`）。違えば 401 `LOGIN_TOKEN_INVALID`（使用済み・新しいログインの開始で置き換わった・上限で無効にした仮認証）。
+  - OTP の試行は、照合の前に数える（`UserRepository.countOtpAttempt`：`ADD`。条件は jti が同じで、上限の5回に達していないこと）。数えられた試行だけが照合に進むため、同時に試されても上限を超えて照合しない。照合は前後1ステップで、最後に使ったステップより後のものだけ。
+  - 失敗したら、上限に達していれば、アカウントを15分ロックして仮認証を終え（`User.lockForOtpFailures` → `UserRepository.saveOtpLock`。jti が同じときだけ書き、新しい仮認証は消さない）429、それ以外は 401 `OTP_INVALID`（`remainingAttempts`）。
+  - 成功したら `User.otpVerified` で、一致したステップを最後に使ったステップにし、OTP の失敗回数を0に戻して仮認証を終える。セッションの作成と一緒に `LoginCompletionStore` で保存する。条件に合わなければ（同じコードが同時に使われた）失敗と同じに扱う。応答は 200（`sessionId`・`sessionExpiresAt`）。
 - **セッション**（`domain/model/session`）：セッション ID は 256 ビットの乱数の Base64URL（43文字）。DB には SHA-256 の16進数（`SessionIdHash`）だけを保存し、元の値は発行したとき（`IssuedSession`）にしか持たない。期限は最終操作から30日・発行から90日の早い方。
 - **DynamoDB の実装**（`net.yosing.sandbox.api.infrastructure.dynamodb`）：
   - 設定は `sandbox.dynamodb.table-name`（dev / test 等はタスク定義の環境変数 `DYNAMODB_TABLE_NAME`）と `sandbox.dynamodb.endpoint`（`dynamodb-local` のプロファイルだけ `http://localhost:8000`）。リージョンは `sandbox.aws.region`。
@@ -156,7 +161,8 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - 仮登録（`REG#`）の属性：`registrationId`・`userId`・`loginId`・`passwordHash`・`totpSecret`・`otpFailureCount`・`createdAt`・`expiresAt`。保存は `attribute_not_exists` の条件付き。
   - ユーザー（`USER#`）の属性：`userId`・`loginId`・`passwordHash`・`totpSecret`・`lastUsedTotpStep`（N）・`passwordFailureCount`（N）・`otpFailureCount`（N）・`lockedUntil`（S。ロック中だけ）・`loginTokenId`（S。仮認証中だけ）・`createdAt`。ログイン ID（`LOGINID#`）の属性：`userId`。
   - セッション（`SESSION#<ハッシュ>`）の属性：`userId`・`createdAt`・`lastAccessedAt`・`expiresAt`（N、TTL）。
-  - ユーザーは `DynamoDbUserRepository`：ログイン ID の項目 → ユーザーの項目の順に読む（GSI は使わない）。パスワードの試行は、失敗回数とロックの期限が読んだときと同じことを条件に `UpdateItem`（`ConditionalCheckFailedException` なら false を返す）。パスワードが合ったときは、失敗回数を0、`loginTokenId` を新しい jti にして、`lockedUntil` を消す。
+  - ユーザーは `DynamoDbUserRepository`：ログイン ID の項目 → ユーザーの項目の順に読む（GSI は使わない）。パスワードの試行は、失敗回数（パスワード・OTP）とロックの期限が読んだときと同じことを条件に `UpdateItem`（`ConditionalCheckFailedException` なら false を返す）。パスワードが合ったときは、パスワードの失敗回数を0、`loginTokenId` を新しい jti にして、`lockedUntil` を消す（OTP の失敗回数は変えない）。OTP の試行は `ADD`、OTP のロックは jti が同じことを条件に `lockedUntil` を書いて `loginTokenId` を消す。
+  - ログインの確定は `DynamoDbLoginCompletionStore`（`TransactWriteItems`：USER の更新は、`loginTokenId` が読んだときと同じで `lastUsedTotpStep` が一致したステップより小さいこと、SESSION は無いこと）。USER の条件に合わなければ false を返す。
   - 登録の確定は `DynamoDbRegistrationCompletionStore`（`TransactWriteItems`：USER・LOGINID・SESSION は無いこと、REG はあること）。取り消しの理由（`CancellationReason`。書いた順に並ぶ）で、ログイン ID の先取り（409）と仮登録が無い（404）を見分ける。
   - 結合テストで項目を準備・確認するときは、`src/integrationTest` の `DynamoDbTestItems`（本体の `ItemKeys`・`*ItemMapper` を使う）を使い、キーや属性名をテストに文字列で書かない。
   - 認証の判定に使う読み取りは `consistentRead(true)`。

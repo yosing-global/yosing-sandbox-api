@@ -7,6 +7,7 @@ import java.util.Objects;
 import net.yosing.sandbox.api.application.error.OtpAttemptsExceededException;
 import net.yosing.sandbox.api.application.error.OtpInvalidException;
 import net.yosing.sandbox.api.application.login.InvalidCredentialsException;
+import net.yosing.sandbox.api.application.login.LoginTokenInvalidException;
 import net.yosing.sandbox.api.application.registration.LoginIdTakenException;
 import net.yosing.sandbox.api.application.registration.RegistrationNotFoundException;
 import org.slf4j.Logger;
@@ -65,6 +66,11 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(InvalidCredentialsException.class)
 	ResponseEntity<Object> handleInvalidCredentials(InvalidCredentialsException ex) {
 		return response(problem(ErrorCode.INVALID_CREDENTIALS));
+	}
+
+	@ExceptionHandler(LoginTokenInvalidException.class)
+	ResponseEntity<Object> handleLoginTokenInvalid(LoginTokenInvalidException ex) {
+		return response(problem(ErrorCode.LOGIN_TOKEN_INVALID));
 	}
 
 	@ExceptionHandler(RegistrationNotFoundException.class)

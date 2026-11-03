@@ -21,10 +21,10 @@ import org.springframework.stereotype.Service;
  *
  * <ol>
  * <li>ログイン ID でユーザーを取り出す。無ければ 401</li>
- * <li>ロック中なら、照合せずに 401（ふつうの失敗と同じ応答）</li>
+ * <li>ロック中（パスワード・OTP のどちらでロックしたかは区別しない）なら、照合せずに 401（ふつうの失敗と同じ応答）</li>
  * <li>照合の前に、試行を失敗として数えて保存する（5回目ならロックの期限も）。同時のほかの試行に先を越されたら 401</li>
  * <li>パスワードを照合する。違えば 401（失敗は数え済み）</li>
- * <li>合えば、失敗回数を0に戻してロックを解き、新しい jti を保存して、仮認証 JWT（5分）を返す</li>
+ * <li>合えば、パスワードの失敗回数を0に戻してロックを解き（OTP の失敗回数は戻さない）、新しい jti を保存して、仮認証 JWT（5分）を返す</li>
  * </ol>
  *
  * <p>照合しないで 401 を返すとき（ユーザーが無い・ロック中・先を越された）も、照合と同じくらいの時間をかける
@@ -68,7 +68,7 @@ public class StartLoginUseCase {
 	public StartLoginResult start(StartLoginCommand command) {
 		Instant now = clock.instant();
 		Optional<User> found = users.findByLoginId(command.loginId());
-		if (found.isEmpty() || found.get().isPasswordLocked(now)) {
+		if (found.isEmpty() || found.get().isLocked(now)) {
 			throw rejectWithoutVerifying(command.password());
 		}
 		User user = found.get();

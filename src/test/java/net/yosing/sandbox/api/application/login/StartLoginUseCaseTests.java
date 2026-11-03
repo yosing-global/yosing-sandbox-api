@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 
 import net.yosing.sandbox.api.application.port.FakeLoginTokenSigner;
 import net.yosing.sandbox.api.application.port.FakePasswordHasher;
@@ -20,7 +21,7 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
 
 /**
- * ログインの開始の流れ（成功・パスワードの失敗とロック・ユーザーが無い・同時の試行）を確かめる。
+ * ログインの開始の流れ（成功・パスワードの失敗とロック・OTP のロック・ユーザーが無い・同時の試行）を確かめる。
  */
 class StartLoginUseCaseTests {
 
@@ -79,7 +80,7 @@ class StartLoginUseCaseTests {
 				.isThrownBy(() -> useCase.start(command(WRONG_PASSWORD)));
 		}
 		assertThat(saved().lockedUntil())
-			.hasValue(Instant.parse("2026-11-01T00:00:00Z").plus(User.PASSWORD_LOCK_DURATION));
+			.hasValue(Instant.parse("2026-11-01T00:00:00Z").plus(User.LOCK_DURATION));
 
 		assertThatExceptionOfType(InvalidCredentialsException.class).isThrownBy(() -> useCase.start(command(PASSWORD)));
 		assertThat(saved().passwordFailureCount()).isEqualTo(User.MAX_PASSWORD_FAILURES);
@@ -124,6 +125,40 @@ class StartLoginUseCaseTests {
 
 		assertThatExceptionOfType(InvalidCredentialsException.class).isThrownBy(() -> useCase.start(command(PASSWORD)));
 		assertThat(saved().loginTokenId()).isEmpty();
+	}
+
+	/**
+	 * パスワードが合っても、OTP の失敗回数は戻さない（ログインを始め直して、OTP を試し続けられないようにする）。
+	 */
+	@Test
+	void keepsOtpFailureCount() {
+		users.replace(withOtpState(3, Optional.empty()));
+
+		useCase.start(command(PASSWORD));
+
+		assertThat(saved().otpFailureCount()).isEqualTo(3);
+	}
+
+	/**
+	 * OTP の失敗でロック中なら、正しいパスワードでも同じ失敗にする。ロックの期限が過ぎたら、失敗回数を0から数え直して始められる。
+	 */
+	@Test
+	void rejectsWhileLockedByOtpFailures() {
+		Instant lockedUntil = NOW.plusSeconds(60);
+		users.replace(withOtpState(User.MAX_OTP_FAILURES, Optional.of(lockedUntil)));
+
+		assertThatExceptionOfType(InvalidCredentialsException.class).isThrownBy(() -> useCase.start(command(PASSWORD)));
+
+		users.replace(withOtpState(User.MAX_OTP_FAILURES, Optional.of(NOW)));
+		useCase.start(command(PASSWORD));
+		assertThat(saved().otpFailureCount()).isZero();
+		assertThat(saved().lockedUntil()).isEmpty();
+	}
+
+	// OTP の失敗回数とロックの期限を変えたユーザー
+	private User withOtpState(int otpFailureCount, Optional<Instant> lockedUntil) {
+		return User.restore(user.id(), user.loginId(), user.passwordHash(), user.totpSecret(), user.lastUsedTotpStep(),
+				0, otpFailureCount, lockedUntil, Optional.empty(), user.createdAt());
 	}
 
 	private StartLoginCommand command(Password password) {
