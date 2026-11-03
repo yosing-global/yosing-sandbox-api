@@ -1,5 +1,6 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.time.Instant;
@@ -19,7 +20,9 @@ import org.springframework.test.context.ActiveProfiles;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 /**
- * 仮登録の保存の条件（同じ登録 ID の項目を上書きしない）を、DynamoDB Local で確かめる。
+ * 仮登録の読み書き（保存の条件、項目の変換の往復、失敗回数の加算、削除）を、DynamoDB Local で確かめる。
+ *
+ * <p>登録 ID はテストごとにランダムに作るため、テーブルを共有してもぶつからない。
  */
 @SpringBootTest
 @ActiveProfiles("local")
@@ -30,16 +33,73 @@ class DynamoDbRegistrationRepositoryTests {
 	DynamoDbRegistrationRepository repository;
 
 	/**
+	 * 保存した仮登録を読むと、同じ値に戻る（項目の変換の往復）。
+	 */
+	@Test
+	void findsWhatWasAdded() {
+		Registration registration = newRegistration();
+		repository.add(registration);
+
+		assertThat(repository.findById(registration.id())).hasValueSatisfying(found -> {
+			assertThat(found.id()).isEqualTo(registration.id());
+			assertThat(found.userId()).isEqualTo(registration.userId());
+			assertThat(found.loginId()).isEqualTo(registration.loginId());
+			assertThat(found.passwordHash()).isEqualTo(registration.passwordHash());
+			assertThat(found.totpSecret()).isEqualTo(registration.totpSecret());
+			assertThat(found.otpFailureCount()).isZero();
+			assertThat(found.createdAt()).isEqualTo(registration.createdAt());
+			assertThat(found.expiresAt()).isEqualTo(registration.expiresAt());
+		});
+		assertThat(repository.findById(RegistrationId.generate())).isEmpty();
+	}
+
+	/**
 	 * 同じ登録 ID の仮登録をもう一度保存すると、条件付き書き込みで失敗する。
 	 */
 	@Test
 	void doesNotOverwriteExistingRegistration() {
-		Registration registration = Registration.start(RegistrationId.generate(), UserId.generate(),
-				LoginId.of("dummy_repository"), new PasswordHash("{bcrypt}dummy-hash"),
-				new EncryptedTotpSecret(new byte[] { 1 }), Instant.parse("2026-11-01T00:00:00Z"));
+		Registration registration = newRegistration();
 		repository.add(registration);
 
 		assertThatExceptionOfType(ConditionalCheckFailedException.class).isThrownBy(() -> repository.add(registration));
+	}
+
+	/**
+	 * OTP の失敗回数は、呼ぶたびに DB の値に1ずつ加わる。仮登録が無ければ空を返す（項目を作らない）。
+	 */
+	@Test
+	void recordsOtpFailure() {
+		Registration registration = newRegistration();
+		repository.add(registration);
+
+		assertThat(repository.recordOtpFailure(registration.id())).hasValueSatisfying(
+				found -> assertThat(found.otpFailureCount()).isEqualTo(1));
+		assertThat(repository.recordOtpFailure(registration.id())).hasValueSatisfying(
+				found -> assertThat(found.otpFailureCount()).isEqualTo(2));
+
+		RegistrationId missing = RegistrationId.generate();
+		assertThat(repository.recordOtpFailure(missing)).isEmpty();
+		assertThat(repository.findById(missing)).isEmpty();
+	}
+
+	/**
+	 * 削除すると読めなくなる。無いものを削除しても失敗しない。
+	 */
+	@Test
+	void deletesRegistration() {
+		Registration registration = newRegistration();
+		repository.add(registration);
+
+		repository.delete(registration.id());
+		repository.delete(registration.id());
+
+		assertThat(repository.findById(registration.id())).isEmpty();
+	}
+
+	private static Registration newRegistration() {
+		return Registration.start(RegistrationId.generate(), UserId.generate(), LoginId.of("dummy_repository"),
+				new PasswordHash("{bcrypt}dummy-hash"), new EncryptedTotpSecret(new byte[] { 1, 2, 3 }),
+				Instant.parse("2026-11-01T00:00:00Z"));
 	}
 
 }

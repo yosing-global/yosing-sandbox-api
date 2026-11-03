@@ -5,13 +5,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
 
 import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
+import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
 import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.PasswordHash;
+import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
 
 /**
- * 仮登録の始め方（期限・失敗回数）と、期限切れの判定を確かめる。
+ * 仮登録の始め方（期限・失敗回数）、期限切れ・OTP の失敗の上限の判定、本登録（ユーザーへの置き換え）を確かめる。
  */
 class RegistrationTests {
 
@@ -38,6 +40,43 @@ class RegistrationTests {
 	void expiresWhenExpiresAtComes() {
 		assertThat(registration.isExpired(registration.expiresAt().minusMillis(1))).isFalse();
 		assertThat(registration.isExpired(registration.expiresAt())).isTrue();
+	}
+
+	/**
+	 * OTP の失敗は5回が上限。残りの回数は、上限から失敗回数を引いたもの（0より小さくしない）。
+	 */
+	@Test
+	void limitsOtpAttemptsToFive() {
+		assertThat(withOtpFailures(4).otpAttemptsExhausted()).isFalse();
+		assertThat(withOtpFailures(4).remainingOtpAttempts()).isEqualTo(1);
+		assertThat(withOtpFailures(5).otpAttemptsExhausted()).isTrue();
+		assertThat(withOtpFailures(6).remainingOtpAttempts()).isZero();
+	}
+
+	/**
+	 * 本登録すると、仮登録のユーザーの ID・ログイン ID・パスワード・秘密情報を引き継ぎ、一致したステップを最後に使ったステップにする。
+	 */
+	@Test
+	void completesToUser() {
+		TotpStep step = new TotpStep(123);
+
+		User user = registration.complete(step, NOW);
+
+		assertThat(user.id()).isEqualTo(registration.userId());
+		assertThat(user.loginId()).isEqualTo(registration.loginId());
+		assertThat(user.passwordHash()).isEqualTo(registration.passwordHash());
+		assertThat(user.totpSecret()).isEqualTo(registration.totpSecret());
+		assertThat(user.lastUsedTotpStep()).isEqualTo(step);
+		assertThat(user.createdAt()).isEqualTo(Instant.parse("2026-11-01T00:00:00Z"));
+		assertThat(user.passwordFailureCount()).isZero();
+		assertThat(user.lockedUntil()).isEmpty();
+		assertThat(user.loginTokenId()).isEmpty();
+	}
+
+	private Registration withOtpFailures(int count) {
+		return Registration.restore(registration.id(), registration.userId(), registration.loginId(),
+				registration.passwordHash(), registration.totpSecret(), count, registration.createdAt(),
+				registration.expiresAt());
 	}
 
 }

@@ -6,8 +6,8 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 - Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境と dev / test へのデプロイ・確認、PR 環境の削除）まで。
 - API の仕様は Notion の「4.2 API設計」にまとめ済み。アプリの中身の準備は、DynamoDB の土台（クライアント・DynamoDB Local・起動時のテーブル作成）、TOTP の秘密情報の暗号化、仮認証 JWT の署名（どちらも KMS とローカルの差し替え）まで。
-- API の実装（4.2 API設計のエンドポイント）を、登録の開始 → 登録の確定 → ログイン → セッションの順に、PR を分けて進めている。登録の開始（`POST /v1/registrations`）と、共通の部品（エラーの形・時計・パスワードのハッシュ）まで。
-- 次の作業：登録の確定（`POST /v1/registrations/{registrationId}/verify`。TOTP の照合（java-otp）、セッションの発行、`TransactWriteItems` での本登録）。
+- API の実装（4.2 API設計のエンドポイント）を、登録の開始 → 登録の確定 → ログイン → セッションの順に、PR を分けて進めている。登録の開始・登録の確定（`POST /v1/registrations`・`/v1/registrations/{registrationId}/verify`）と、共通の部品（エラーの形・時計・パスワードのハッシュ・TOTP の照合・セッションの発行）まで。
+- 次の作業：ログイン（`POST /v1/logins`・`/v1/logins/verify`。パスワードの照合とロック、仮認証 JWT の発行と照合、`TransactWriteItems` での最終使用ステップの条件付き更新）。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
 - 属性名・型（DynamoDB の項目）は、各機能の実装のときに決める（Notion の DB 設計の未確定事項）。
@@ -49,10 +49,11 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 | :--- | :--- |
 | `presentation/<機能>/` | Spring MVC のコントローラー、API のリクエスト・レスポンスの型（Jackson・Bean Validation の注釈はここ）。`presentation/error/` に例外 → Problem Details（`code`）の変換 |
 | `application/<機能>/` | ユースケース（`*UseCase`。4.2 API設計の「処理概要」の流れ）、その入出力の型（`*Command` / `*Result`） |
+| `application/error/` | 2つ以上の機能で使うアプリの例外（`OtpInvalidException`・`OtpAttemptsExceededException`）。1つの機能だけの例外は、その機能のパッケージに置く |
 | `application/port/` | アプリが外の技術に求めるもののインターフェース（秘密情報の暗号化、JWT の署名、パスワードのハッシュ、集約をまたぐトランザクションの保存等）。時計は port を作らず、Java 標準の `java.time.Clock` の Bean（`infrastructure/time`）を使う |
 | `domain/model/<集約>/` | 集約ごとのエンティティ・値オブジェクト・Repository のインターフェース（`user`・`registration`・`session`） |
 | `domain/model/shared/<概念>/` | 2つ以上の集約から使う値オブジェクト（`totp`：`TotpSecret`・`OtpCode`・`TotpStep`） |
-| `domain/service/` | 複数のモデルにまたがるか、どのモデルにも属さない業務の決まり（例：`TotpVerifier`。名前に `Service` は付けない） |
+| `domain/service/` | 複数のモデルにまたがるか、どのモデルにも属さない業務の決まり（例：`TotpVerifier`。名前に `Service` は付けない）。Spring に依存しないため、Bean は `application/DomainServiceConfiguration` の `@Bean` で作る |
 | `infrastructure/<技術>/` | 技術の実装（`aws`・`dynamodb`（Repository の実装、項目の変換）・`crypto`（KMS とローカル）・`jwt`）と、その Spring の設定 |
 
 - 依存の向き：`domain/model` ← `domain/service` ← `application` ← `presentation` / `infrastructure`。`presentation` と `infrastructure` は互いに依存しない。`domain` は Spring・AWS SDK・Nimbus・Jakarta・Jackson に依存しない（ふつうの Java）。`ArchitectureTests`（ArchUnit）で確かめる。
@@ -138,13 +139,20 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - パスワードは、表示できる ASCII（空白を含む）だけにしている。bcrypt は72バイトまでしか扱わず（Spring Security は超えると例外）、64文字でも72バイトを超えないようにするため。
 - **パスワードのハッシュ**（port：`application/port/PasswordHasher`、実装：`infrastructure/password/BcryptPasswordHasher`）：`spring-security-crypto` の `DelegatingPasswordEncoder`（bcrypt、強さ12）。Spring Security の認証の仕組みは入れない。
 - **認証アプリの設定 URI**（`domain/model/shared/totp/OtpauthUri`）：`otpauth://totp/<issuer>:<loginId>?secret=<Base32>&issuer=...&algorithm=SHA1&digits=6&period=30`。issuer は `sandbox.otpauth.issuer`（`sandbox-<app-env>`。同じ端末に複数の環境を登録しても見分けられるように）。秘密情報は20バイト（`TotpSecret.generate`）。
+- **TOTP の照合**（`domain/service/TotpVerifier`）：java-otp（1.0.0）の HOTP でステップのコードを計算し、今のステップの前後1ステップを照合して、一致したステップを返す。最後に使ったステップを渡すと、それより後だけを受け付ける。一致したかで時間が変わらないよう、全部の候補を計算して一定時間で比べる。java-otp は計算だけのライブラリのため、domain から使っている（ArchUnit の禁止の対象外）。
+- **登録の確定**（`VerifyRegistrationUseCase`）：仮登録が無い・期限切れなら 404。OTP の失敗は DB の値に加え（`ADD`。同時の失敗でも数え漏れが無い）、5回目で仮登録を削除して 429、それ以外は 401（`remainingAttempts`）。成功したら `Registration.complete` でユーザーを作り（一致したステップを `lastUsedTotpStep` にする）、`Session.issue` でセッションを発行し、`RegistrationCompletionStore` で保存する。応答は 201（`sessionId`・`sessionExpiresAt`）。UUID の形でない登録 ID も 404。
+- **セッション**（`domain/model/session`）：セッション ID は 256 ビットの乱数の Base64URL（43文字）。DB には SHA-256 の16進数（`SessionIdHash`）だけを保存し、元の値は発行したとき（`IssuedSession`）にしか持たない。期限は最終操作から30日・発行から90日の早い方。
 - **DynamoDB の実装**（`net.yosing.sandbox.api.infrastructure.dynamodb`）：
   - 設定は `sandbox.dynamodb.table-name`（dev / test 等はタスク定義の環境変数 `DYNAMODB_TABLE_NAME`）と `sandbox.dynamodb.endpoint`（`dynamodb-local` のプロファイルだけ `http://localhost:8000`）。リージョンは `sandbox.aws.region`。
   - `dynamodb-local` のプロファイルでは、起動時にテーブルを作る（`DynamoDbLocalTableInitializer`。DynamoDB Local に接続できるまで1秒おきに最大30回待つ）。接続先が DynamoDB Local のときは、固定のダミーの認証情報を使う。
   - DynamoDB Local のイメージは ECR Public の `aws-dynamodb-local` 3.3.2（ダイジェストで固定、`-inMemory -sharedDb`）。`compose.yaml`（手元）、`deploy/task-def.jsonnet`（PR 環境のサイドカー）、`DynamoDbLocalContainerConfiguration`（テスト）の3か所で揃える。
   - 結合テスト（`src/integrationTest`）は `local` のプロファイルと `DynamoDbLocalContainerConfiguration`（Testcontainers）で動かす（Docker が要る）。テーブルはテストの間で共有するため、テストごとに違うキー（ログイン ID 等）を使う。
   - 低レベルの `DynamoDbClient` を使い、項目の変換は種類ごとの `*ItemMapper`（属性名は定数）に書く。キーは `ItemKeys`。属性名は lowerCamelCase、日時は ISO 8601 の文字列（S）、TTL の `expiresAt` は Unix 時刻の秒（N）、暗号文はバイナリ（B）。
-  - 仮登録（`REG#`）の属性：`userId`・`loginId`・`passwordHash`・`totpSecret`・`otpFailureCount`・`createdAt`・`expiresAt`。保存は `attribute_not_exists` の条件付き。
+  - 仮登録（`REG#`）の属性：`registrationId`・`userId`・`loginId`・`passwordHash`・`totpSecret`・`otpFailureCount`・`createdAt`・`expiresAt`。保存は `attribute_not_exists` の条件付き。
+  - ユーザー（`USER#`）の属性：`userId`・`loginId`・`passwordHash`・`totpSecret`・`lastUsedTotpStep`（N）・`passwordFailureCount`（N）・`otpFailureCount`（N）・`lockedUntil`（S。ロック中だけ）・`loginTokenId`（S。仮認証中だけ）・`createdAt`。ログイン ID（`LOGINID#`）の属性：`userId`。
+  - セッション（`SESSION#<ハッシュ>`）の属性：`userId`・`createdAt`・`lastAccessedAt`・`expiresAt`（N、TTL）。
+  - 登録の確定は `DynamoDbRegistrationCompletionStore`（`TransactWriteItems`：USER・LOGINID・SESSION は無いこと、REG はあること）。取り消しの理由（`CancellationReason`。書いた順に並ぶ）で、ログイン ID の先取り（409）と仮登録が無い（404）を見分ける。
+  - 結合テストで項目を準備・確認するときは、`src/integrationTest` の `DynamoDbTestItems`（本体の `ItemKeys`・`*ItemMapper` を使う）を使い、キーや属性名をテストに文字列で書かない。
   - 認証の判定に使う読み取りは `consistentRead(true)`。
 
 ## 環境とブランチ

@@ -1,12 +1,17 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
 import java.util.Map;
+import java.util.Optional;
 
 import net.yosing.sandbox.api.domain.model.registration.Registration;
+import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
 import net.yosing.sandbox.api.domain.model.registration.RegistrationRepository;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
 
 /**
  * 仮登録の項目の読み書き。
@@ -25,14 +30,43 @@ class DynamoDbRegistrationRepository implements RegistrationRepository {
 
 	@Override
 	public void add(Registration registration) {
-		// 同じキーの項目を上書きしない（無ければ ConditionalCheckFailedException）
-		PutItemRequest request = PutItemRequest.builder()
-			.tableName(tableName)
+		// 同じキーの項目を上書きしない（あれば ConditionalCheckFailedException）
+		client.putItem(request -> request.tableName(tableName)
 			.item(RegistrationItemMapper.toItem(registration))
-			.conditionExpression("attribute_not_exists(#pk)")
-			.expressionAttributeNames(Map.of("#pk", ItemKeys.PK))
-			.build();
-		client.putItem(request);
+			.conditionExpression(ItemKeys.NOT_EXISTS)
+			.expressionAttributeNames(ItemKeys.PK_NAMES));
+	}
+
+	@Override
+	public Optional<Registration> findById(RegistrationId id) {
+		// 認証の判定に使う読み取りは、強い整合性で行う
+		GetItemResponse response = client
+			.getItem(request -> request.tableName(tableName).key(ItemKeys.registration(id)).consistentRead(true));
+		return response.hasItem() ? Optional.of(RegistrationItemMapper.fromItem(response.item())) : Optional.empty();
+	}
+
+	@Override
+	public Optional<Registration> recordOtpFailure(RegistrationId id) {
+		// 読んでから書くのではなく DB の値に加えるため、同時に失敗しても数え漏れが無い（上限を超えて試されない）
+		try {
+			Map<String, AttributeValue> updated = client.updateItem(request -> request.tableName(tableName)
+				.key(ItemKeys.registration(id))
+				.updateExpression("ADD #count :one")
+				.conditionExpression(ItemKeys.EXISTS)
+				.expressionAttributeNames(
+						Map.of(ItemKeys.PK_REF, ItemKeys.PK, "#count", RegistrationItemMapper.OTP_FAILURE_COUNT))
+				.expressionAttributeValues(Map.of(":one", AttributeValue.fromN("1")))
+				.returnValues(ReturnValue.ALL_NEW)).attributes();
+			return Optional.of(RegistrationItemMapper.fromItem(updated));
+		} catch (ConditionalCheckFailedException ex) {
+			// 仮登録が無い（同時に削除・確定された）
+			return Optional.empty();
+		}
+	}
+
+	@Override
+	public void delete(RegistrationId id) {
+		client.deleteItem(request -> request.tableName(tableName).key(ItemKeys.registration(id)));
 	}
 
 }

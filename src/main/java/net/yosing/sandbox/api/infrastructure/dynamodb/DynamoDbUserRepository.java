@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
-import java.util.Map;
-
 import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.UserRepository;
 import org.springframework.stereotype.Repository;
@@ -30,8 +28,8 @@ class DynamoDbUserRepository implements UserRepository {
 			.tableName(tableName)
 			.key(ItemKeys.loginId(loginId))
 			.consistentRead(true)
-			.projectionExpression("#pk")
-			.expressionAttributeNames(Map.of("#pk", ItemKeys.PK))
+			.projectionExpression(ItemKeys.PK_REF)
+			.expressionAttributeNames(ItemKeys.PK_NAMES)
 			.build();
 		return client.getItem(request).hasItem();
 	}
