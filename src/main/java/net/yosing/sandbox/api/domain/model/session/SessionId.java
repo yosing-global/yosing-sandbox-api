@@ -7,6 +7,8 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * セッション ID（クライアントに渡す元の値）。BFF が Cookie に入れ、API には {@code Authorization: Bearer} で届く。
@@ -18,6 +20,9 @@ import java.util.Objects;
 public final class SessionId {
 
 	private static final int RANDOM_BYTES = 32;
+
+	// 発行する形（Base64URL、末尾の「=」なし、43文字）
+	private static final Pattern FORMAT = Pattern.compile("[A-Za-z0-9_-]{43}");
 
 	// SecureRandom はスレッドセーフ（全部の要求で共有してよい）
 	private static final SecureRandom RANDOM = new SecureRandom();
@@ -44,6 +49,20 @@ public final class SessionId {
 		byte[] bytes = new byte[RANDOM_BYTES];
 		RANDOM.nextBytes(bytes);
 		return new SessionId(Base64.getUrlEncoder().withoutPadding().encodeToString(bytes));
+	}
+
+	/**
+	 * クライアントから受け取った値をセッション ID にする。発行する形（43文字の Base64URL）でなければ空
+	 * （DB を読まずに、無効なセッションとして扱う）。
+	 *
+	 * @param value クライアントから受け取った値
+	 * @return セッション ID。形が違えば空
+	 */
+	public static Optional<SessionId> fromClient(String value) {
+		if (value == null || !FORMAT.matcher(value).matches()) {
+			return Optional.empty();
+		}
+		return Optional.of(new SessionId(value));
 	}
 
 	/**

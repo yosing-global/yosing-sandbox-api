@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import net.yosing.sandbox.api.domain.model.registration.Registration;
 import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
+import net.yosing.sandbox.api.domain.model.session.Session;
 import net.yosing.sandbox.api.domain.model.session.SessionIdHash;
 import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.User;
@@ -81,6 +82,20 @@ public final class DynamoDbTestItems {
 	 */
 	public Optional<Map<String, AttributeValue>> loginIdItem(LoginId loginId) {
 		return get(ItemKeys.loginId(loginId));
+	}
+
+	/**
+	 * セッションの項目を作る（ログイン済みのセッションの準備）。
+	 */
+	public void putSession(Session session) {
+		client.putItem(request -> request.tableName(tableName).item(SessionItemMapper.toItem(session)));
+	}
+
+	/**
+	 * セッションを読む。
+	 */
+	public Optional<Session> session(SessionIdHash idHash) {
+		return get(ItemKeys.session(idHash)).map(item -> SessionItemMapper.fromItem(idHash, item));
 	}
 
 	/**
