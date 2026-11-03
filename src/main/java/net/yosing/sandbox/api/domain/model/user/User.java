@@ -13,7 +13,11 @@ import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
  * ユーザー（本登録したもの）。
  *
  * <p>ログインの状態（パスワード・OTP の失敗回数、ロックの期限、今の仮認証の jti）は、ログインの API で使う。
- * パスワードは {@link #MAX_PASSWORD_FAILURES} 回続けて失敗したら {@link #PASSWORD_LOCK_DURATION} ロックする。
+ *
+ * <p>ロック：パスワードを {@link #MAX_PASSWORD_FAILURES} 回、または OTP を {@link #MAX_OTP_FAILURES} 回続けて間違えたら、
+ * アカウントを {@link #LOCK_DURATION} ロックする（ロックの期限は1つで、どちらでロックしたかは区別しない）。
+ * 失敗回数は、それぞれ合ったときに0に戻す。OTP の失敗回数は仮認証をまたいで数え、パスワードが合っても戻さない
+ * （ログインを始め直して、OTP を試し続けられないようにする）。ロックの期限が過ぎた後の最初のログインの開始で、両方を0から数え直す。
  */
 public final class User {
 
@@ -23,9 +27,14 @@ public final class User {
 	public static final int MAX_PASSWORD_FAILURES = 5;
 
 	/**
-	 * ロックの長さ。
+	 * OTP の失敗の上限（仮認証をまたいで、続けて失敗した回数）。達したらロックする。
 	 */
-	public static final Duration PASSWORD_LOCK_DURATION = Duration.ofMinutes(15);
+	public static final int MAX_OTP_FAILURES = 5;
+
+	/**
+	 * ロックの長さ（パスワード・OTP で共通）。
+	 */
+	public static final Duration LOCK_DURATION = Duration.ofMinutes(15);
 
 	private final UserId id;
 
@@ -109,7 +118,7 @@ public final class User {
 	 * @param now 今の日時
 	 * @return ロック中なら true
 	 */
-	public boolean isPasswordLocked(Instant now) {
+	public boolean isLocked(Instant now) {
 		return lockedUntil != null && now.isBefore(lockedUntil);
 	}
 
@@ -117,8 +126,8 @@ public final class User {
 	 * パスワードを照合する前に、その試行を失敗として数える（照合の前に保存し、同時に試されても上限を超えないようにする）。
 	 *
 	 * <ul>
-	 * <li>ロックの期限が過ぎていれば、失敗回数を0に戻してから数える</li>
-	 * <li>数えた結果が上限に達したら、今から {@link #PASSWORD_LOCK_DURATION} ロックする（この試行が成功すれば
+	 * <li>ロックの期限が過ぎていれば、パスワード・OTP の失敗回数を0に戻してから数える（ロックは解く）</li>
+	 * <li>数えた結果が上限に達したら、今から {@link #LOCK_DURATION} ロックする（この試行が成功すれば
 	 * {@link #passwordVerified(String)} で解く）</li>
 	 * </ul>
 	 *
@@ -127,27 +136,92 @@ public final class User {
 	 * @throws IllegalStateException ロック中の場合（ロック中は照合しない）
 	 */
 	public User countPasswordAttempt(Instant now) {
-		if (isPasswordLocked(now)) {
+		if (isLocked(now)) {
 			throw new IllegalStateException("ロック中は照合しない");
 		}
-		int count = (lockedUntil == null ? passwordFailureCount : 0) + 1;
-		Instant newLockedUntil = count >= MAX_PASSWORD_FAILURES
-				? now.truncatedTo(ChronoUnit.SECONDS).plus(PASSWORD_LOCK_DURATION) : null;
-		return new User(id, loginId, passwordHash, totpSecret, lastUsedTotpStep, count, otpFailureCount,
-				newLockedUntil, loginTokenId, createdAt);
+		boolean lockExpired = lockedUntil != null;
+		int count = (lockExpired ? 0 : passwordFailureCount) + 1;
+		int otpCount = lockExpired ? 0 : otpFailureCount;
+		Instant newLockedUntil = count >= MAX_PASSWORD_FAILURES ? lockFrom(now) : null;
+		return new User(id, loginId, passwordHash, totpSecret, lastUsedTotpStep, count, otpCount, newLockedUntil,
+				loginTokenId, createdAt);
 	}
 
 	/**
-	 * パスワードが合った（ログインの開始が成功した）。失敗回数を0に戻してロックを解き、新しい仮認証を始める
-	 * （前の仮認証の JWT は使えなくなる）。
+	 * パスワードが合った（ログインの開始が成功した）。パスワードの失敗回数を0に戻してロックを解き、新しい仮認証を始める
+	 * （前の仮認証の JWT は使えなくなる）。OTP の失敗回数は戻さない（OTP が合ったときだけ戻す）。
 	 *
 	 * @param newLoginTokenId 新しい仮認証の jti
 	 * @return 更新した後のユーザー
 	 */
 	public User passwordVerified(String newLoginTokenId) {
 		Objects.requireNonNull(newLoginTokenId, "newLoginTokenId");
-		return new User(id, loginId, passwordHash, totpSecret, lastUsedTotpStep, 0, 0, null, newLoginTokenId,
+		return new User(id, loginId, passwordHash, totpSecret, lastUsedTotpStep, 0, otpFailureCount, null,
+				newLoginTokenId, createdAt);
+	}
+
+	/**
+	 * 今の仮認証の jti か（使用済み・置き換わった仮認証の JWT は使えない）。
+	 *
+	 * @param tokenId JWT の jti
+	 * @return 今の仮認証の jti なら true
+	 */
+	public boolean hasLoginToken(String tokenId) {
+		return loginTokenId != null && loginTokenId.equals(tokenId);
+	}
+
+	/**
+	 * OTP の試行が上限に達したか（達したら、アカウントをロックして仮認証を終える）。
+	 *
+	 * <p>OTP の失敗回数は、照合の前に試行として数える（同時に試されても上限を超えて照合しないため）。
+	 *
+	 * @return 達していれば true
+	 */
+	public boolean otpAttemptsExhausted() {
+		return otpFailureCount >= MAX_OTP_FAILURES;
+	}
+
+	/**
+	 * OTP の失敗が上限に達したので、今から {@link #LOCK_DURATION} ロックし、仮認証を終える。
+	 *
+	 * @param now 今の日時
+	 * @return ロックした後のユーザー
+	 * @throws IllegalStateException 上限に達していない場合
+	 */
+	public User lockForOtpFailures(Instant now) {
+		if (!otpAttemptsExhausted()) {
+			throw new IllegalStateException("OTP の失敗が上限に達していない");
+		}
+		return new User(id, loginId, passwordHash, totpSecret, lastUsedTotpStep, passwordFailureCount,
+				otpFailureCount, lockFrom(now), null, createdAt);
+	}
+
+	/**
+	 * @return OTP の残りの回数（0以上）
+	 */
+	public int remainingOtpAttempts() {
+		return Math.max(0, MAX_OTP_FAILURES - otpFailureCount);
+	}
+
+	/**
+	 * OTP が合った（ログインの確定が成功した）。一致したステップを最後に使ったステップにし（同じコードを使えないようにする）、
+	 * OTP の失敗回数を0に戻して、仮認証を終える。
+	 *
+	 * @param matchedStep OTP が一致したステップ
+	 * @return 更新した後のユーザー
+	 * @throws IllegalArgumentException 最後に使ったステップより後でない場合
+	 */
+	public User otpVerified(TotpStep matchedStep) {
+		if (!matchedStep.isAfter(lastUsedTotpStep)) {
+			throw new IllegalArgumentException("最後に使ったステップより後のステップにする");
+		}
+		return new User(id, loginId, passwordHash, totpSecret, matchedStep, passwordFailureCount, 0, lockedUntil, null,
 				createdAt);
+	}
+
+	// ロックの期限（日時は秒の単位にそろえる）
+	private static Instant lockFrom(Instant now) {
+		return now.truncatedTo(ChronoUnit.SECONDS).plus(LOCK_DURATION);
 	}
 
 	public UserId id() {

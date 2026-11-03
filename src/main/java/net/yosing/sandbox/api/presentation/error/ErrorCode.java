@@ -18,6 +18,9 @@ enum ErrorCode {
 	/** OTP コードが違う、または使用済み。 */
 	OTP_INVALID(HttpStatus.UNAUTHORIZED, "OTP コードが正しくありません。"),
 
+	/** 仮認証 JWT が無効・期限切れ・使用済み。 */
+	LOGIN_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "仮認証が無効か、期限が切れています。ログインを最初からやり直してください。"),
+
 	/** 登録 ID が無い、または期限切れ。 */
 	REGISTRATION_NOT_FOUND(HttpStatus.NOT_FOUND, "登録が見つからないか、期限が切れています。最初からやり直してください。"),
 

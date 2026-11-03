@@ -58,6 +58,46 @@ public class InMemoryUserRepository implements UserRepository {
 		return users.values().stream().filter(user -> user.loginId().equals(loginId)).findFirst();
 	}
 
+	/**
+	 * ユーザーを置き換える（フェイクの保存先から使う）。
+	 */
+	public void replace(User user) {
+		if (!users.containsKey(user.id())) {
+			throw new IllegalStateException("ユーザーが無い");
+		}
+		users.put(user.id(), user);
+	}
+
+	@Override
+	public Optional<User> findById(UserId id) {
+		return Optional.ofNullable(users.get(id));
+	}
+
+	@Override
+	public Optional<User> countOtpAttempt(UserId id, String loginTokenId) {
+		User stored = users.get(id);
+		if (stored == null || !stored.hasLoginToken(loginTokenId) || stored.otpAttemptsExhausted()) {
+			return Optional.empty();
+		}
+		User counted = User.restore(stored.id(), stored.loginId(), stored.passwordHash(), stored.totpSecret(),
+				stored.lastUsedTotpStep(), stored.passwordFailureCount(), stored.otpFailureCount() + 1,
+				stored.lockedUntil(), stored.loginTokenId(), stored.createdAt());
+		users.put(id, counted);
+		return Optional.of(counted);
+	}
+
+	@Override
+	public boolean saveOtpLock(User current, User locked) {
+		User stored = users.get(current.id());
+		if (stored == null || !stored.loginTokenId().equals(current.loginTokenId())) {
+			return false;
+		}
+		users.put(stored.id(), User.restore(stored.id(), stored.loginId(), stored.passwordHash(), stored.totpSecret(),
+				stored.lastUsedTotpStep(), stored.passwordFailureCount(), stored.otpFailureCount(),
+				locked.lockedUntil(), Optional.empty(), stored.createdAt()));
+		return true;
+	}
+
 	@Override
 	public boolean savePasswordAttempt(User current, User counted) {
 		if (conflictOnNextPasswordAttempt) {
@@ -66,6 +106,7 @@ public class InMemoryUserRepository implements UserRepository {
 		}
 		User stored = users.get(current.id());
 		if (stored == null || stored.passwordFailureCount() != current.passwordFailureCount()
+				|| stored.otpFailureCount() != current.otpFailureCount()
 				|| !stored.lockedUntil().equals(current.lockedUntil())) {
 			return false;
 		}

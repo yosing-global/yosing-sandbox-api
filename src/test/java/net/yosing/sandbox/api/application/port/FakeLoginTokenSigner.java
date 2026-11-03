@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * テスト用の仮認証 JWT の署名（フェイク）。JWT の代わりに {@code dummy-token-<jti>} を返し、中身を覚えておく。
+ * テスト用の仮認証 JWT の署名（フェイク）。JWT の代わりに {@code dummy-token-<userId>-<jti>} を返し、中身を覚えておく。
  */
 public class FakeLoginTokenSigner implements LoginTokenSigner {
 
@@ -14,7 +14,8 @@ public class FakeLoginTokenSigner implements LoginTokenSigner {
 
 	@Override
 	public String sign(LoginTokenClaims claims) {
-		String token = "dummy-token-" + claims.tokenId();
+		// 同じ jti でもユーザーが違えば別のトークンにする
+		String token = "dummy-token-" + claims.userId() + "-" + claims.tokenId();
 		issued.put(token, claims);
 		return token;
 	}
