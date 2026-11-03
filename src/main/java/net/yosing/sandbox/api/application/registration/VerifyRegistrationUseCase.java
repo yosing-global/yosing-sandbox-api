@@ -23,8 +23,9 @@ import org.springframework.stereotype.Service;
  *
  * <ol>
  * <li>仮登録を取り出す。無い・期限切れなら 404</li>
+ * <li>照合の前に、OTP の試行を数える（同時に試されても、上限を超えて照合しない）。数えられなければ 404</li>
  * <li>秘密情報を復号し、OTP を照合する（前後1ステップを許す）</li>
- * <li>失敗：失敗回数を増やす。上限に達したら仮登録を削除して 429、それ以外は 401（残りの回数を付ける）</li>
+ * <li>失敗：上限に達したら仮登録を削除して 429、それ以外は 401（残りの回数を付ける）</li>
  * <li>成功：ユーザー・ログイン ID・セッションの作成と、仮登録の削除を1つのトランザクションで行い、セッション ID を返す</li>
  * </ol>
  */
@@ -71,11 +72,14 @@ public class VerifyRegistrationUseCase {
 			throw new OtpAttemptsExceededException();
 		}
 
+		// 照合の前に試行を数える。同時のほかの試行で、仮登録が消えたか上限に達していれば数えられない
+		Registration counted = registrations.countOtpAttempt(registration.id())
+			.orElseThrow(RegistrationNotFoundException::new);
 		TotpSecret secret = totpSecretEncryptor.decrypt(registration.totpSecret(), registration.userId());
 		Optional<TotpStep> matchedStep = totpVerifier.verify(secret, command.code(), TotpStep.at(now),
 				Optional.empty());
 		if (matchedStep.isEmpty()) {
-			throw otpFailure(registration);
+			throw otpFailure(counted);
 		}
 
 		User user = registration.complete(matchedStep.get(), now);
@@ -84,14 +88,12 @@ public class VerifyRegistrationUseCase {
 		return new VerifyRegistrationResult(issued.sessionId(), issued.session().expiresAt());
 	}
 
-	private RuntimeException otpFailure(Registration registration) {
-		Registration failed = registrations.recordOtpFailure(registration.id())
-			.orElseThrow(RegistrationNotFoundException::new);
-		if (failed.otpAttemptsExhausted()) {
-			registrations.delete(failed.id());
+	private RuntimeException otpFailure(Registration counted) {
+		if (counted.otpAttemptsExhausted()) {
+			registrations.delete(counted.id());
 			return new OtpAttemptsExceededException();
 		}
-		return new OtpInvalidException(failed.remainingOtpAttempts());
+		return new OtpInvalidException(counted.remainingOtpAttempts());
 	}
 
 }

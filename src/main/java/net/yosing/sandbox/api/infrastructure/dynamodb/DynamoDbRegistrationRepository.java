@@ -46,20 +46,21 @@ class DynamoDbRegistrationRepository implements RegistrationRepository {
 	}
 
 	@Override
-	public Optional<Registration> recordOtpFailure(RegistrationId id) {
-		// 読んでから書くのではなく DB の値に加えるため、同時に失敗しても数え漏れが無い（上限を超えて試されない）
+	public Optional<Registration> countOtpAttempt(RegistrationId id) {
+		// 読んでから書くのではなく DB の値に加えるため、同時に試されても数え漏れが無い。
+		// 上限に達していないときだけ数える（数えられた試行だけが照合に進む）。回数の条件は、仮登録があることも兼ねる
 		try {
 			Map<String, AttributeValue> updated = client.updateItem(request -> request.tableName(tableName)
 				.key(ItemKeys.registration(id))
 				.updateExpression("ADD #count :one")
-				.conditionExpression(ItemKeys.EXISTS)
-				.expressionAttributeNames(
-						Map.of(ItemKeys.PK_REF, ItemKeys.PK, "#count", RegistrationItemMapper.OTP_FAILURE_COUNT))
-				.expressionAttributeValues(Map.of(":one", AttributeValue.fromN("1")))
+				.conditionExpression("#count < :maxAttempts")
+				.expressionAttributeNames(Map.of("#count", RegistrationItemMapper.OTP_FAILURE_COUNT))
+				.expressionAttributeValues(Map.of(":one", AttributeValue.fromN("1"), ":maxAttempts",
+						AttributeValue.fromN(Integer.toString(Registration.MAX_OTP_FAILURES))))
 				.returnValues(ReturnValue.ALL_NEW)).attributes();
 			return Optional.of(RegistrationItemMapper.fromItem(updated));
 		} catch (ConditionalCheckFailedException ex) {
-			// 仮登録が無い（同時に削除・確定された）
+			// 仮登録が無い（同時に削除・確定された）、または上限に達した
 			return Optional.empty();
 		}
 	}

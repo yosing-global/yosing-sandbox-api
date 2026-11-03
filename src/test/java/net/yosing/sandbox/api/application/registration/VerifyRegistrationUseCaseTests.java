@@ -98,6 +98,41 @@ class VerifyRegistrationUseCaseTests {
 	}
 
 	/**
+	 * 4回間違えた後でも、5回目に正しいコードなら登録できる（照合の前に数えても、最後の1回は照合する）。
+	 */
+	@Test
+	void completesAtFifthAttempt() {
+		for (int attempt = 1; attempt < Registration.MAX_OTP_FAILURES; attempt++) {
+			assertThatExceptionOfType(OtpInvalidException.class).isThrownBy(() -> useCase.verify(command(wrongCode)));
+		}
+
+		useCase.verify(command(validCode));
+
+		assertThat(completionStore.completions()).hasSize(1);
+	}
+
+	/**
+	 * 読んだ後に、同時のほかの試行で仮登録が消えていたら（試行を数えられない）、照合せずに見つからない失敗にする。
+	 */
+	@Test
+	void rejectsWhenRegistrationGoneBeforeCounting() {
+		InMemoryRegistrationRepository racing = new InMemoryRegistrationRepository() {
+			@Override
+			public Optional<Registration> countOtpAttempt(RegistrationId id) {
+				delete(id);
+				return super.countOtpAttempt(id);
+			}
+		};
+		racing.add(registration);
+		VerifyRegistrationUseCase racingUseCase = new VerifyRegistrationUseCase(racing, completionStore, encryptor,
+				totpVerifier, Clock.fixed(NOW, ZoneOffset.UTC));
+
+		assertThatExceptionOfType(RegistrationNotFoundException.class)
+			.isThrownBy(() -> racingUseCase.verify(command(validCode)));
+		assertThat(completionStore.completions()).isEmpty();
+	}
+
+	/**
 	 * 無い登録 ID・期限切れの仮登録は、見つからない失敗にする。
 	 */
 	@Test

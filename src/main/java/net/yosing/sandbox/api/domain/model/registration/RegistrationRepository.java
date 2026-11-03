@@ -26,12 +26,15 @@ public interface RegistrationRepository {
 	Optional<Registration> findById(RegistrationId id);
 
 	/**
-	 * OTP の失敗回数を1増やす（AP4）。同時に失敗しても数え漏れが無いよう、DB の値に加える。
+	 * OTP の試行を1回数える（AP4）。照合の前に呼ぶ。DB の値に加えるため、同時に試されても数え漏れが無い。
+	 *
+	 * <p>仮登録があり、試行が上限（{@link Registration#MAX_OTP_FAILURES}）に達していないことを条件にする
+	 * （数えられた試行だけが照合に進むため、同時に試されても上限を超えて照合しない）。
 	 *
 	 * @param id 登録 ID
-	 * @return 増やした後の仮登録。仮登録が無ければ空
+	 * @return 数えた後の仮登録。条件に合わなければ空（仮登録が無い、または上限に達した）
 	 */
-	Optional<Registration> recordOtpFailure(RegistrationId id);
+	Optional<Registration> countOtpAttempt(RegistrationId id);
 
 	/**
 	 * 仮登録を削除する（OTP の失敗が上限に達したとき）。無くても失敗しない。
