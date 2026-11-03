@@ -4,7 +4,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+import net.yosing.sandbox.api.application.error.OtpAttemptsExceededException;
+import net.yosing.sandbox.api.application.error.OtpInvalidException;
 import net.yosing.sandbox.api.application.registration.LoginIdTakenException;
+import net.yosing.sandbox.api.application.registration.RegistrationNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -56,6 +59,23 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(LoginIdTakenException.class)
 	ResponseEntity<Object> handleLoginIdTaken(LoginIdTakenException ex) {
 		return response(problem(ErrorCode.LOGIN_ID_TAKEN));
+	}
+
+	@ExceptionHandler(RegistrationNotFoundException.class)
+	ResponseEntity<Object> handleRegistrationNotFound(RegistrationNotFoundException ex) {
+		return response(problem(ErrorCode.REGISTRATION_NOT_FOUND));
+	}
+
+	@ExceptionHandler(OtpInvalidException.class)
+	ResponseEntity<Object> handleOtpInvalid(OtpInvalidException ex) {
+		ProblemDetail problem = problem(ErrorCode.OTP_INVALID);
+		problem.setProperty("remainingAttempts", ex.remainingAttempts());
+		return response(problem);
+	}
+
+	@ExceptionHandler(OtpAttemptsExceededException.class)
+	ResponseEntity<Object> handleOtpAttemptsExceeded(OtpAttemptsExceededException ex) {
+		return response(problem(ErrorCode.OTP_ATTEMPTS_EXCEEDED));
 	}
 
 	@ExceptionHandler(Exception.class)

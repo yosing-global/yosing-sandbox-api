@@ -12,8 +12,17 @@ enum ErrorCode {
 	/** 入力の形式の誤り。 */
 	VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "入力の形式が正しくありません。"),
 
+	/** OTP コードが違う、または使用済み。 */
+	OTP_INVALID(HttpStatus.UNAUTHORIZED, "OTP コードが正しくありません。"),
+
+	/** 登録 ID が無い、または期限切れ。 */
+	REGISTRATION_NOT_FOUND(HttpStatus.NOT_FOUND, "登録が見つからないか、期限が切れています。最初からやり直してください。"),
+
 	/** ログイン ID が使用済み。 */
 	LOGIN_ID_TAKEN(HttpStatus.CONFLICT, "このログイン ID は使われています。"),
+
+	/** OTP の失敗が上限に達した。 */
+	OTP_ATTEMPTS_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "OTP コードを続けて間違えたため、最初からやり直してください。"),
 
 	/** 想定外のエラー。 */
 	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "想定外のエラーが発生しました。");

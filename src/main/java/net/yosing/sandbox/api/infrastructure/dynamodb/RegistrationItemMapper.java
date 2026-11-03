@@ -1,9 +1,15 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
 import net.yosing.sandbox.api.domain.model.registration.Registration;
+import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
+import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
+import net.yosing.sandbox.api.domain.model.user.LoginId;
+import net.yosing.sandbox.api.domain.model.user.PasswordHash;
+import net.yosing.sandbox.api.domain.model.user.UserId;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -12,7 +18,7 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
  *
  * <p>属性（キーのほか）：
  * <ul>
- * <li>userId（S）、loginId（S）、passwordHash（S）</li>
+ * <li>registrationId（S）、userId（S）、loginId（S）、passwordHash（S）</li>
  * <li>totpSecret（B）：暗号化した TOTP の秘密情報</li>
  * <li>otpFailureCount（N）：OTP の失敗回数</li>
  * <li>createdAt（S）：ISO 8601 の UTC</li>
@@ -20,6 +26,8 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
  * </ul>
  */
 final class RegistrationItemMapper {
+
+	static final String REGISTRATION_ID = "registrationId";
 
 	static final String USER_ID = "userId";
 
@@ -40,6 +48,7 @@ final class RegistrationItemMapper {
 
 	static Map<String, AttributeValue> toItem(Registration registration) {
 		Map<String, AttributeValue> item = new HashMap<>(ItemKeys.registration(registration.id()));
+		item.put(REGISTRATION_ID, AttributeValue.fromS(registration.id().toString()));
 		item.put(USER_ID, AttributeValue.fromS(registration.userId().toString()));
 		item.put(LOGIN_ID, AttributeValue.fromS(registration.loginId().value()));
 		item.put(PASSWORD_HASH, AttributeValue.fromS(registration.passwordHash().value()));
@@ -48,6 +57,15 @@ final class RegistrationItemMapper {
 		item.put(CREATED_AT, AttributeValue.fromS(registration.createdAt().toString()));
 		item.put(EXPIRES_AT, AttributeValue.fromN(Long.toString(registration.expiresAt().getEpochSecond())));
 		return item;
+	}
+
+	static Registration fromItem(Map<String, AttributeValue> item) {
+		return Registration.restore(RegistrationId.parse(item.get(REGISTRATION_ID).s()),
+				UserId.parse(item.get(USER_ID).s()), new LoginId(item.get(LOGIN_ID).s()),
+				new PasswordHash(item.get(PASSWORD_HASH).s()),
+				new EncryptedTotpSecret(item.get(TOTP_SECRET).b().asByteArray()),
+				Integer.parseInt(item.get(OTP_FAILURE_COUNT).n()), Instant.parse(item.get(CREATED_AT).s()),
+				Instant.ofEpochSecond(Long.parseLong(item.get(EXPIRES_AT).n())));
 	}
 
 }

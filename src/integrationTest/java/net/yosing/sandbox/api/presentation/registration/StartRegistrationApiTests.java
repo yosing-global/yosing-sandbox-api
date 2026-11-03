@@ -8,11 +8,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.Map;
-
 import com.jayway.jsonpath.JsonPath;
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
+import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
+import net.yosing.sandbox.api.domain.model.user.LoginId;
+import net.yosing.sandbox.api.domain.model.user.UserId;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbProperties;
+import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbTestItems;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,7 +24,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 /**
  * 登録の開始（POST /v1/registrations）の API を、DynamoDB Local とローカルの暗号化で確かめる。
@@ -48,7 +49,7 @@ class StartRegistrationApiTests {
 
 	/**
 	 * 201 で登録 ID・設定 URI・期限を返し、仮登録を保存する（ログイン ID は小文字、パスワードは bcrypt のハッシュ、
-	 * 秘密情報は暗号化、TTL の属性あり）。
+	 * 秘密情報は暗号化）。
 	 */
 	@Test
 	void startsRegistration() throws Exception {
@@ -63,15 +64,12 @@ class StartRegistrationApiTests {
 			.getContentAsString();
 
 		String registrationId = JsonPath.read(body, "$.registrationId");
-		Map<String, AttributeValue> item = dynamoDb
-			.getItem(request -> request.tableName(dynamoDbProperties.tableName())
-				.key(Map.of("PK", AttributeValue.fromS("REG#" + registrationId), "SK", AttributeValue.fromS("REG"))))
-			.item();
-		assertThat(item.get("loginId").s()).isEqualTo("dummy_start_ok");
-		assertThat(item.get("passwordHash").s()).startsWith("{bcrypt}$2a$12$");
-		assertThat(item.get("totpSecret").b().asByteArray()).isNotEmpty();
-		assertThat(item.get("otpFailureCount").n()).isEqualTo("0");
-		assertThat(item.get("expiresAt").n()).isNotBlank();
+		assertThat(items().registration(RegistrationId.parse(registrationId))).hasValueSatisfying(saved -> {
+			assertThat(saved.loginId()).isEqualTo(LoginId.of("dummy_start_ok"));
+			assertThat(saved.passwordHash().value()).startsWith("{bcrypt}$2a$12$");
+			assertThat(saved.totpSecret().bytes()).isNotEmpty();
+			assertThat(saved.otpFailureCount()).isZero();
+		});
 	}
 
 	/**
@@ -118,9 +116,7 @@ class StartRegistrationApiTests {
 	 */
 	@Test
 	void rejectsTakenLoginId() throws Exception {
-		dynamoDb.putItem(request -> request.tableName(dynamoDbProperties.tableName())
-			.item(Map.of("PK", AttributeValue.fromS("LOGINID#dummy_taken_id"), "SK", AttributeValue.fromS("LOGINID"),
-					"userId", AttributeValue.fromS("00000000-0000-0000-0000-000000000000"))));
+		items().putLoginId(LoginId.of("dummy_taken_id"), UserId.generate());
 
 		mockMvc
 			.perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
@@ -129,6 +125,10 @@ class StartRegistrationApiTests {
 			.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
 			.andExpect(jsonPath("$.status").value(409))
 			.andExpect(jsonPath("$.code").value("LOGIN_ID_TAKEN"));
+	}
+
+	private DynamoDbTestItems items() {
+		return new DynamoDbTestItems(dynamoDb, dynamoDbProperties);
 	}
 
 }
