@@ -36,6 +36,8 @@ dependencies {
 	implementation("software.amazon.awssdk:kms")
 	// 仮認証 JWT（Spring Boot の BOM で管理されていないため、バージョンを書く）
 	implementation("com.nimbusds:nimbus-jose-jwt:10.10")
+	// パスワードのハッシュ（bcrypt）。Spring Security のうち、暗号の部品だけを使う（認証の仕組みは入れない）
+	implementation("org.springframework.security:spring-security-crypto")
 	// SpotBugs の検出を個別に外すとき（@SuppressFBWarnings）に使う。実行時には要らない
 	compileOnly("com.github.spotbugs:spotbugs-annotations:$spotbugsVersion")
 	testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")

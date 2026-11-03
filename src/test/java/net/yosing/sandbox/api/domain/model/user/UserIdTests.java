@@ -33,7 +33,7 @@ class UserIdTests {
 	 */
 	@Test
 	void rejectsNonUuid() {
-		assertThatIllegalArgumentException().isThrownBy(() -> UserId.parse("not-a-uuid"));
+		assertThatIllegalArgumentException().isThrownBy(() -> UserId.parse("dummy-not-a-uuid"));
 	}
 
 }

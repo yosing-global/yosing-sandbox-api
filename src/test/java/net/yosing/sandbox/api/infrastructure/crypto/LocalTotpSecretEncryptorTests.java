@@ -3,6 +3,7 @@ package net.yosing.sandbox.api.infrastructure.crypto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -17,11 +18,14 @@ import org.junit.jupiter.api.Test;
  */
 class LocalTotpSecretEncryptorTests {
 
-	private static final TotpSecret SECRET = new TotpSecret("12345678901234567890".getBytes());
+	private static final TotpSecret SECRET = new TotpSecret("dummy-totp-secret".getBytes(StandardCharsets.US_ASCII));
 
-	private final SecretKeySpec key = new SecretKeySpec(new byte[32], "AES");
+	// AES-256 の鍵（32バイト）
+	private final SecretKeySpec key = new SecretKeySpec(
+			"dummy-aes-key-0123456789abcdefgh".getBytes(StandardCharsets.US_ASCII), "AES");
 
-	private final LocalTotpSecretEncryptor encryptor = new LocalTotpSecretEncryptor(key, "local", new SecureRandom());
+	private final LocalTotpSecretEncryptor encryptor = new LocalTotpSecretEncryptor(key, "dummy-local",
+			new SecureRandom());
 
 	/**
 	 * 暗号化したものを、同じユーザーで復号すると元に戻る。
@@ -62,7 +66,7 @@ class LocalTotpSecretEncryptorTests {
 	void cannotDecryptInAnotherEnvironment() {
 		UserId userId = UserId.generate();
 		EncryptedTotpSecret encrypted = encryptor.encrypt(SECRET, userId);
-		LocalTotpSecretEncryptor anotherEnvironment = new LocalTotpSecretEncryptor(key, "dev", new SecureRandom());
+		LocalTotpSecretEncryptor anotherEnvironment = new LocalTotpSecretEncryptor(key, "dummy-dev", new SecureRandom());
 
 		assertThatIllegalStateException().isThrownBy(() -> anotherEnvironment.decrypt(encrypted, userId));
 	}

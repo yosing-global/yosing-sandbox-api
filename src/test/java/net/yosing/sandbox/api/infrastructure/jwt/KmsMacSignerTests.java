@@ -27,9 +27,9 @@ import software.amazon.awssdk.services.kms.model.MacAlgorithmSpec;
  */
 class KmsMacSignerTests {
 
-	private static final String KEY_ARN = "arn:aws:kms:ap-northeast-1:000000000000:key/test";
+	private static final String KEY_ARN = "arn:aws:kms:ap-northeast-1:000000000000:key/dummy";
 
-	private static final byte[] SIGNING_INPUT = "header.payload".getBytes(StandardCharsets.US_ASCII);
+	private static final byte[] SIGNING_INPUT = "dummy-header.dummy-payload".getBytes(StandardCharsets.US_ASCII);
 
 	private final KmsClient kms = mock(KmsClient.class);
 
