@@ -5,9 +5,9 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 ## 状況（2026-10-30 時点）
 
 - Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境と dev / test へのデプロイ・確認、PR 環境の削除）まで。
-- API の仕様は Notion の「4.2 API設計」にまとめ済み。アプリの中身の準備は、DynamoDB の土台（クライアント・DynamoDB Local・起動時のテーブル作成）まで。
+- API の仕様は Notion の「4.2 API設計」にまとめ済み。アプリの中身の準備は、DynamoDB の土台（クライアント・DynamoDB Local・起動時のテーブル作成）と、TOTP の秘密情報の暗号化（KMS とローカルの差し替え）まで。
 - これからの作業の順番：
-  1. 暗号化と署名の抽象化（KMS とローカルの差し替え）
+  1. 署名と仮認証 JWT（KMS の HMAC とローカルの HmacSHA256、Nimbus）
   2. API の実装（4.2 API設計のエンドポイント）
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
 - stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
@@ -71,11 +71,13 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 | 結合テスト | `src/integrationTest`（`integrationTest`） | API のテスト（`@SpringBootTest` ＋ MockMvc でリクエストを送り、ステータス・本文・エラーの `code`、必要なら DB の内容を確かめる）と、技術の実装のテスト（Repository の条件付き書き込み・トランザクション・項目の変換を DynamoDB Local で動かす）。Docker が要る |
 | E2E | `yosing-sandbox-e2e` と CI | デプロイした環境で、画面・BFF・API を通して確かめる |
 
+- テストのクラスとメソッド（ArchUnit のルールを含む）には、何を確かめるかを簡潔に書いた JavaDoc を付ける（メソッドは期待する動きを1文で。理由があれば括弧で添える）。
 - テストのパッケージは `main` と同じ形にする（package-private のクラスを使うため。`integration` のようなパッケージは作らない）。
 - 結合テストは `local` のプロファイルと `DynamoDbLocalContainerConfiguration`（Testcontainers）で動かす。
 - TOTP のコードは時刻で決まるため、時刻は `application/port` の時計（`Clock`）から取り、テストでは決まった時刻の時計に差し替える。
 - KMS の実装は結合テストでは動かせない（手元とテストはローカルの暗号化）。AWS SDK を偽物に差し替えた単体テストで呼び出し方（暗号化コンテキスト等）を確かめ、実際の動きは PR 環境で確かめる。
 - テストのコード（単体・結合）は SpotBugs の対象外、Checkstyle の対象。
+- 差し替えの方針：domain のテストは本物のオブジェクトだけ（時刻は引数で渡す）。application（ユースケース）のテストは、Repository・port を手書きのフェイク（メモリ上の実装、決まった時刻の時計等。`src/test` の port と同じパッケージに置く）に差し替え、結果の状態を確かめる。Mockito は、infrastructure で外のライブラリ（AWS SDK 等）の呼び出し方を確かめるときと、フェイクでは作りにくい失敗を起こすときだけに使う。presentation は単体で確かめず、結合テスト（API のテスト）で確かめる。
 
 ### コードを書くときの注意
 
@@ -117,6 +119,11 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - TOTP は6桁・30秒、前後1ステップを許容。仮登録は10分。OTP の失敗は1回の仮登録・仮認証につき5回まで。パスワードは5回続けて失敗したら15分ロック（ロック中もふつうの失敗と同じ応答）。セッションは最終操作から30日、または発行から90日の早い方。
   - パスワードは bcrypt（強さ12、`DelegatingPasswordEncoder`）。レート制限は API では行わない（送信元単位は公開の入口の WAF）。
 - **ローカルの開発**：DynamoDB は DynamoDB Local。KMS は使わず、暗号化・署名をインターフェースで抽象化して、ローカルでは Java 標準の AES-GCM（コンテキストを AAD に）・HmacSHA256 に差し替える（Spring のプロファイルで切り替え）。
+- **環境名**（`infrastructure/environment/EnvironmentProperties`）：`sandbox.environment.app-env`（`dev` / `test` / `pr<番号>` / `local`。仮認証 JWT の `aud`）と `sandbox.environment.role-env`（`dev` / `test` / `pr` / `local`。KMS の暗号化コンテキストの `env`）。AWS ではタスク定義の環境変数 `APP_ENV`・`ROLE_ENV` で渡す。
+- **TOTP の秘密情報の暗号化**（port：`application/port/TotpSecretEncryptor`、実装：`infrastructure/crypto`）：
+  - aws のプロファイル：`KmsTotpSecretEncryptor`（KMS の Encrypt / Decrypt。鍵の ARN は `sandbox.kms.totp-secret-key-arn` ＝ 環境変数 `KMS_KEY_ARN`。復号でも鍵の ARN と暗号化コンテキストを渡す）。
+  - local のプロファイル：`LocalTotpSecretEncryptor`（AES-GCM。コンテキストを AAD に入れる。暗号文は IV 12バイト＋暗号文とタグ）。鍵は `application-local.yml` の手元専用の固定の鍵（本物の秘密ではない。手元の DynamoDB Local は api を再起動しても残るため、固定にしている）。
+  - ドメインの型：`UserId`（UUID）、`TotpSecret`（toString で中身を出さない）、`EncryptedTotpSecret`（DB に保存する形）。
 - **DynamoDB の実装**（`net.yosing.sandbox.api.infrastructure.dynamodb`）：
   - 設定は `sandbox.dynamodb.table-name`（dev / test 等はタスク定義の環境変数 `DYNAMODB_TABLE_NAME`）と `sandbox.dynamodb.endpoint`（`dynamodb-local` のプロファイルだけ `http://localhost:8000`）。リージョンは `sandbox.aws.region`。
   - `dynamodb-local` のプロファイルでは、起動時にテーブルを作る（`DynamoDbLocalTableInitializer`。DynamoDB Local に接続できるまで1秒おきに最大30回待つ）。接続先が DynamoDB Local のときは、固定のダミーの認証情報を使う。
@@ -155,7 +162,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 
 ## nonprod へのデプロイ
 
-- デプロイは **ecspresso**。定義は `deploy/`（`ecspresso.jsonnet`・`task-def.jsonnet`・`service-def.jsonnet`）。値は SSM パラメータから読み（ecspresso の `ssm` / `ssm_list`）、環境ごとの値は CI が環境変数で渡す（`APP_ENV`：`dev` / `test` / `pr<番号>`、`ROLE_ENV`：`dev` / `test` / `pr`、`ECS_CLUSTER`、`IMAGE`、`CLOUD_MAP_SERVICE_ARN`）。
+- デプロイは **ecspresso**。定義は `deploy/`（`ecspresso.jsonnet`・`task-def.jsonnet`・`service-def.jsonnet`）。値は SSM パラメータから読み（ecspresso の `ssm` / `ssm_list`）、環境ごとの値は CI が環境変数で渡す（`APP_ENV`：`dev` / `test` / `pr<番号>`、`ROLE_ENV`：`dev` / `test` / `pr`、`ECS_CLUSTER`、`IMAGE`、`CLOUD_MAP_SERVICE_ARN`）。api のコンテナには、`SPRING_PROFILES_ACTIVE`（＝`ROLE_ENV`）、`APP_ENV`、`ROLE_ENV`、`KMS_KEY_ARN`、`DYNAMODB_TABLE_NAME`（dev / test だけ）を渡す。
 - ワークフロー：契機ごとのファイルが、共通の手順（再利用できるワークフロー、ファイル名の先頭が `_`）を呼ぶ。手順を直すときは `_build.yml` / `_deploy.yml` の1か所だけを直す。
 
 | ファイル | 契機 | 内容 |
