@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 
@@ -37,20 +38,37 @@ class GetCurrentUserUseCaseTests {
 	private final User user = addUser();
 
 	/**
-	 * ログイン ID と登録した日時を返し、セッションの最終操作の日時を今にして期限を延ばす。
+	 * ログイン ID と登録した日時を返し、セッションの最終操作の日時を今にして期限を延ばす。延ばした後の期限も返す（保存した期限と同じ）。
 	 */
 	@Test
 	void returnsUserAndExtendsSession() {
-		IssuedSession issued = addSession(Instant.parse("2026-11-01T00:00:00Z"));
+		IssuedSession issued = addSession(NOW.minus(Duration.ofHours(1)));
 
 		CurrentUserResult result = useCase.get(issued.sessionId());
 
 		assertThat(result.loginId()).isEqualTo(user.loginId());
 		assertThat(result.createdAt()).isEqualTo(user.createdAt());
+		assertThat(result.sessionExpiresAt()).isEqualTo(NOW.plus(Session.IDLE_TIMEOUT));
 		assertThat(sessions.findByIdHash(issued.session().idHash())).hasValueSatisfying(saved -> {
 			assertThat(saved.lastAccessedAt()).isEqualTo(NOW);
-			assertThat(saved.expiresAt()).isEqualTo(NOW.plus(Session.IDLE_TIMEOUT));
+			assertThat(saved.expiresAt()).isEqualTo(result.sessionExpiresAt());
 		});
+	}
+
+	/**
+	 * 発行から7日の上限に近いセッションは、返す期限も上限で止まる（12時間延ばした日時ではない）。
+	 */
+	@Test
+	void returnsExpiryCappedAtAbsoluteTimeout() {
+		// 上限まで6時間のセッション（最終操作は1時間前。最終操作から12時間より、発行から7日の方が先）
+		Instant issuedAt = NOW.minus(Session.ABSOLUTE_TIMEOUT).plus(Duration.ofHours(6));
+		IssuedSession issued = Session.issue(user.id(), issuedAt);
+		sessions.add(Session.restore(issued.session().idHash(), user.id(), issued.session().createdAt(),
+				NOW.minus(Duration.ofHours(1))));
+
+		CurrentUserResult result = useCase.get(issued.sessionId());
+
+		assertThat(result.sessionExpiresAt()).isEqualTo(issued.session().createdAt().plus(Session.ABSOLUTE_TIMEOUT));
 	}
 
 	/**
