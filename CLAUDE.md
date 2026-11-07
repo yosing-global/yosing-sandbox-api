@@ -117,7 +117,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - セッション ID は `Authorization: Bearer <sessionId>`（API は Cookie を扱わない）。仮認証 JWT は本文の `loginToken`（有効期間5分、`aud` に環境名、`sub` に userId、`jti` を USER に保存して照合する）。
   - エラーは Problem Details（RFC 9457）に `code`（`VALIDATION_FAILED` / `INVALID_CREDENTIALS` / `OTP_INVALID` / `LOGIN_TOKEN_INVALID` / `SESSION_INVALID` / `REGISTRATION_NOT_FOUND` / `LOGIN_ID_TAKEN` / `OTP_ATTEMPTS_EXCEEDED` / `INTERNAL_ERROR`）を加える。
   - 入力：`loginId` は3〜32文字の英小文字・数字・`_`・`-`（小文字にそろえる）、`password` は12〜64文字、`code` は数字6桁。
-  - TOTP は6桁・30秒、前後1ステップを許容。仮登録は10分。OTP の失敗は1回の仮登録につき5回まで。ログインは、パスワードまたは OTP を5回続けて間違えたら、アカウントを15分ロック（ロック中もふつうの失敗と同じ応答。OTP の失敗回数は仮認証をまたいで数える）。セッションは最終操作から30日、または発行から90日の早い方。
+  - TOTP は6桁・30秒、前後1ステップを許容。仮登録は10分。OTP の失敗は1回の仮登録につき5回まで。ログインは、パスワードまたは OTP を5回続けて間違えたら、アカウントを15分ロック（ロック中もふつうの失敗と同じ応答。OTP の失敗回数は仮認証をまたいで数える）。セッションは最終操作から12時間、または発行から7日の早い方。
   - パスワードは bcrypt（強さ12、`DelegatingPasswordEncoder`）。レート制限は API では行わない（送信元単位は公開の入口の WAF）。
 - **ローカルの開発**：DynamoDB は DynamoDB Local。KMS は使わず、暗号化・署名をインターフェースで抽象化して、ローカルでは Java 標準の AES-GCM（コンテキストを AAD に）・HmacSHA256 に差し替える（Spring のプロファイルで切り替え）。
 - **環境名**（`infrastructure/environment/EnvironmentProperties`）：`sandbox.environment.app-env`（`dev` / `test` / `pr<番号>` / `local`。仮認証 JWT の `aud`）と `sandbox.environment.role-env`（`dev` / `test` / `pr` / `local`。KMS の暗号化コンテキストの `env`）。AWS ではタスク定義の環境変数 `APP_ENV`・`ROLE_ENV` で渡す。
@@ -151,10 +151,10 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - OTP の試行は、照合の前に数える（`UserRepository.countOtpAttempt`：`ADD`。条件は jti が同じで、上限の5回に達していないこと）。数えられた試行だけが照合に進むため、同時に試されても上限を超えて照合しない。照合は前後1ステップで、最後に使ったステップより後のものだけ。
   - 失敗したら、上限に達していれば、アカウントを15分ロックして仮認証を終え（`User.lockForOtpFailures` → `UserRepository.saveOtpLock`。jti が同じときだけ書き、新しい仮認証は消さない）429、それ以外は 401 `OTP_INVALID`（`remainingAttempts`）。
   - 成功したら `User.otpVerified` で、一致したステップを最後に使ったステップにし、OTP の失敗回数を0に戻して仮認証を終える。セッションの作成と一緒に `LoginCompletionStore` で保存する。条件に合わなければ（同じコードが同時に使われた）失敗と同じに扱う。応答は 200（`sessionId`・`sessionExpiresAt`）。
-- **セッション**（`domain/model/session`）：セッション ID は 256 ビットの乱数の Base64URL（43文字）。DB には SHA-256 の16進数（`SessionIdHash`）だけを保存し、元の値は発行したとき（`IssuedSession`）にしか持たない。期限は最終操作から30日・発行から90日の早い方。
+- **セッション**（`domain/model/session`）：セッション ID は 256 ビットの乱数の Base64URL（43文字）。DB には SHA-256 の16進数（`SessionIdHash`）だけを保存し、元の値は発行したとき（`IssuedSession`）にしか持たない。期限は最終操作から12時間・発行から7日の早い方。
 - **セッションの API**（`GetCurrentUserUseCase`・`LogoutUseCase`、`presentation/session`）：
   - セッション ID は `Authorization: Bearer <sessionId>` で受け取る（`BearerSessionId`。方式の名前は大文字と小文字を区別しない）。ヘッダーが無い・Bearer でない・発行する形（43文字の Base64URL、`SessionId.fromClient`）でないときは、DB を読まずに 401 `SESSION_INVALID`。401 には `WWW-Authenticate: Bearer` を付ける。
-  - `GET /v1/me`：セッションを読み（無い・期限切れなら 401）、`Session.touch` で最終操作の日時を今にして期限を延ばし（発行から90日より後にはならない）、保存する（`SessionRepository.saveAccess`。セッションがあることが条件で、同時にログアウトされていたら 401）。応答は 200（`loginId`・`createdAt`・`sessionExpiresAt`。`sessionExpiresAt` は延ばした後の期限で、BFF がセッションの Cookie の期限をそろえるために使う）。
+  - `GET /v1/me`：セッションを読み（無い・期限切れなら 401）、`Session.touch` で最終操作の日時を今にして期限を延ばし（発行から7日より後にはならない）、保存する（`SessionRepository.saveAccess`。セッションがあることが条件で、同時にログアウトされていたら 401）。応答は 200（`loginId`・`createdAt`・`sessionExpiresAt`。`sessionExpiresAt` は延ばした後の期限で、BFF がセッションの Cookie の期限をそろえるために使う）。
   - `DELETE /v1/sessions/current`：セッションを削除して 204。既に無くても 204（何度呼んでも同じ結果）。
 - **DynamoDB の実装**（`net.yosing.sandbox.api.infrastructure.dynamodb`）：
   - 設定は `sandbox.dynamodb.table-name`（dev / test 等はタスク定義の環境変数 `DYNAMODB_TABLE_NAME`）と `sandbox.dynamodb.endpoint`（`dynamodb-local` のプロファイルだけ `http://localhost:8000`）。リージョンは `sandbox.aws.region`。

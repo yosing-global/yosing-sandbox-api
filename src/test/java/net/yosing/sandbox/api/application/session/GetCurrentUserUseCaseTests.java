@@ -42,7 +42,7 @@ class GetCurrentUserUseCaseTests {
 	 */
 	@Test
 	void returnsUserAndExtendsSession() {
-		IssuedSession issued = addSession(Instant.parse("2026-11-01T00:00:00Z"));
+		IssuedSession issued = addSession(NOW.minus(Duration.ofHours(1)));
 
 		CurrentUserResult result = useCase.get(issued.sessionId());
 
@@ -56,15 +56,15 @@ class GetCurrentUserUseCaseTests {
 	}
 
 	/**
-	 * 発行から90日の上限に近いセッションは、返す期限も上限で止まる（30日延ばした日時ではない）。
+	 * 発行から7日の上限に近いセッションは、返す期限も上限で止まる（12時間延ばした日時ではない）。
 	 */
 	@Test
 	void returnsExpiryCappedAtAbsoluteTimeout() {
-		// 最終操作を上限の10日前にしたセッション（最終操作から30日より、発行から90日の方が先）
-		Instant issuedAt = NOW.minus(Session.ABSOLUTE_TIMEOUT).plus(Duration.ofDays(10));
+		// 上限まで6時間のセッション（最終操作は1時間前。最終操作から12時間より、発行から7日の方が先）
+		Instant issuedAt = NOW.minus(Session.ABSOLUTE_TIMEOUT).plus(Duration.ofHours(6));
 		IssuedSession issued = Session.issue(user.id(), issuedAt);
 		sessions.add(Session.restore(issued.session().idHash(), user.id(), issued.session().createdAt(),
-				NOW.minus(Duration.ofDays(1))));
+				NOW.minus(Duration.ofHours(1))));
 
 		CurrentUserResult result = useCase.get(issued.sessionId());
 

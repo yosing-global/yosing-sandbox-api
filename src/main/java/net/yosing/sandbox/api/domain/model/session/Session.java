@@ -10,19 +10,20 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 /**
  * ログインしているセッション。
  *
- * <p>期限は、最終操作から30日、または発行から90日の早い方。認証済みの要求のたびに、最終操作の日時と期限を延ばす（{@link #touch}）。
+ * <p>期限は、最終操作から12時間、または発行から7日の早い方。認証済みの要求のたびに、最終操作の日時と期限を延ばす（{@link #touch}）。
+ * 二要素認証で確かめ直す機会を減らしすぎないよう、短めにしている（一日の作業の中ではログインし直さず、週に一度は確かめ直す）。
  */
 public final class Session {
 
 	/**
 	 * 最終操作からの有効期間。
 	 */
-	public static final Duration IDLE_TIMEOUT = Duration.ofDays(30);
+	public static final Duration IDLE_TIMEOUT = Duration.ofHours(12);
 
 	/**
 	 * 発行からの有効期間（延ばしても、これより後にはならない）。
 	 */
-	public static final Duration ABSOLUTE_TIMEOUT = Duration.ofDays(90);
+	public static final Duration ABSOLUTE_TIMEOUT = Duration.ofDays(7);
 
 	private final SessionIdHash idHash;
 
@@ -81,7 +82,7 @@ public final class Session {
 	}
 
 	/**
-	 * 操作があった（認証済みの要求）。最終操作の日時を今にして、期限を延ばす（発行から90日より後にはならない）。
+	 * 操作があった（認証済みの要求）。最終操作の日時を今にして、期限を延ばす（発行から7日より後にはならない）。
 	 *
 	 * @param now 今の日時（秒にそろえる）
 	 * @return 延ばした後のセッション
