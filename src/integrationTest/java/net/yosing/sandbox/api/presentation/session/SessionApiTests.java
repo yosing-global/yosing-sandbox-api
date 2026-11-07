@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.Clock;
 import java.time.Instant;
 
+import com.jayway.jsonpath.JsonPath;
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
 import net.yosing.sandbox.api.domain.model.session.IssuedSession;
 import net.yosing.sandbox.api.domain.model.session.Session;
@@ -57,21 +58,27 @@ class SessionApiTests {
 	Clock clock;
 
 	/**
-	 * 有効なセッションなら 200 でログイン ID と登録した日時を返し、セッションの最終操作の日時と期限を延ばす。
+	 * 有効なセッションなら 200 でログイン ID・登録した日時・延ばした後のセッションの期限を返し、
+	 * セッションの最終操作の日時と期限を延ばす（返す期限は、保存した期限と同じ）。
 	 */
 	@Test
 	void returnsCurrentUserAndExtendsSession() throws Exception {
 		User user = putUser("dummy_me_ok");
 		IssuedSession issued = putSession(user, clock.instant().minusSeconds(3600));
 
-		mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, bearer(issued)))
+		String body = mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, bearer(issued)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.loginId").value("dummy_me_ok"))
-			.andExpect(jsonPath("$.createdAt").value(user.createdAt().toString()));
+			.andExpect(jsonPath("$.createdAt").value(user.createdAt().toString()))
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
 
+		Instant sessionExpiresAt = Instant.parse(JsonPath.read(body, "$.sessionExpiresAt"));
 		assertThat(items().session(issued.session().idHash())).hasValueSatisfying(saved -> {
 			assertThat(saved.lastAccessedAt()).isAfter(issued.session().lastAccessedAt());
 			assertThat(saved.expiresAt()).isAfter(issued.session().expiresAt());
+			assertThat(saved.expiresAt()).isEqualTo(sessionExpiresAt);
 		});
 	}
 

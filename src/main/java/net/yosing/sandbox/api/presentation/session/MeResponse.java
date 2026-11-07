@@ -9,11 +9,12 @@ import net.yosing.sandbox.api.application.session.CurrentUserResult;
  *
  * @param loginId ログイン ID
  * @param createdAt 登録した日時
+ * @param sessionExpiresAt 延ばした後のセッションの期限（BFF がセッションの Cookie の期限をそろえる）
  */
-record MeResponse(String loginId, Instant createdAt) {
+record MeResponse(String loginId, Instant createdAt, Instant sessionExpiresAt) {
 
 	static MeResponse from(CurrentUserResult result) {
-		return new MeResponse(result.loginId().value(), result.createdAt());
+		return new MeResponse(result.loginId().value(), result.createdAt(), result.sessionExpiresAt());
 	}
 
 }

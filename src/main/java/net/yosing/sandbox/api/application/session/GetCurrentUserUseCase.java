@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
  * <ol>
  * <li>セッション ID のハッシュでセッションを取り出す。無い・期限切れなら 401</li>
  * <li>最終操作の日時と期限を延ばして保存する。同時にログアウトされていたら 401</li>
- * <li>ユーザーを取り出し、表示用の情報を返す</li>
+ * <li>ユーザーを取り出し、表示用の情報と、延ばした後のセッションの期限を返す（BFF が Cookie の期限をそろえる）</li>
  * </ol>
  */
 @Service
@@ -38,7 +38,7 @@ public class GetCurrentUserUseCase {
 	 * ログイン中のユーザーの情報を返す。
 	 *
 	 * @param sessionId クライアントから受け取ったセッション ID
-	 * @return ログイン ID と登録した日時
+	 * @return ログイン ID・登録した日時・延ばした後のセッションの期限
 	 * @throws SessionInvalidException セッションが無い・期限切れ、またはユーザーが無い場合
 	 */
 	public CurrentUserResult get(SessionId sessionId) {
@@ -46,11 +46,12 @@ public class GetCurrentUserUseCase {
 		Session session = sessions.findByIdHash(sessionId.hash())
 			.filter(found -> !found.isExpired(now))
 			.orElseThrow(SessionInvalidException::new);
-		if (!sessions.saveAccess(session.touch(now))) {
+		Session touched = session.touch(now);
+		if (!sessions.saveAccess(touched)) {
 			throw new SessionInvalidException();
 		}
 		User user = users.findById(session.userId()).orElseThrow(SessionInvalidException::new);
-		return new CurrentUserResult(user.loginId(), user.createdAt());
+		return new CurrentUserResult(user.loginId(), user.createdAt(), touched.expiresAt());
 	}
 
 }

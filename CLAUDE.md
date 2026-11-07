@@ -154,7 +154,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 - **セッション**（`domain/model/session`）：セッション ID は 256 ビットの乱数の Base64URL（43文字）。DB には SHA-256 の16進数（`SessionIdHash`）だけを保存し、元の値は発行したとき（`IssuedSession`）にしか持たない。期限は最終操作から30日・発行から90日の早い方。
 - **セッションの API**（`GetCurrentUserUseCase`・`LogoutUseCase`、`presentation/session`）：
   - セッション ID は `Authorization: Bearer <sessionId>` で受け取る（`BearerSessionId`。方式の名前は大文字と小文字を区別しない）。ヘッダーが無い・Bearer でない・発行する形（43文字の Base64URL、`SessionId.fromClient`）でないときは、DB を読まずに 401 `SESSION_INVALID`。401 には `WWW-Authenticate: Bearer` を付ける。
-  - `GET /v1/me`：セッションを読み（無い・期限切れなら 401）、`Session.touch` で最終操作の日時を今にして期限を延ばし（発行から90日より後にはならない）、保存する（`SessionRepository.saveAccess`。セッションがあることが条件で、同時にログアウトされていたら 401）。応答は 200（`loginId`・`createdAt`）。
+  - `GET /v1/me`：セッションを読み（無い・期限切れなら 401）、`Session.touch` で最終操作の日時を今にして期限を延ばし（発行から90日より後にはならない）、保存する（`SessionRepository.saveAccess`。セッションがあることが条件で、同時にログアウトされていたら 401）。応答は 200（`loginId`・`createdAt`・`sessionExpiresAt`。`sessionExpiresAt` は延ばした後の期限で、BFF がセッションの Cookie の期限をそろえるために使う）。
   - `DELETE /v1/sessions/current`：セッションを削除して 204。既に無くても 204（何度呼んでも同じ結果）。
 - **DynamoDB の実装**（`net.yosing.sandbox.api.infrastructure.dynamodb`）：
   - 設定は `sandbox.dynamodb.table-name`（dev / test 等はタスク定義の環境変数 `DYNAMODB_TABLE_NAME`）と `sandbox.dynamodb.endpoint`（`dynamodb-local` のプロファイルだけ `http://localhost:8000`）。リージョンは `sandbox.aws.region`。
