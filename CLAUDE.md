@@ -78,6 +78,12 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 - TOTP のコードや期限は時刻で決まるため、ユースケースは今の日時を `java.time.Clock` の Bean から取り、テストでは `Clock.fixed` に差し替える。domain には日時を引数で渡す。
 - KMS の実装は結合テストでは動かせない（手元とテストはローカルの暗号化）。AWS SDK を偽物に差し替えた単体テストで呼び出し方（暗号化コンテキスト等）を確かめ、実際の動きは PR 環境で確かめる。
 - テストのコード（単体・結合）は SpotBugs の対象外、Checkstyle の対象。
+- 秘密の値（パスワード・OTP コード・TOTP の秘密情報・設定 URI・セッション ID・仮認証 JWT・パスワードのハッシュ）がログに出ないことを確かめる：
+  - 単体テスト：秘密を持つ型と、ユースケースの入出力の型の toString が値を出さないこと（各型のテスト、`application/SensitiveToStringTests`）。秘密を持つ型を足したら、ここにも足す。
+  - 結合テスト：`SensitiveDataLoggingTests`（アプリと Spring の Web の部分を DEBUG にして、登録・ログイン・セッションを通し、標準出力に値が出ないこと）と、`InvalidInputLoggingTests`（本番と同じ INFO で、入力の誤りの値が出ないこと）。どちらも `OutputCaptureExtension` で標準出力を捕まえる。
+  - ログの詳しさは JVM 全体で1つのため、ログを確かめるテストは `@TestPropertySource` で詳しさを明示し、自分のコンテキストを持たせる（ほかのテストの設定を引き継がない）。
+  - テストで確かめられないもの：KMS の呼び出し（PR 環境の CloudWatch Logs で確かめる）、リバースプロキシ・ALB 等のアクセスログ（`Authorization` を記録しない設定をインフラで確かめる）。
+  - Spring の Web の部分を DEBUG にすると、入力の誤りの値（rejected value）がログに出ることがあるため、AWS の環境では DEBUG にしない。
 - 差し替えの方針：domain のテストは本物のオブジェクトだけ（時刻は引数で渡す）。application（ユースケース）のテストは、Repository・port を手書きのフェイク（メモリ上の実装 `InMemory*`、決まった動きの `Fake*`。`src/test` の、インターフェースと同じパッケージに置く。時計は `Clock.fixed`）に差し替え、結果の状態を確かめる。Mockito は、infrastructure で外のライブラリ（AWS SDK 等）の呼び出し方を確かめるときと、フェイクでは作りにくい失敗を起こすときだけに使う。presentation は単体で確かめず、結合テスト（API のテスト）で確かめる。
 
 ### コードを書くときの注意

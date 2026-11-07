@@ -55,6 +55,16 @@ class SessionTests {
 	}
 
 	/**
+	 * 発行したセッション（セッション ID とセッションの組）の toString にも、セッション ID を出さない。
+	 */
+	@Test
+	void hidesSessionIdOfIssuedSession() {
+		IssuedSession issued = Session.issue(UserId.generate(), NOW);
+
+		assertThat(issued.toString()).doesNotContain(issued.sessionId().value());
+	}
+
+	/**
 	 * クライアントの値は、発行する形（43文字の Base64URL）のときだけセッション ID にする。
 	 */
 	@Test

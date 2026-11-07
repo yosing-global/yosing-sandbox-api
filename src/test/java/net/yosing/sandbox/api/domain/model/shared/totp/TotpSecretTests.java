@@ -21,6 +21,16 @@ class TotpSecretTests {
 	}
 
 	/**
+	 * 暗号化した秘密情報も、toString に中身を出さない（長さだけ）。
+	 */
+	@Test
+	void doesNotShowEncryptedValueInToString() {
+		EncryptedTotpSecret encrypted = new EncryptedTotpSecret(new byte[] { 7, 8, 9 });
+
+		assertThat(encrypted.toString()).isEqualTo("EncryptedTotpSecret[3 bytes]");
+	}
+
+	/**
 	 * 外から渡した配列・取り出した配列を書き換えても、中身は変わらない。
 	 */
 	@Test
