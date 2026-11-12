@@ -228,7 +228,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 - CI ロール：NonProd の `github-actions-sandbox-api-role`（GitHub の OIDC。引き受けられるのは `pull_request` と develop ブランチ）。
 - アカウント ID・ロールの ARN・ECR の URL はファイルに書かず、GitHub の **Secrets** に置く（インフラの情報を公開しないため）。公開リポジトリでは Actions のログも公開される。Secrets の値は、どのステップのログでも最初から伏せられる。Variables に置くと、`::add-mask::` を行うステップ自身の `env:` の表示に元の値が出る（2026-11-12 に気づき、Variables から Secrets に移した）。
   - Repository secrets：`AWS_ROLE_ARN`（NonProd の CI ロールの ARN）、`ECR_REGISTRY`（`<Shared-Infra のアカウント ID>.dkr.ecr.ap-northeast-1.amazonaws.com`）。stg / prod は Environments に同じ名前で置く予定（Environment の値が優先される）。
-  - `_build.yml`・`_deploy.yml` を呼ぶときは `secrets: inherit` で Secrets を引き継ぐ。アカウント ID だけが出る場面（AWS CLI・ecspresso の出力等）のために、各ジョブの最初に、レジストリの先頭（アカウント ID）を `::add-mask::` で伏せる。
+  - `_build.yml`・`_deploy.yml` を呼ぶときは `secrets: inherit` で Secrets を引き継ぐ。アカウント ID だけが出る場面（AWS CLI・ecspresso の出力等）のために、各ジョブの最初に、アカウント ID（ロールの ARN から取り出す NonProd と、レジストリの先頭の Shared-Infra）を `::add-mask::` で伏せる（`configure-aws-credentials` の `mask-aws-account-id` は、そのステップより後しか伏せないため）。
   - Secrets に移す前の実行のログには、元の値が残っている。一般公開するときの作業の一環で、Actions の古い実行のログを消す（2026-11-12 に決定）。
   - ECR で使える操作は push と取得だけ（`ecr:DescribeImages` は無い）。イメージがあるかは `docker buildx imagetools inspect` で確かめる。
 - イメージ：Shared-Infra の ECR `sandbox/api`。**linux/arm64**（Fargate Spot の ARM64 で動かす）。タグはコミットのハッシュ（上書き禁止）。develop では作り直す。
