@@ -25,7 +25,7 @@
 ## 確認事項
 
 - [ ] パスワード・OTP・TOTP の秘密情報・セッション ID・JWT をログに出していない
-- [ ] アカウント ID・ロールの ARN・ECR の URL をファイルに書いていない（GitHub の Variables・SSM パラメータを使う）
+- [ ] アカウント ID・ロールの ARN・ECR の URL をファイルに書いていない（GitHub の Secrets・SSM パラメータを使う。Variables に置くとログに出る）
 - [ ] KMS の暗号化コンテキスト（`userId`・`env`）を付けている（該当しない場合もチェック）
 - [ ] 必要に応じて README.md / CLAUDE.md / Notion の設計を更新した
 
