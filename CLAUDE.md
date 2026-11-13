@@ -225,6 +225,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 
   - 呼ぶ側のジョブで `permissions`（`contents: read`、`id-token: write`）を渡す。呼ばれる側で取った OIDC のトークンの `sub` は、呼ぶ側の契機（`pull_request` / `ref:refs/heads/develop`）になる。
   - `concurrency`：`pr.yml` と `pr-cleanup.yml` は `pr-<番号>` のグループ（新しい実行が古い実行を止める）。`develop.yml` は `develop` のグループで止めずに順番に流す（待っている実行は最新の1つだけ残る）。
+  - ドキュメント（`*.md`）だけの変更では、`pr.yml`・`develop.yml` を動かさない（`paths-ignore`。デプロイ・E2E をし直さないため。コードと一緒に変わったときは動く）。`pr-cleanup.yml` は、PR 環境が無くても通るので、そのまま動かす。必須のチェック（ブランチの保護）を付けると、飛ばした PR がマージできなくなるので、付けるときはこの作りを見直す。
   - verify：ランナーに Session Manager のプラグイン（バージョンとチェックサムを固定）を入れ、SSM のポートフォワーディングでリバースプロキシにつなぎ、`https://<env>.api.local.sandbox.yosing.net:8090/actuator/health` が `UP` になるまで待つ（デプロイの直後は DNS の TTL の分だけ待つことがある）。
   - PR の Conversation に、PR 環境のヘルスチェックの URL をコメントで出す（`.github/scripts/pr-env-comment.sh`。目印 `<!-- pr-env -->` のコメントを1つだけ作り、デプロイのたびに書き換え、PR を閉じたら「削除済み」にする）。ジョブに `environment:` を付ける方法は使わない（OIDC のトークンの `sub` が `environment:<名前>` に変わり、CI ロールの信頼ポリシーに合わなくなるため）。
 - CI ロール：NonProd の `github-actions-sandbox-api-role`（GitHub の OIDC。引き受けられるのは `pull_request` と develop ブランチ）。
