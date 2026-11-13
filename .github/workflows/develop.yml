@@ -1,7 +1,8 @@
 name: develop
 
 # develop へのマージ：ビルド（イメージの push）→ dev と test へのデプロイ・ヘルスチェック（並べて動かす）
-#   E2E ができたら、deploy-test の後ろに e2e のジョブ（test に向けて）を足す
+#   → test に E2E → テストのユーザーの掃除（dev・test）
+#   test は web の CI もデプロイ・E2E を流すが、web と api の間で排他しない（重なって落ちたらやり直す。e2e の CLAUDE.md）
 on:
   push:
     branches:
@@ -46,3 +47,46 @@ jobs:
       app_env: test
       role_env: test
       image_tag: ${{ needs.build.outputs.image_tag }}
+
+  # test に E2E を流す（yosing-sandbox-e2e の再利用できるワークフロー。web の CI と同じ形）
+  #   E2E の版は develop（test の web は develop のもの。api も、同じ環境の web を相手にするので同じ版）
+  #   e2e は一般公開まで非公開のため、e2e を読む GitHub App のトークンで取ってくる（一般公開したら App の2行を消す）
+  #   ジョブに environment: を付けない（OIDC の sub が変わり、CI ロールに入れなくなる）
+  #   ロールの ARN は secrets の側で渡す（secret の値はログで最初から伏せられる）
+  e2e:
+    needs: deploy-test
+    uses: yosing-global/yosing-sandbox-e2e/.github/workflows/e2e.yml@develop
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      app_env: test
+      e2e_ref: develop
+      e2e_app_client_id: ${{ vars.E2E_APP_CLIENT_ID }}
+    secrets:
+      aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
+      e2e_app_private_key: ${{ secrets.E2E_APP_PRIVATE_KEY }}
+
+  # E2E が作ったテストのユーザーの掃除（登録から24時間を過ぎた e2e_dummy_ のユーザー）
+  #   E2E の成否にかかわらず最後に動かす（取り消したときは動かさない）。失敗しても、デプロイは取り消さない
+  #   dev は web の PR の E2E のユーザーが溜まる（web の PR 環境は dev の API を呼ぶ）
+  #   デプロイが成功したときだけ（タスク定義の最新が、掃除の処理を持つイメージであるように）
+  cleanup:
+    needs:
+      - deploy-dev
+      - deploy-test
+      - e2e
+    if: ${{ !cancelled() && needs.deploy-dev.result == 'success' && needs.deploy-test.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        app_env:
+          - dev
+          - test
+    uses: ./.github/workflows/_cleanup.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      app_env: ${{ matrix.app_env }}
