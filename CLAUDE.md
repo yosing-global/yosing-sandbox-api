@@ -39,7 +39,8 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 - 実装の切り替え（`@Profile`）は、環境名ではなく `aws` / `dynamodb-local` / `local` の単位で書く。
 - KMS の暗号化コンテキストの `env` は環境名（PR 環境はすべて `pr`。`pr<番号>` ではない）。IAM の条件で強制されている。
-- dev / test のタスクロールに許可されている DynamoDB の操作は `GetItem` / `PutItem` / `UpdateItem` / `DeleteItem` / `ConditionCheckItem` だけ（`TransactWriteItems` は中の操作で判定される）。テーブルの作成・確認は `dynamodb-local` のときだけ行う。
+- dev / test のタスクロールに許可されている DynamoDB の操作は `GetItem` / `PutItem` / `UpdateItem` / `DeleteItem` / `ConditionCheckItem` / `Scan` だけ（`TransactWriteItems` は中の操作で判定される。`Scan` はテストのユーザーの掃除のためだけ）。テーブルの作成・確認は `dynamodb-local` のときだけ行う。
+- `cleanup`：テストのユーザーの掃除のモード（環境名と一緒に指定する。例：`SPRING_PROFILES_ACTIVE=test,cleanup`）。Web のサーバーを起動せず、掃除を一度行ってアプリを終える（下の「テストのユーザーの掃除」）。
 
 ### パッケージ構成（軽量 DDD・オニオンアーキテクチャ）
 
@@ -47,7 +48,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 | パッケージ | 置くもの |
 | :--- | :--- |
-| `presentation/<機能>/` | Spring MVC のコントローラー、API のリクエスト・レスポンスの型（Jackson・Bean Validation の注釈はここ）。`presentation/error/` に例外 → Problem Details（`code`）の変換 |
+| `presentation/<機能>/` | Spring MVC のコントローラー、API のリクエスト・レスポンスの型（Jackson・Bean Validation の注釈はここ）。`presentation/error/` に例外 → Problem Details（`code`）の変換。`presentation/cleanup/` は、テストのユーザーの掃除の入口（`ApplicationRunner`） |
 | `application/<機能>/` | ユースケース（`*UseCase`。4.2 API設計の「処理概要」の流れ）、その入出力の型（`*Command` / `*Result`） |
 | `application/error/` | 2つ以上の機能で使うアプリの例外（`OtpInvalidException`・`OtpAttemptsExceededException`）。1つの機能だけの例外は、その機能のパッケージに置く |
 | `application/port/` | アプリが外の技術に求めるもののインターフェース（秘密情報の暗号化、JWT の署名、パスワードのハッシュ、集約をまたぐトランザクションの保存等）。時計は port を作らず、Java 標準の `java.time.Clock` の Bean（`infrastructure/time`）を使う |
@@ -202,8 +203,8 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 | release（手動） | stg と同じイメージを prod にデプロイ |
 
 - イメージは1コミットにつき1つ（タグはコミットのハッシュ、環境名は入れない）。環境の違いはタスク定義の環境変数だけ。
-- ジョブは `check → image → deploy → verify` の順に分ける。今の `verify` はヘルスチェックだけ。E2E（`yosing-sandbox-e2e`）ができたら、その再利用できるワークフロー（`workflow_call`）を呼ぶ `e2e` のジョブを後ろに足す。
-- test 環境の排他：GitHub の `concurrency` は同じリポジトリの中でしか効かない。今はリポジトリの中だけで直列にし、web と api の重なりは許す。E2E ができたら、DynamoDB の条件付き書き込み（期限付き）のロックで、デプロイから E2E までを web と api の間で直列にする（テーブルと権限は `aws-infra-env` に足す）。
+- ジョブは `check → image → deploy → verify → e2e → cleanup` の順に分ける。`verify` はヘルスチェック、`e2e` は `yosing-sandbox-e2e` の再利用できるワークフロー（`e2e.yml`）、`cleanup` はテストのユーザーの掃除（下の「テストのユーザーの掃除」）。api の PR では E2E を流さない（相手の web が無い。api の変更が利用者の流れを壊すかは、develop にマージした後の test の E2E で分かる）。
+- test 環境は、web と api の間で排他しない（2026-11-13 に決定。一度ロックを作りかけてやめた）。GitHub の `concurrency` で、同じリポジトリの中だけ直列にする。web のデプロイと重なって E2E が落ちたら、やり直す（自動のやり直し1回、それでも落ちたら手で Re-run）。理由は e2e の CLAUDE.md・Notion の方式設計の 2.5.2。
 - ランナーは `ubuntu-latest`（x86）。Dockerfile の作りでエミュレーションなしに arm64 を作れるため。ARM のランナーに替えるのは `runs-on` の変更だけで済む。
 - イメージのタグ：PR / develop / main はコミットのハッシュ。release（手動）でバージョン（例：`1.2.0`）を入力し、stg に出したイメージ（同じダイジェスト）に `v1.2.0` のタグを足して prod に出す（git にも同じタグを付ける）。バージョンは release のときに決めるため、アプリ（jar）にはバージョンを入れず、コミットのハッシュを返す。`build.gradle.kts` の `version` は手で上げない。
 - stg / prod を作るときの課題：main で push する CI ロールが無い（信頼ポリシーは `pull_request` と develop だけ）、ECR のライフサイクルに「`v` で始まるタグは直近の10個を残す」ルールを足す（直近の30個だけだと prod のイメージが消える。`aws-infra-global`）、stg は毎日 3:00 に削除される（再構築とデプロイの順番）、Application Auto Scaling のサービスにリンクされたロール（`AWSServiceRoleForApplicationAutoScaling_ECSService`）を Terraform で先に作る（初めての登録で自動で作られるが、作った直後は使えずに失敗することがある。NonProd では一度失敗し、再実行で通った）。
@@ -216,10 +217,11 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 | ファイル | 契機 | 内容 |
 | :--- | :--- | :--- |
 | `pr.yml` | PR（作成・更新） | `_build` → `_deploy`（`pr<番号>`）→ PR へのコメント |
-| `develop.yml` | develop へのマージ | `_build` → `_deploy`（`dev`）と `_deploy`（`test`）を並べて動かす |
+| `develop.yml` | develop へのマージ | `_build` → `_deploy`（`dev`）と `_deploy`（`test`）を並べて動かす → `e2e`（`test`。e2e の `e2e.yml@develop`）→ `_cleanup`（`dev`・`test`） |
 | `pr-cleanup.yml` | PR を閉じたとき | PR 環境の削除 |
 | `_build.yml` | 呼ばれる側 | `check`（静的チェック・テスト・jar）→ `image`（arm64 のイメージの push。タグを返す） |
 | `_deploy.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`・`role_env`・`image_tag`）への `deploy` → `verify` |
+| `_cleanup.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`。`dev` / `test`）のテストのユーザーの掃除 |
 
   - 呼ぶ側のジョブで `permissions`（`contents: read`、`id-token: write`）を渡す。呼ばれる側で取った OIDC のトークンの `sub` は、呼ぶ側の契機（`pull_request` / `ref:refs/heads/develop`）になる。
   - `concurrency`：`pr.yml` と `pr-cleanup.yml` は `pr-<番号>` のグループ（新しい実行が古い実行を止める）。`develop.yml` は `develop` のグループで止めずに順番に流す（待っている実行は最新の1つだけ残る）。
@@ -247,6 +249,14 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - エラーに出ているリソースの ARN の形で許可する（AWS が権限を確かめるリソースは、操作の名前から推測すると外れることがある。例：`ecs:DescribeServiceDeployments` はサービスの ARN、`servicediscovery:CreateService` は名前空間と `service/*` の両方）。
   - 直した後は、`aws-infra-env` の main への apply が終わってから、少し待って再実行する（IAM の反映に時間がかかる）。
 - E2E：GitHub のランナーから SSM のポートフォワーディングでリバースプロキシ（Name タグ `nonprod-nat-ec2`、文書 `AWS-StartPortForwardingSession`）につなぎ、`https://<env>.api.local.sandbox.yosing.net:8090` を叩く（DNS は 127.0.0.1 を返す）。
+- テストのユーザーの掃除（2026-11-13 に作った。設計は Notion の E2E の設計の 11章）：
+  - E2E はテストごとに画面から新規登録し、テストの中では消さない。溜まったユーザー（ログイン ID が `e2e_dummy_` で始まり、登録してから24時間を過ぎたもの）を、develop へのマージの最後に dev・test から消す。期間で絞るため、実行中の E2E のユーザーは消さない。
+  - `_cleanup.yml` が、api のタスク定義（`sandbox-<env>-api` の最新）を `SPRING_PROFILES_ACTIVE=<env>,cleanup` に差し替えて `ecs run-task` で一度だけ動かし、終わるまで待って（上限10分。過ぎたら `StopTask`）、ログと終了コードを確かめる。ネットワークはサービスと同じ。
+  - 処理は api の中（`presentation/cleanup` → `application/cleanup` → `application/port/TestUserCleanupStore` → `infrastructure/dynamodb`）。Scan で探し、ユーザーの項目とログイン ID の項目を、条件付きの TransactWriteItems でまとめて消す。セッション・仮登録は TTL で消えるため消さない。ログには件数だけを出す。
+  - 安全のため：掃除してよい環境は dev・test だけ（`CleanupTestUsersUseCase.ALLOWED_ENVIRONMENTS`。それ以外では何もせずに失敗する。stg は作るときに足す）。ログイン ID が `e2e_dummy_` で始まらないものは、探さず・消さない（Store でも確かめる）。
+  - データを消すのはその環境のタスクロール。CI ロールは `RunTask`・`StopTask` だけを持つ（データの権限は付けない。`aws-infra-env`）。
+  - E2E の成否にかかわらず動く（取り消したとき・デプロイが失敗したときは動かない）。失敗してもデプロイは取り消さない。
+  - 定期実行はしない（web の PR の E2E だけが続くと dev に溜まるが、テストの結果には影響せず、次の api の develop へのマージで消える）。要るようになったら、`_cleanup.yml` を呼ぶ定期実行・手動のワークフローを足す。
 
 使う SSM パラメータ（NonProd、すべて String。サブネットは StringList）：
 

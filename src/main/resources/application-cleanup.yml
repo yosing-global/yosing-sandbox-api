@@ -1,0 +1,6 @@
+# テストのユーザーの掃除（cleanup）。環境名のプロファイルと一緒に指定する（SPRING_PROFILES_ACTIVE=<環境名>,cleanup）
+#   api の CI が、ECS のタスクとして一度だけ動かす（.github/workflows/_cleanup.yml、presentation.cleanup）
+spring:
+  main:
+    # Web のサーバーを起動しない（掃除が終わったら、アプリを終える）
+    web-application-type: none
