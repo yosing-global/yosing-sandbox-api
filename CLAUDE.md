@@ -222,6 +222,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 | `_build.yml` | 呼ばれる側 | `check`（静的チェック・テスト・jar）→ `image`（arm64 のイメージの push。タグを返す） |
 | `_deploy.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`・`role_env`・`image_tag`）への `deploy` → `verify` |
 | `main.yml` | main へのマージ | `_build`（タグは `main-<ハッシュ>`）→ `_deploy`（`stg`）→ `_cleanup`（`stg`）。AWS は Stg（Secrets の `AWS_ROLE_ARN_STG`） |
+| `sync-develop.yml` | main へのマージ | develop を main まで早送りし、履歴をそろえる（GitHub App `yosing-global-sync-develop` のトークンで push。develop に main に無いコミットがあれば警告だけ）。この push では `develop.yml` を動かさない（`build` の `if`）。develop → main の PR は「マージコミット」でマージする（スカッシュ・リベースだと早送りできない） |
 | `_cleanup.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`。`dev` / `test` / `stg`）のテストのユーザーの掃除 |
 
   - 呼ぶ側のジョブで `permissions`（`contents: read`、`id-token: write`）を渡す。呼ばれる側で取った OIDC のトークンの `sub` は、呼ぶ側の契機（`pull_request` / `ref:refs/heads/develop`）になる。
