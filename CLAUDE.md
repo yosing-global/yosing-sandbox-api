@@ -9,7 +9,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 - API の実装（4.2 API設計のエンドポイント）は、登録の開始 → 登録の確定 → ログインの開始 → ログインの確定 → セッションの順に、PR を分けて進め、全部のエンドポイント（`POST /v1/registrations`・`/v1/registrations/{registrationId}/verify`・`/v1/logins`・`/v1/logins/verify`・`GET /v1/me`・`DELETE /v1/sessions/current`）まで。
 - 次の作業：web（BFF）からの呼び出しと E2E（`yosing-sandbox-e2e`）、stg / prod のインフラ。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
-- stg のインフラは `aws-infra-env` に準備済み（prod はこれから）。stg へのデプロイの CI（`main.yml`）を作った（E2E は e2e の stg 対応の後に足す）。
+- stg のインフラは `aws-infra-env` に準備済み（prod はこれから）。stg へのデプロイの CI（`main.yml`）を作った（E2E は e2e の `e2e.yml@main` で、CloudFront の公開の入口に Basic 認証を付けて流す）。
 - 属性名・型（DynamoDB の項目）は、各機能の実装のときに決める（Notion の DB 設計の未確定事項）。
 
 ## 技術
@@ -199,7 +199,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 | develop への PR（作成・更新） | 静的チェック・テスト → イメージの push → PR 環境 `pr<番号>` へのデプロイ（Cloud Map の設定を含む） → 確認 |
 | PR を閉じたとき | PR 環境の削除（ECS のサービス・Cloud Map のサービス） |
 | develop へのマージ | PR とほぼ同じ。デプロイ先は dev と test、確認は test に向けて |
-| main へのマージ | イメージ（`main-<ハッシュ>`）の push → stg へのデプロイ → 確認 → 掃除（E2E は後で足す） |
+| main へのマージ | イメージ（`main-<ハッシュ>`）の push → stg へのデプロイ → 確認 → E2E（e2e の `e2e.yml@main`）→ 掃除 |
 | release（手動） | stg と同じイメージを prod にデプロイ |
 
 - イメージは1コミットにつき1つ（タグはコミットのハッシュ、環境名は入れない）。環境の違いはタスク定義の環境変数だけ。
@@ -221,7 +221,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 | `pr-cleanup.yml` | PR を閉じたとき | PR 環境の削除 |
 | `_build.yml` | 呼ばれる側 | `check`（静的チェック・テスト・jar）→ `image`（arm64 のイメージの push。タグを返す） |
 | `_deploy.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`・`role_env`・`image_tag`）への `deploy` → `verify` |
-| `main.yml` | main へのマージ | `_build`（タグは `main-<ハッシュ>`）→ `_deploy`（`stg`）→ `_cleanup`（`stg`）。AWS は Stg（Secrets の `AWS_ROLE_ARN_STG`） |
+| `main.yml` | main へのマージ | `_build`（タグは `main-<ハッシュ>`）→ `_deploy`（`stg`）→ `e2e`（`stg`。e2e の `e2e.yml@main`）→ `_cleanup`（`stg`）。AWS は Stg（Secrets の `AWS_ROLE_ARN_STG`） |
 | `sync-develop.yml` | main へのマージ | develop を main まで早送りし、履歴をそろえる（GitHub App `yosing-global-sync-develop` のトークンで push。develop に main に無いコミットがあれば警告だけ）。この push では `develop.yml` を動かさない（`build` の `if`）。develop → main の PR は「マージコミット」でマージする（スカッシュ・リベースだと早送りできない） |
 | `_cleanup.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`。`dev` / `test` / `stg`）のテストのユーザーの掃除 |
 
