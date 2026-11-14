@@ -5,6 +5,9 @@ name: pr-cleanup
 #   タスク定義の履歴と ECR のイメージは残す（害がなく、イメージは ECR のライフサイクルで消える）
 on:
   pull_request:
+    # pr.yml と同じく、develop 向けの PR だけ
+    branches:
+      - develop
     types:
       - closed
 
