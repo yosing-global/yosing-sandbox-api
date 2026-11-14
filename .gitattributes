@@ -1,0 +1,31 @@
+# 全てのテキストファイルは LF に統一
+* text=auto eol=lf
+
+# Java・Gradle
+*.java text eol=lf
+*.kts text eol=lf
+*.gradle text eol=lf
+*.properties text eol=lf
+gradlew text eol=lf
+
+# Windows で実行するスクリプトは CRLF（gradlew.bat 等）
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 設定ファイル・スクリプト・ドキュメント
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.jsonnet text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+
+# git 設定ファイル
+*.git* text eol=lf
+
+# バイナリファイル（Gradle wrapper の jar・画像等）は改行変換の対象外
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.zip binary

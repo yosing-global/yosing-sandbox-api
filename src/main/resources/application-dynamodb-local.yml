@@ -1,0 +1,8 @@
+# DynamoDB Local を使うときの設定（local / pr）
+#   手元：compose.yaml で起動する。PR 環境：タスクに同居するサイドカー
+#   テーブルは起動時に作る（DynamoDbLocalTableInitializer）
+
+sandbox:
+  dynamodb:
+    endpoint: http://localhost:8000
+    table-name: sandbox-local-app

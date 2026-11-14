@@ -1,0 +1,122 @@
+name: cleanup
+
+# 共通（呼ばれる側）：E2E が作ったテストのユーザーの掃除（Notion の E2E の設計の 11章）
+#   api のタスク定義（sandbox-<環境>-api の最新）を、掃除のモード（SPRING_PROFILES_ACTIVE=<環境>,cleanup）に差し替えて、
+#   ECS のタスクとして一度だけ動かす。消すのは、ログイン ID が e2e_dummy_ で始まり、登録してから24時間を過ぎたユーザー
+#   （処理は api の presentation.cleanup・application.cleanup。dev・test・stg 以外では、アプリが何もせずに失敗する）
+#   データを消すのはタスクロール。CI ロールは、タスクの起動・停止（RunTask・StopTask）だけを持つ（aws-infra-env）
+#   呼ぶ側（develop.yml・main.yml）のジョブで permissions（contents: read、id-token: write）を渡す
+on:
+  workflow_call:
+    inputs:
+      app_env:
+        description: 掃除する環境（dev / test / stg。prod は掃除しない）
+        type: string
+        required: true
+    # 呼ぶ側は secrets: inherit（nonprod）か、名前を指定して渡す（main.yml は Stg の値を渡す）
+    secrets:
+      AWS_ROLE_ARN:
+        description: アプリの CI ロールの ARN（環境のアカウント）
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  APP_ENV: ${{ inputs.app_env }}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      # 掃除のタスクが終わるまで待つ上限（秒）。過ぎたらタスクを止めて失敗にする
+      WAIT_SECONDS: 600
+    steps:
+      # ロールの ARN は Secrets（最初から伏せられる）。アカウント ID だけが出る場面（AWS CLI の出力等）のために伏せる
+      - name: 値の伏せ字
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+        run: |
+          echo "::add-mask::$(echo "${AWS_ROLE_ARN}" | cut -d: -f5)"
+
+      # 本物のテーブルを持ち、E2E を流す環境だけ（PR 環境は DynamoDB Local で、タスクの停止で消える。prod は E2E を流さない）
+      - name: 入力の確認
+        run: |
+          if ! [[ "${APP_ENV}" =~ ^(dev|test|stg)$ ]]; then
+            echo "::error::掃除する環境は dev / test / stg のどれか：${APP_ENV}"
+            exit 1
+          fi
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      # ネットワークは、サービスと同じ（deploy/service-def.jsonnet：最初のプライベートサブネット、api の SG、パブリック IP なし）
+      - name: 設定値の取得（SSM パラメータ）
+        run: |
+          get() { aws ssm get-parameter --name "$1" --query Parameter.Value --output text; }
+          {
+            echo "ECS_CLUSTER=$(get /products/sandbox/ecs/cluster-name)"
+            echo "SUBNET_ID=$(get /infra-env/network/private-subnet-ids | cut -d, -f1)"
+            echo "SECURITY_GROUP_ID=$(get /products/sandbox/api/security-group-id)"
+            echo "LOG_GROUP=$(get /products/sandbox/api/log-group-name)"
+          } >> "$GITHUB_ENV"
+
+      # タスク定義はファミリー名で指定する（最新の版＝直前にデプロイしたイメージ）。起動のしかたはクラスターの既定（Fargate Spot）
+      - name: 掃除のタスクの起動
+        run: |
+          overrides=$(jq -nc --arg profiles "${APP_ENV},cleanup" \
+            '{containerOverrides: [{name: "api", environment: [{name: "SPRING_PROFILES_ACTIVE", value: $profiles}]}]}')
+          result=$(aws ecs run-task --cluster "${ECS_CLUSTER}" \
+            --task-definition "sandbox-${APP_ENV}-api" \
+            --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_ID}],securityGroups=[${SECURITY_GROUP_ID}],assignPublicIp=DISABLED}" \
+            --overrides "${overrides}" \
+            --started-by github-actions-cleanup \
+            --output json)
+          task_arn=$(jq -r '.tasks[0].taskArn // empty' <<<"${result}")
+          if [ -z "${task_arn}" ]; then
+            echo "::error::掃除のタスクを起動できなかった"
+            jq '.failures' <<<"${result}"
+            exit 1
+          fi
+          echo "起動した：${task_arn##*/}"
+          echo "TASK_ARN=${task_arn}" >> "$GITHUB_ENV"
+
+      # 終わるまで待つ。上限を過ぎたら止めて失敗にする
+      - name: 掃除のタスクの終了を待つ
+        run: |
+          for _ in $(seq 1 $(( WAIT_SECONDS / 10 ))); do
+            status=$(aws ecs describe-tasks --cluster "${ECS_CLUSTER}" --tasks "${TASK_ARN}" \
+              --query 'tasks[0].lastStatus' --output text)
+            if [ "${status}" = "STOPPED" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::${WAIT_SECONDS}秒たっても終わらなかったため、止める"
+          aws ecs stop-task --cluster "${ECS_CLUSTER}" --task "${TASK_ARN}" \
+            --reason "github-actions-cleanup のタイムアウト" --query 'task.lastStatus' --output text
+          exit 1
+
+      # タスクのログ（件数だけが出る。ログイン ID 等の中身はアプリが出さない）と、終了コード
+      #   ログストリームは <アプリの環境>/api/<タスク ID>（deploy/task-def.jsonnet の awslogs-stream-prefix）
+      - name: 掃除の結果
+        if: always() && env.TASK_ARN != ''
+        run: |
+          aws logs get-log-events --log-group-name "${LOG_GROUP}" \
+            --log-stream-name "${APP_ENV}/api/${TASK_ARN##*/}" --start-from-head \
+            --query 'events[].message' --output text || echo "ログを読めなかった"
+          task=$(aws ecs describe-tasks --cluster "${ECS_CLUSTER}" --tasks "${TASK_ARN}" --output json)
+          exit_code=$(jq -r '.tasks[0].containers[] | select(.name == "api") | .exitCode // empty' <<<"${task}")
+          echo "終了コード：${exit_code:-無し}（$(jq -r '.tasks[0].stoppedReason // ""' <<<"${task}")）"
+          if [ "${exit_code}" != "0" ]; then
+            echo "::error::掃除のタスクが失敗した"
+            exit 1
+          fi

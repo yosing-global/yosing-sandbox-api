@@ -1,0 +1,131 @@
+name: build
+
+# 共通（呼ばれる側）：静的チェック・テスト・jar の作成と、arm64 のイメージの ECR への push
+#   呼ぶ側（pr.yml・develop.yml・main.yml）のジョブで permissions（contents: read、id-token: write）を渡す
+on:
+  workflow_call:
+    inputs:
+      push_image:
+        description: イメージを作って push するか（フォークからの PR では AWS に入れないため false にする）
+        type: boolean
+        default: true
+      tag_prefix:
+        description: タグの先頭に付ける文字（main.yml は main-。stg・prod で使うイメージを、ECR のライフサイクルで別に残すため）
+        type: string
+        default: ""
+    # 呼ぶ側は secrets: inherit（nonprod）か、名前を指定して渡す（main.yml は Stg の値を渡す）
+    secrets:
+      AWS_ROLE_ARN:
+        description: アプリの CI ロールの ARN（環境のアカウント）
+        required: true
+      ECR_REGISTRY:
+        description: ECR のレジストリ（<Shared-Infra のアカウント ID>.dkr.ecr.ap-northeast-1.amazonaws.com）
+        required: true
+    outputs:
+      image_tag:
+        description: push したイメージのタグ（<tag_prefix><コミットのハッシュ>）
+        value: ${{ jobs.image.outputs.tag }}
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REPOSITORY: sandbox/api
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      # 静的チェック（Checkstyle・SpotBugs）・テスト・jar の作成
+      - name: ビルド・テスト
+        run: ./gradlew build
+
+      # 失敗したときに、テスト・静的チェックの結果（HTML）を Actions の画面から取得できるようにする
+      - name: 結果の保存
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reports
+          path: build/reports/
+          retention-days: 7
+
+      # image のジョブで同じ jar をイメージに入れる（もう一度ビルドしない）
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: app-jar
+          path: build/libs/app.jar
+          retention-days: 1
+
+  image:
+    needs: check
+    if: inputs.push_image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      # ロールの ARN・レジストリは Secrets に置く（Secrets の値は、どのステップのログでも最初から伏せられる。
+      #   Variables だと、伏せる前のステップの env の表示に元の値が出る）。ここでは、アカウント ID だけが出る場面
+      #   （AWS CLI・docker の出力等）のために、アカウント ID（ロールの ARN の NonProd と、レジストリの先頭の Shared-Infra）を伏せる
+      - name: 値の伏せ字
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        run: |
+          echo "::add-mask::$(echo "${AWS_ROLE_ARN}" | cut -d: -f5)"
+          echo "::add-mask::${ECR_REGISTRY%%.*}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: app-jar
+          path: build/libs/
+
+      # タグはコミットのハッシュ（PR では、PR を develop に取り込んだ状態のコミット。ビルドした中身と一致する）
+      #   main.yml は main-<ハッシュ>（stg と prod で同じイメージを使う）
+      - name: タグ
+        id: meta
+        env:
+          TAG_PREFIX: ${{ inputs.tag_prefix }}
+        run: echo "tag=${TAG_PREFIX}${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      # ECR は Shared-Infra にある。NonProd の CI ロールのトークンで、リポジトリポリシーにより push できる
+      - name: ECR へのログイン
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        run: aws ecr get-login-password | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # タグは上書きできない（IMMUTABLE）ため、同じコミットのイメージがあれば作らない（ジョブの再実行等）
+      #   来歴（provenance）・SBOM の添付はしない（1つのマニフェストにして、ECR のライフサイクルで扱いやすくする）
+      - name: イメージのビルドと push（arm64）
+        env:
+          IMAGE: ${{ secrets.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+        run: |
+          if docker buildx imagetools inspect "${IMAGE}" > /dev/null 2>&1; then
+            echo "同じタグのイメージがあるため、push しない"
+            exit 0
+          fi
+          docker buildx build --platform linux/arm64 --provenance=false --sbom=false --tag "${IMAGE}" --push .
