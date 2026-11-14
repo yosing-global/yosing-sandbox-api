@@ -6,13 +6,7 @@ local ssm = std.native('ssm');
 local ssm_list = std.native('ssm_list');
 
 {
-  // 中断されることがあるが、nonprod なので Fargate Spot で動かす
-  capacityProviderStrategy: [
-    {
-      capacityProvider: 'FARGATE_SPOT',
-      weight: 1,
-    },
-  ],
+  // 起動のしかた（容量プロバイダー）は指定せず、クラスターの既定（Fargate Spot）に従う（aws-infra-env が決める）
   platformVersion: 'LATEST',
   schedulingStrategy: 'REPLICA',
   desiredCount: 1,
@@ -39,6 +33,7 @@ local ssm_list = std.native('ssm_list');
       registryArn: must_env('CLOUD_MAP_SERVICE_ARN'),
     },
   ],
-  // コンテナに入って調べるため（タスクロールに ssmmessages の権限がある）
+  // コンテナに入って調べるため（ECS Exec）。使えるのはタスクロールに ssmmessages の権限がある環境だけ（nonprod）
+  //   権限が無い環境（stg / prod）でも、タスクは起動する（コンテナに入れないだけ）
   enableExecuteCommand: true,
 }

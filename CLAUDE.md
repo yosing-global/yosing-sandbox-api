@@ -9,7 +9,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 - API の実装（4.2 API設計のエンドポイント）は、登録の開始 → 登録の確定 → ログインの開始 → ログインの確定 → セッションの順に、PR を分けて進め、全部のエンドポイント（`POST /v1/registrations`・`/v1/registrations/{registrationId}/verify`・`/v1/logins`・`/v1/logins/verify`・`GET /v1/me`・`DELETE /v1/sessions/current`）まで。
 - 次の作業：web（BFF）からの呼び出しと E2E（`yosing-sandbox-e2e`）、stg / prod のインフラ。
 - nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
-- stg / prod のインフラはまだ無い（後で `aws-infra-env` に作る）。
+- stg のインフラは `aws-infra-env` に準備済み（prod はこれから）。stg へのデプロイの CI は、これから作る。
 - 属性名・型（DynamoDB の項目）は、各機能の実装のときに決める（Notion の DB 設計の未確定事項）。
 
 ## 技術
@@ -105,7 +105,7 @@ Norton の TLS 検査で、Claude のシェルからの Gradle の通信（wrapp
 | `aws-infra-env` | 環境のインフラ（`envs/`）と sandbox のインフラ（`products/sandbox/nonprod`）。CI ロールの権限もここ |
 | `yosing-sandbox-web` | 画面と BFF（Next.js） |
 
-- インフラの変更が必要なら `aws-infra-env` の `products/sandbox/nonprod` で行う。本リポジトリでは AWS のリソースを Terraform で作らない（ECS のサービス・タスク定義・Cloud Map のサービス・稼働時間のスケジュールは、本リポジトリの CI が作る）。
+- インフラの変更が必要なら `aws-infra-env` の `products/sandbox/nonprod` で行う。本リポジトリでは AWS のリソースを Terraform で作らない（ECS のサービス・タスク定義・Cloud Map のサービスは、本リポジトリの CI が作る）。
 - インフラの詳細（名前・権限・SSM パラメータの一覧）は `../aws-infra-env/README.md` の「sandbox（nonprod）」が正。
 
 ## 設計
@@ -190,14 +190,14 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 
 - nonprod（dev / test / PR 環境）は1つの AWS アカウント（NonProd）を共有する。
 - nonprod の URL は `https://<env>.api.local.sandbox.yosing.net:8090`。SSM のポートフォワーディング（ローカルの 8090 → リバースプロキシの 443）でアクセスする。手順は `../aws-infra-env/README.md`。
-- nonprod の稼働時間は毎日 9:00〜翌 1:00（JST）。それ以外はタスクが 0 になる。
+- nonprod のタスクは、使うときに `aws-infra-env` の `start.yml`（`nonprod`）で起動し、毎日 3:00（JST）に `stop.yml` で止まる（PR 環境も含む。2026-11-14 に、9:00〜翌 1:00 のスケジュールから変えた）。デプロイしたサービスは、止めていても起動する。
 
 ## CI の流れ（予定。作るのは PR → develop の順、stg / prod はインフラができてから）
 
 | 契機 | 内容 |
 | :--- | :--- |
 | PR（作成・更新） | 静的チェック・テスト → イメージの push → PR 環境 `pr<番号>` へのデプロイ（Cloud Map の設定を含む） → 確認 |
-| PR を閉じたとき | PR 環境の削除（ECS のサービス・Cloud Map のサービス・スケジュール） |
+| PR を閉じたとき | PR 環境の削除（ECS のサービス・Cloud Map のサービス） |
 | develop へのマージ | PR とほぼ同じ。デプロイ先は dev と test、確認は test に向けて |
 | main へのマージ | イメージの push → stg へのデプロイ → 確認 |
 | release（手動） | stg と同じイメージを prod にデプロイ |
@@ -207,7 +207,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 - test 環境は、web と api の間で排他しない（2026-11-13 に決定。一度ロックを作りかけてやめた）。GitHub の `concurrency` で、同じリポジトリの中だけ直列にする。web のデプロイと重なって E2E が落ちたら、やり直す（自動のやり直し1回、それでも落ちたら手で Re-run）。理由は e2e の CLAUDE.md・Notion の方式設計の 2.5.2。
 - ランナーは `ubuntu-latest`（x86）。Dockerfile の作りでエミュレーションなしに arm64 を作れるため。ARM のランナーに替えるのは `runs-on` の変更だけで済む。
 - イメージのタグ：PR / develop / main はコミットのハッシュ。release（手動）でバージョン（例：`1.2.0`）を入力し、stg に出したイメージ（同じダイジェスト）に `v1.2.0` のタグを足して prod に出す（git にも同じタグを付ける）。バージョンは release のときに決めるため、アプリ（jar）にはバージョンを入れず、コミットのハッシュを返す。`build.gradle.kts` の `version` は手で上げない。
-- stg / prod を作るときの課題：main で push する CI ロールが無い（信頼ポリシーは `pull_request` と develop だけ）、ECR のライフサイクルに「`v` で始まるタグは直近の10個を残す」ルールを足す（直近の30個だけだと prod のイメージが消える。`aws-infra-global`）、stg は毎日 3:00 に削除される（再構築とデプロイの順番）、Application Auto Scaling のサービスにリンクされたロール（`AWSServiceRoleForApplicationAutoScaling_ECSService`）を Terraform で先に作る（初めての登録で自動で作られるが、作った直後は使えずに失敗することがある。NonProd では一度失敗し、再実行で通った）。
+- stg / prod のインフラ（`aws-infra-env`・`aws-infra-global`）は、stg まで準備済み（main で push する CI ロール、ECR のライフサイクル（`main-` のタグは直近の10個）、ふだんは止めておき start / stop で起動・停止）。stg へのデプロイ（`main.yml`）は、これから作る。
 
 ## nonprod へのデプロイ
 
@@ -226,7 +226,9 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - 呼ぶ側のジョブで `permissions`（`contents: read`、`id-token: write`）を渡す。呼ばれる側で取った OIDC のトークンの `sub` は、呼ぶ側の契機（`pull_request` / `ref:refs/heads/develop`）になる。
   - `concurrency`：`pr.yml` と `pr-cleanup.yml` は `pr-<番号>` のグループ（新しい実行が古い実行を止める）。`develop.yml` は `develop` のグループで止めずに順番に流す（待っている実行は最新の1つだけ残る）。
   - ドキュメント（`*.md`）だけの変更では、`pr.yml`・`develop.yml` を動かさない（`paths-ignore`。デプロイ・E2E をし直さないため。コードと一緒に変わったときは動く）。`pr-cleanup.yml` は、PR 環境が無くても通るので、そのまま動かす。必須のチェック（ブランチの保護）を付けると、飛ばした PR がマージできなくなるので、付けるときはこの作りを見直す。
-  - verify：ランナーに Session Manager のプラグイン（バージョンとチェックサムを固定）を入れ、SSM のポートフォワーディングでリバースプロキシにつなぎ、`https://<env>.api.local.sandbox.yosing.net:8090/actuator/health` が `UP` になるまで待つ（デプロイの直後は DNS の TTL の分だけ待つことがある）。
+  - deploy の最初に `/infra-env/status/running` を読み、`true` でなければ（stg / prod を止めている）失敗にする（環境名では分岐しない。nonprod は常に `true`）。
+  - verify：確認用のタスク（`.github/scripts/verify-task.sh`。web と同じファイル）を ECS で一度だけ動かし、VPC の中から `http://<env>-api.sandbox.internal:8080/actuator/health` が `UP` になるまで待つ（デプロイの直後は DNS の TTL の分だけ待つことがある）。全環境で同じ経路で、リバースプロキシや ALB に依存しない。
+    - タスク定義 `sandbox-<env>-api-verify`（CI が毎回登録する。タスクロールなし）。イメージは ECR Public の `amazonlinux:2023`（curl が入っている。digest で固定）。SG は `/products/sandbox/verify/security-group-id`。ログはロググループの `<env>-verify/verify/<タスク ID>`。上限10分で、過ぎたら止めて失敗にする。
   - PR の Conversation に、PR 環境のヘルスチェックの URL をコメントで出す（`.github/scripts/pr-env-comment.sh`。目印 `<!-- pr-env -->` のコメントを1つだけ作り、デプロイのたびに書き換え、PR を閉じたら「削除済み」にする）。ジョブに `environment:` を付ける方法は使わない（OIDC のトークンの `sub` が `environment:<名前>` に変わり、CI ロールの信頼ポリシーに合わなくなるため）。
 - CI ロール：NonProd の `github-actions-sandbox-api-role`（GitHub の OIDC。引き受けられるのは `pull_request` と develop ブランチ）。
 - アカウント ID・ロールの ARN・ECR の URL はファイルに書かず、GitHub の **Secrets** に置く（インフラの情報を公開しないため）。公開リポジトリでは Actions のログも公開される。Secrets の値は、どのステップのログでも最初から伏せられる。Variables に置くと、`::add-mask::` を行うステップ自身の `env:` の表示に元の値が出る（2026-11-12 に気づき、Variables から Secrets に移した）。
@@ -245,7 +247,8 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 
 - タスクのサイズ：dev / test は 0.5 vCPU / 1GB。PR 環境は 0.5 vCPU / 2GB（api 1GB ＋ DynamoDB Local 1GB）。
 - PR 環境は本物のテーブルを使わず、タスクに DynamoDB Local（ECR Public の `aws-dynamodb-local`、`-inMemory -sharedDb`）をサイドカーで同居させ、api から `localhost:8000` で使う。データはデプロイ・Spot の中断・毎日の停止で消えるため、api の起動時にテーブルを作る（初期データは、必要になったら足す）。テーブルの定義は `aws-infra-env` の `dynamodb.tf` と揃える。
-- Cloud Map のサービスと、稼働時間のスケジュール（Application Auto Scaling。9:00 に 1、翌 1:00 に 0、タイムゾーン `Asia/Tokyo`）は、CI が AWS CLI で作る。PR 環境の削除のときに一緒に消す。
+- Cloud Map のサービスは、CI が AWS CLI で作る。PR 環境の削除のときに一緒に消す。
+- 起動のしかた（Fargate Spot）は service-def に書かず、クラスターの既定に従う（`aws-infra-env` が決める）。
 - CI で AccessDenied が出たら、CI ロールの権限（`aws-infra-env` の `products/sandbox/nonprod/iam.tf`）を直す。
   - エラーに出ているリソースの ARN の形で許可する（AWS が権限を確かめるリソースは、操作の名前から推測すると外れることがある。例：`ecs:DescribeServiceDeployments` はサービスの ARN、`servicediscovery:CreateService` は名前空間と `service/*` の両方）。
   - 直した後は、`aws-infra-env` の main への apply が終わってから、少し待って再実行する（IAM の反映に時間がかかる）。
@@ -272,7 +275,9 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 | `/products/sandbox/api/kms-key-arn` | TOTP の秘密情報の暗号化用の鍵 |
 | `/products/sandbox/api/jwt-kms-key-arn` | JWT の署名用の鍵 |
 | `/products/sandbox/dynamodb/<env>/table-name` | テーブル（`dev` / `test` だけ） |
+| `/products/sandbox/verify/security-group-id` | 確認用のタスク（verify）の SG |
 | `/infra-env/network/private-subnet-ids` | タスクを置くサブネット |
+| `/infra-env/status/running` | 環境の稼働（`true` / `false`）。`true` でなければデプロイしない |
 
 ## 作業の進め方
 
