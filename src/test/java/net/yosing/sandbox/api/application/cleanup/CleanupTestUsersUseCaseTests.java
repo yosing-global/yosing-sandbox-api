@@ -62,18 +62,19 @@ class CleanupTestUsersUseCaseTests {
 	}
 
 	/**
-	 * テストのユーザーがいなければ、件数はすべて0。
+	 * 掃除してよい環境（dev・test・stg）では、テストのユーザーがいなければ、件数はすべて0。
 	 */
-	@Test
-	void returnsZeroWhenNoTestUsers() {
-		assertThat(useCase.cleanup("test")).isEqualTo(new CleanupTestUsersResult(0, 0, 0));
+	@ParameterizedTest
+	@ValueSource(strings = { "dev", "test", "stg" })
+	void returnsZeroWhenNoTestUsers(String environment) {
+		assertThat(useCase.cleanup(environment)).isEqualTo(new CleanupTestUsersResult(0, 0, 0));
 	}
 
 	/**
-	 * 掃除してよい環境（dev・test）でなければ、探さずに失敗する（prod 等で消さない）。
+	 * 掃除してよい環境（dev・test・stg）でなければ、探さずに失敗する（prod 等で消さない）。
 	 */
 	@ParameterizedTest
-	@ValueSource(strings = { "prod", "stg", "pr", "local", "dummy-env" })
+	@ValueSource(strings = { "prod", "pr", "local", "dummy-env" })
 	void rejectsOtherEnvironments(String environment) {
 		store.add(testUser("e2e_dummy_old", NOW.minusSeconds(48 * 3600)));
 

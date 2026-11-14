@@ -29,9 +29,9 @@ public class CleanupTestUsersUseCase {
 	public static final Duration RETENTION = Duration.ofHours(24);
 
 	/**
-	 * 掃除してよい環境（ROLE_ENV）。stg は、stg を作るときに足す。prod は足さない。
+	 * 掃除してよい環境（ROLE_ENV）。E2E を流す環境（dev・test・stg）だけ。prod は足さない。
 	 */
-	public static final Set<String> ALLOWED_ENVIRONMENTS = Set.of("dev", "test");
+	public static final Set<String> ALLOWED_ENVIRONMENTS = Set.of("dev", "test", "stg");
 
 	private final TestUserCleanupStore store;
 

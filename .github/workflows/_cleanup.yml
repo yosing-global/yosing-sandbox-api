@@ -3,15 +3,20 @@ name: cleanup
 # 共通（呼ばれる側）：E2E が作ったテストのユーザーの掃除（Notion の E2E の設計の 11章）
 #   api のタスク定義（sandbox-<環境>-api の最新）を、掃除のモード（SPRING_PROFILES_ACTIVE=<環境>,cleanup）に差し替えて、
 #   ECS のタスクとして一度だけ動かす。消すのは、ログイン ID が e2e_dummy_ で始まり、登録してから24時間を過ぎたユーザー
-#   （処理は api の presentation.cleanup・application.cleanup。dev・test 以外では、アプリが何もせずに失敗する）
+#   （処理は api の presentation.cleanup・application.cleanup。dev・test・stg 以外では、アプリが何もせずに失敗する）
 #   データを消すのはタスクロール。CI ロールは、タスクの起動・停止（RunTask・StopTask）だけを持つ（aws-infra-env）
-#   呼ぶ側（develop.yml）のジョブで permissions（contents: read、id-token: write）を渡す
+#   呼ぶ側（develop.yml・main.yml）のジョブで permissions（contents: read、id-token: write）を渡す
 on:
   workflow_call:
     inputs:
       app_env:
-        description: 掃除する環境（dev / test。stg は、stg を作るときに足す）
+        description: 掃除する環境（dev / test / stg。prod は掃除しない）
         type: string
+        required: true
+    # 呼ぶ側は secrets: inherit（nonprod）か、名前を指定して渡す（main.yml は Stg の値を渡す）
+    secrets:
+      AWS_ROLE_ARN:
+        description: アプリの CI ロールの ARN（環境のアカウント）
         required: true
 
 permissions:
@@ -39,11 +44,11 @@ jobs:
         run: |
           echo "::add-mask::$(echo "${AWS_ROLE_ARN}" | cut -d: -f5)"
 
-      # 本物のテーブルを持つ環境だけ（PR 環境は DynamoDB Local で、タスクの停止で消える）
+      # 本物のテーブルを持ち、E2E を流す環境だけ（PR 環境は DynamoDB Local で、タスクの停止で消える。prod は E2E を流さない）
       - name: 入力の確認
         run: |
-          if ! [[ "${APP_ENV}" =~ ^(dev|test)$ ]]; then
-            echo "::error::掃除する環境は dev / test のどちらか：${APP_ENV}"
+          if ! [[ "${APP_ENV}" =~ ^(dev|test|stg)$ ]]; then
+            echo "::error::掃除する環境は dev / test / stg のどれか：${APP_ENV}"
             exit 1
           fi
 
