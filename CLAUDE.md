@@ -183,7 +183,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 
 | 契機 | デプロイ先 |
 | :--- | :--- |
-| PR | PR 環境 `pr<番号>`（PR を閉じたら削除） |
+| develop への PR | PR 環境 `pr<番号>`（PR を閉じたら削除。develop → main の PR では作らない） |
 | develop へのマージ | `dev` と `test` |
 | main へのマージ | `stg` |
 | 手動 | `prod`（インフラ未作成。stg に出したものだけ） |
@@ -196,7 +196,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 
 | 契機 | 内容 |
 | :--- | :--- |
-| PR（作成・更新） | 静的チェック・テスト → イメージの push → PR 環境 `pr<番号>` へのデプロイ（Cloud Map の設定を含む） → 確認 |
+| develop への PR（作成・更新） | 静的チェック・テスト → イメージの push → PR 環境 `pr<番号>` へのデプロイ（Cloud Map の設定を含む） → 確認 |
 | PR を閉じたとき | PR 環境の削除（ECS のサービス・Cloud Map のサービス） |
 | develop へのマージ | PR とほぼ同じ。デプロイ先は dev と test、確認は test に向けて |
 | main へのマージ | イメージ（`main-<ハッシュ>`）の push → stg へのデプロイ → 確認 → 掃除（E2E は後で足す） |
@@ -216,12 +216,13 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 
 | ファイル | 契機 | 内容 |
 | :--- | :--- | :--- |
-| `pr.yml` | PR（作成・更新） | `_build` → `_deploy`（`pr<番号>`）→ PR へのコメント |
+| `pr.yml` | develop への PR（作成・更新） | `_build` → `_deploy`（`pr<番号>`）→ PR へのコメント |
 | `develop.yml` | develop へのマージ | `_build` → `_deploy`（`dev`）と `_deploy`（`test`）を並べて動かす → `e2e`（`test`。e2e の `e2e.yml@develop`）→ `_cleanup`（`dev`・`test`） |
 | `pr-cleanup.yml` | PR を閉じたとき | PR 環境の削除 |
 | `_build.yml` | 呼ばれる側 | `check`（静的チェック・テスト・jar）→ `image`（arm64 のイメージの push。タグを返す） |
 | `_deploy.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`・`role_env`・`image_tag`）への `deploy` → `verify` |
 | `main.yml` | main へのマージ | `_build`（タグは `main-<ハッシュ>`）→ `_deploy`（`stg`）→ `_cleanup`（`stg`）。AWS は Stg（Secrets の `AWS_ROLE_ARN_STG`） |
+| `sync-develop.yml` | main へのマージ | develop を main まで早送りし、履歴をそろえる（GitHub App `yosing-global-sync-develop` のトークンで push。develop に main に無いコミットがあれば警告だけ）。この push では `develop.yml` を動かさない（`build` の `if`）。develop → main の PR は「マージコミット」でマージする（スカッシュ・リベースだと早送りできない） |
 | `_cleanup.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`。`dev` / `test` / `stg`）のテストのユーザーの掃除 |
 
   - 呼ぶ側のジョブで `permissions`（`contents: read`、`id-token: write`）を渡す。呼ばれる側で取った OIDC のトークンの `sub` は、呼ぶ側の契機（`pull_request` / `ref:refs/heads/develop`）になる。
