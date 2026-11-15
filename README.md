@@ -67,8 +67,8 @@ sandbox は、個人の学習とポートフォリオを兼ねたアプリです
 | :--- | :--- | :--- |
 | Pull Request | PR ごとの環境（PR を閉じると削除） | なし |
 | `develop` へのマージ | dev、test | test に E2E → dev・test のテストのユーザーの掃除 |
-| `main` へのマージ | stg | （stg を作るときに、E2E と掃除を足す） |
-| 手動 | prod | なし |
+| `main` へのマージ | stg | stg に E2E → stg のテストのユーザーの掃除 |
+| 手動（`prod.yml`。stg で成功したコミットだけ） | prod | なし |
 
 - E2E は、[yosing-sandbox-e2e](https://github.com/yosing-global/yosing-sandbox-e2e) の再利用できるワークフローを呼んで流します（Playwright。ブラウザーから web・API・DB をつなげて、登録・ログイン・ログアウトの流れを確かめる）。シナリオと作りは、e2e の README にあります。
 - api の PR では E2E を流しません。api の変更が画面からの流れを壊さないかは、develop へのマージの後の test の E2E で確かめます。API の細かな判定（入力の規則の境界値・期限・ロックの回数）は、このリポジトリの結合テストで確かめます。
