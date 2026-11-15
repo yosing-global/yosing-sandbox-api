@@ -186,7 +186,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 | develop への PR | PR 環境 `pr<番号>`（PR を閉じたら削除。develop → main の PR では作らない） |
 | develop へのマージ | `dev` と `test` |
 | main へのマージ | `stg` |
-| 手動 | `prod`（インフラ未作成。stg に出したものだけ） |
+| 手動（`prod.yml`） | `prod`（stg で成功したコミットだけ） |
 
 - nonprod（dev / test / PR 環境）は1つの AWS アカウント（NonProd）を共有する。
 - nonprod の URL は `https://<env>.api.local.sandbox.yosing.net:8090`。SSM のポートフォワーディング（ローカルの 8090 → リバースプロキシの 443）でアクセスする。手順は `../aws-infra-env/README.md`。
@@ -200,13 +200,13 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 | PR を閉じたとき | PR 環境の削除（ECS のサービス・Cloud Map のサービス） |
 | develop へのマージ | PR とほぼ同じ。デプロイ先は dev と test、確認は test に向けて |
 | main へのマージ | イメージ（`main-<ハッシュ>`）の push → stg へのデプロイ → 確認 → E2E（e2e の `e2e.yml@main`）→ 掃除 |
-| release（手動） | stg と同じイメージを prod にデプロイ |
+| 手動（`prod.yml`） | stg と同じイメージ（`main-<ハッシュ>`）を prod にデプロイ → 確認 |
 
 - イメージは1コミットにつき1つ（タグはコミットのハッシュ、環境名は入れない）。環境の違いはタスク定義の環境変数だけ。
 - ジョブは `check → image → deploy → verify → e2e → cleanup` の順に分ける。`verify` はヘルスチェック、`e2e` は `yosing-sandbox-e2e` の再利用できるワークフロー（`e2e.yml`）、`cleanup` はテストのユーザーの掃除（下の「テストのユーザーの掃除」）。api の PR では E2E を流さない（相手の web が無い。api の変更が利用者の流れを壊すかは、develop にマージした後の test の E2E で分かる）。
 - test 環境は、web と api の間で排他しない（2026-11-13 に決定。一度ロックを作りかけてやめた）。GitHub の `concurrency` で、同じリポジトリの中だけ直列にする。web のデプロイと重なって E2E が落ちたら、やり直す（自動のやり直し1回、それでも落ちたら手で Re-run）。理由は e2e の CLAUDE.md・Notion の方式設計の 2.5.2。
 - ランナーは `ubuntu-latest`（x86）。Dockerfile の作りでエミュレーションなしに arm64 を作れるため。ARM のランナーに替えるのは `runs-on` の変更だけで済む。
-- イメージのタグ：PR / develop はコミットのハッシュ、main は `main-<ハッシュ>`（stg と prod で同じイメージを使う。ECR のライフサイクルで、`main-` は直近の10個を別に残す）。release（手動）でバージョン（例：`1.2.0`）を入力し、stg に出したイメージ（同じダイジェスト）に `v1.2.0` のタグを足して prod に出す（git にも同じタグを付ける）。バージョンは release のときに決めるため、アプリ（jar）にはバージョンを入れず、コミットのハッシュを返す。`build.gradle.kts` の `version` は手で上げない。
+- イメージのタグ：PR / develop はコミットのハッシュ、main は `main-<ハッシュ>`（stg と prod で同じイメージを使う。ECR のライフサイクルで、`main-` は直近の10個を別に残す）。prod には、stg と同じ `main-<ハッシュ>` をそのまま出す（バージョンのタグ（`v1.2.0` 等）は、今は付けない。要るようになったら、prod.yml でバージョンを入力し、同じダイジェストにタグを足す形を考える）。アプリ（jar）にはバージョンを入れず、コミットのハッシュを返す。`build.gradle.kts` の `version` は手で上げない。
 - stg / prod のインフラ（`aws-infra-env`・`aws-infra-global`）は、stg まで準備済み（main で push する CI ロール、ECR のライフサイクル（`main-` のタグは直近の10個）、ふだんは止めておき start / stop で起動・停止）。
 
 ## nonprod へのデプロイ
@@ -223,6 +223,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 | `_deploy.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`・`role_env`・`image_tag`）への `deploy` → `verify` |
 | `main.yml` | main へのマージ | `_build`（タグは `main-<ハッシュ>`）→ `_deploy`（`stg`）→ `e2e`（`stg`。e2e の `e2e.yml@main`）→ `_cleanup`（`stg`）。AWS は Stg（Secrets の `AWS_ROLE_ARN_STG`） |
 | `sync-develop.yml` | main へのマージ | develop を main まで早送りし、履歴をそろえる（GitHub App `yosing-global-sync-develop` のトークンで push。develop に main に無いコミットがあれば警告だけ）。この push では `develop.yml` を動かさない（`build` の `if`）。develop → main の PR は「マージコミット」でマージする（スカッシュ・リベースだと早送りできない） |
+| `prod.yml` | 手動（main） | そのコミットの `main.yml` の成功を確かめる → `_deploy`（`prod`。イメージは `main-<ハッシュ>`、Environment `prod`）。E2E は流さない。web と両方を出すときは api → web の順 |
 | `_cleanup.yml` | 呼ばれる側 | 1つの環境（入力：`app_env`。`dev` / `test` / `stg`）のテストのユーザーの掃除 |
 
   - 呼ぶ側のジョブで `permissions`（`contents: read`、`id-token: write`）を渡す。呼ばれる側で取った OIDC のトークンの `sub` は、呼ぶ側の契機（`pull_request` / `ref:refs/heads/develop`）になる。
@@ -232,10 +233,10 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
   - verify：確認用のタスク（`.github/scripts/verify-task.sh`。web と同じファイル）を ECS で一度だけ動かし、VPC の中から `http://<env>-api.sandbox.internal:8080/actuator/health` が `UP` になるまで待つ（デプロイの直後は DNS の TTL の分だけ待つことがある）。全環境で同じ経路で、リバースプロキシや ALB に依存しない。
     - タスク定義 `sandbox-<env>-api-verify`（CI が毎回登録する。タスクロールなし）。イメージは ECR Public の `amazonlinux:2023`（curl が入っている。digest で固定）。SG は `/products/sandbox/verify/security-group-id`。ログはロググループの `<env>-verify/verify/<タスク ID>`。上限10分で、過ぎたら止めて失敗にする。
   - PR の Conversation に、PR 環境のヘルスチェックの URL をコメントで出す（`.github/scripts/pr-env-comment.sh`。目印 `<!-- pr-env -->` のコメントを1つだけ作り、デプロイのたびに書き換え、PR を閉じたら「削除済み」にする）。ジョブに `environment:` を付ける方法は使わない（OIDC のトークンの `sub` が `environment:<名前>` に変わり、CI ロールの信頼ポリシーに合わなくなるため）。
-- CI ロール：NonProd の `github-actions-sandbox-api-role`（GitHub の OIDC。引き受けられるのは `pull_request` と develop ブランチ）。Stg にも同じ名前のロールがあり、引き受けられるのは main ブランチだけ（`main.yml`）。ジョブに `environment:` を付けない（sub が変わるため）。
+- CI ロール：NonProd の `github-actions-sandbox-api-role`（GitHub の OIDC。引き受けられるのは `pull_request` と develop ブランチ）。Stg にも同じ名前のロールがあり、引き受けられるのは main ブランチだけ（`main.yml`）。Prod のロールは Environment `prod` のジョブだけ（`prod.yml`。sub が `environment:prod`。Environment `prod` は main だけに限っている）。nonprod・stg のジョブには `environment:` を付けない（sub が変わるため）。`_deploy.yml` は入力 `environment` で中のジョブに付ける（呼ぶ側のジョブには書けないため）。
   - 呼ばれる側（`_build.yml`・`_deploy.yml`・`_cleanup.yml`）は、使う Secrets（`AWS_ROLE_ARN`・`ECR_REGISTRY`）を宣言している。nonprod の呼び出しは `secrets: inherit`、`main.yml` は `AWS_ROLE_ARN` に `AWS_ROLE_ARN_STG` を渡す。
 - アカウント ID・ロールの ARN・ECR の URL はファイルに書かず、GitHub の **Secrets** に置く（インフラの情報を公開しないため）。公開リポジトリでは Actions のログも公開される。Secrets の値は、どのステップのログでも最初から伏せられる。Variables に置くと、`::add-mask::` を行うステップ自身の `env:` の表示に元の値が出る（2026-11-12 に気づき、Variables から Secrets に移した）。
-  - Repository secrets：`AWS_ROLE_ARN`（NonProd の CI ロールの ARN）、`ECR_REGISTRY`（`<Shared-Infra のアカウント ID>.dkr.ecr.ap-northeast-1.amazonaws.com`）、`AWS_ROLE_ARN_STG`（Stg の CI ロールの ARN）。prod は Environment `prod` の Secrets に置く予定。
+  - Repository secrets：`AWS_ROLE_ARN`（NonProd の CI ロールの ARN）、`ECR_REGISTRY`（`<Shared-Infra のアカウント ID>.dkr.ecr.ap-northeast-1.amazonaws.com`）、`AWS_ROLE_ARN_STG`（Stg の CI ロールの ARN）。prod は Environment `prod` の Secrets の `AWS_ROLE_ARN`（Prod の CI ロールの ARN。`environment: prod` のジョブでは、リポジトリの同じ名前の値より優先される）。
   - `_build.yml`・`_deploy.yml` を呼ぶときは `secrets: inherit` で Secrets を引き継ぐ。アカウント ID だけが出る場面（AWS CLI・ecspresso の出力等）のために、各ジョブの最初に、アカウント ID（ロールの ARN から取り出す NonProd と、レジストリの先頭の Shared-Infra）を `::add-mask::` で伏せる（`configure-aws-credentials` の `mask-aws-account-id` は、そのステップより後しか伏せないため）。
   - Secrets に移す前の実行のログには、元の値が残っている。一般公開するときの作業の一環で、Actions の古い実行のログを消す（2026-11-12 に決定）。
   - ECR で使える操作は push と取得だけ（`ecr:DescribeImages` は無い）。イメージがあるかは `docker buildx imagetools inspect` で確かめる。
