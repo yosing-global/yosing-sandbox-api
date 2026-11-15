@@ -29,7 +29,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 
 ### プロファイル
 
-`SPRING_PROFILES_ACTIVE` には環境名を指定し、`application.yml` のグループで、動き方のプロファイルを有効にする。設定ファイルは動き方の単位で書き、環境ごとのファイルは必要になるまで作らない。環境ごとの値（テーブル名・KMS の鍵の ARN・環境名）はファイルに書かず、環境変数で渡す。
+`SPRING_PROFILES_ACTIVE` には環境名を指定し、`application.yml` のグループで、動き方のプロファイルを有効にする。設定ファイルは動き方の単位で書き、環境ごとのファイルは必要になるまで作らない（今あるのは `application-prod.yml` だけ。認証アプリに表示する名前）。環境ごとの値（テーブル名・KMS の鍵の ARN・環境名）はファイルに書かず、環境変数で渡す。
 
 | 指定する（環境名） | 有効になるもの | DynamoDB | 暗号化・署名 |
 | :--- | :--- | :--- | :--- |
@@ -145,7 +145,7 @@ Notion の「2. 方式設計」「4. 外部設計（共通方針）」「4.2 API
 - **入力の検証**：形式の規則はドメインの型が持ち（`LoginId.PATTERN`・`Password.PATTERN`）、presentation の Bean Validation の注釈は同じ定数を使う（規則を1か所にする）。presentation で検証した後にドメインの型に変える。
   - パスワードは、表示できる ASCII（空白を含む）だけにしている。bcrypt は72バイトまでしか扱わず（Spring Security は超えると例外）、64文字でも72バイトを超えないようにするため。
 - **パスワードのハッシュ**（port：`application/port/PasswordHasher`、実装：`infrastructure/password/BcryptPasswordHasher`）：`spring-security-crypto` の `DelegatingPasswordEncoder`（bcrypt、強さ12）。Spring Security の認証の仕組みは入れない。照合は `matches`。
-- **認証アプリの設定 URI**（`domain/model/shared/totp/OtpauthUri`）：`otpauth://totp/<issuer>:<loginId>?secret=<Base32>&issuer=...&algorithm=SHA1&digits=6&period=30`。issuer は `sandbox.otpauth.issuer`（`sandbox-<app-env>`。同じ端末に複数の環境を登録しても見分けられるように）。秘密情報は20バイト（`TotpSecret.generate`）。
+- **認証アプリの設定 URI**（`domain/model/shared/totp/OtpauthUri`）：`otpauth://totp/<issuer>:<loginId>?secret=<Base32>&issuer=...&algorithm=SHA1&digits=6&period=30`。issuer は `sandbox.otpauth.issuer`（`sandbox-<app-env>`。同じ端末に複数の環境を登録しても見分けられるように。prod だけは `sandbox`（`application-prod.yml`。利用者に見せる名前のため。2026-11-15 に決定）。`OtpauthIssuerPropertyTests` で確かめる）。秘密情報は20バイト（`TotpSecret.generate`）。
 - **TOTP の照合**（`domain/service/TotpVerifier`）：java-otp（1.0.0）の HOTP でステップのコードを計算し、今のステップの前後1ステップを照合して、一致したステップを返す。最後に使ったステップを渡すと、それより後だけを受け付ける。一致したかで時間が変わらないよう、全部の候補を計算して一定時間で比べる。java-otp は計算だけのライブラリのため、domain から使っている（ArchUnit の禁止の対象外）。
 - **登録の確定**（`VerifyRegistrationUseCase`）：仮登録が無い・期限切れなら 404。OTP の試行は照合の前に数え（`RegistrationRepository.countOtpAttempt`：`ADD`。条件は上限の5回に達していないこと。数えられた試行だけが照合に進むため、同時に試されても上限を超えて照合しない。数えられなければ 404）、5回目の失敗で仮登録を削除して 429、それ以外は 401（`remainingAttempts`）。成功したら `Registration.complete` でユーザーを作り（一致したステップを `lastUsedTotpStep` にする）、`Session.issue` でセッションを発行し、`RegistrationCompletionStore` で保存する。応答は 201（`sessionId`・`sessionExpiresAt`）。UUID の形でない登録 ID も 404。
 - **ログインの開始**（`StartLoginUseCase`）：

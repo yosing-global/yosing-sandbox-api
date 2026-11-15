@@ -1,0 +1,6 @@
+# prod だけの設定（SPRING_PROFILES_ACTIVE=prod のとき、application.yml の後に読まれる）
+#   環境ごとのファイルは、要るものだけを置く（値はふつう環境変数で渡す。ここは利用者に見せる名前のように、決まった値だけ）
+sandbox:
+  otpauth:
+    # 認証アプリに表示されるサービスの名前。利用者に見せるため、環境名を付けない（ほかの環境は sandbox-<アプリの環境>）
+    issuer: sandbox

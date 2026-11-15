@@ -35,5 +35,5 @@ sandbox:
     region: ap-northeast-1
   otpauth:
     # 認証アプリに表示されるサービスの名前。同じ端末に複数の環境を登録しても見分けられるよう、環境名を付ける
-    #   （prod を作るときに、prod だけ sandbox にするか決める）
+    #   prod だけは sandbox（application-prod.yml。利用者に見せる名前のため）
     issuer: sandbox-${sandbox.environment.app-env}
