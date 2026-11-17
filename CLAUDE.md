@@ -2,14 +2,14 @@
 
 sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java）。sandbox は個人の学習とポートフォリオを兼ねたプロダクトで、最初の範囲は TOTP 認証（登録・ログイン）だけ。画面と BFF は `yosing-sandbox-web`（Next.js）。
 
-## 状況（2026-11-03 時点）
+## 状況（2026-11-15 時点）
 
-- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境と dev / test へのデプロイ・確認、PR 環境の削除）まで。
+- Spring Boot の土台（Actuator のヘルスチェック、プロファイルのグループ）、Dockerfile、静的チェック、CI（ビルド・テスト、ECR への push、PR 環境・dev / test・stg・prod へのデプロイ・確認、E2E の呼び出し、テストのユーザーの掃除、PR 環境の削除）まで。
 - API の仕様は Notion の「4.2 API設計」にまとめ済み。アプリの中身の準備は、DynamoDB の土台（クライアント・DynamoDB Local・起動時のテーブル作成）、TOTP の秘密情報の暗号化、仮認証 JWT の署名（どちらも KMS とローカルの差し替え）まで。
 - API の実装（4.2 API設計のエンドポイント）は、登録の開始 → 登録の確定 → ログインの開始 → ログインの確定 → セッションの順に、PR を分けて進め、全部のエンドポイント（`POST /v1/registrations`・`/v1/registrations/{registrationId}/verify`・`/v1/logins`・`/v1/logins/verify`・`GET /v1/me`・`DELETE /v1/sessions/current`）まで。
-- 次の作業：web（BFF）からの呼び出しと E2E（`yosing-sandbox-e2e`）、stg / prod のインフラ。
-- nonprod のインフラ（ECR・ECS クラスター・Cloud Map・IAM・SG・ロググループ・KMS・DynamoDB・CI ロールの権限）は準備済み。
-- stg のインフラは `aws-infra-env` に準備済み（prod はこれから）。stg へのデプロイの CI（`main.yml`）を作った（E2E は e2e の `e2e.yml@main` で、CloudFront の公開の入口に Basic 認証を付けて流す）。
+- web（BFF）からの呼び出しと E2E（`yosing-sandbox-e2e`）も済み。
+- インフラは nonprod・stg・prod とも `aws-infra-env` に準備済み（2026-11-15）。main へのマージで stg（E2E・掃除まで）、手動の `prod.yml` で prod に出す。stg・prod はふだん止めておき、使うときに `aws-infra-env` の start で起動する。
+- 残り：Notion の設計の更新、リポジトリ・Wiki の一般公開（全部を確かめた後の最後）。
 - 属性名・型（DynamoDB の項目）は、各機能の実装のときに決める（Notion の DB 設計の未確定事項）。
 
 ## 技術

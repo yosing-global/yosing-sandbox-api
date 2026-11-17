@@ -56,7 +56,6 @@ jobs:
 
   # test に E2E を流す（yosing-sandbox-e2e の再利用できるワークフロー。web の CI と同じ形）
   #   E2E の版は develop（test の web は develop のもの。api も、同じ環境の web を相手にするので同じ版）
-  #   e2e は一般公開まで非公開のため、e2e を読む GitHub App のトークンで取ってくる（一般公開したら App の2行を消す）
   #   ジョブに environment: を付けない（OIDC の sub が変わり、CI ロールに入れなくなる）
   #   ロールの ARN は secrets の側で渡す（secret の値はログで最初から伏せられる）
   e2e:
@@ -68,10 +67,8 @@ jobs:
     with:
       app_env: test
       e2e_ref: develop
-      e2e_app_client_id: ${{ vars.E2E_APP_CLIENT_ID }}
     secrets:
       aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
-      e2e_app_private_key: ${{ secrets.E2E_APP_PRIVATE_KEY }}
 
   # E2E が作ったテストのユーザーの掃除（登録から24時間を過ぎた e2e_dummy_ のユーザー）
   #   E2E の成否にかかわらず最後に動かす（取り消したときは動かさない）。失敗しても、デプロイは取り消さない
