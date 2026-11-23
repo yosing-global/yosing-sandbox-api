@@ -14,7 +14,7 @@ import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import org.springframework.stereotype.Repository;
 
 /**
- * セッションの項目の読み書き。
+ * セッションの項目の読み書き
  */
 @Repository
 class DynamoDbSessionRepository implements SessionRepository {

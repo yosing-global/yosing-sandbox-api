@@ -5,7 +5,7 @@ import java.time.Instant;
 import net.yosing.sandbox.api.application.session.CurrentUserResult;
 
 /**
- * ログイン中のユーザーの情報の応答（200 OK）。
+ * ログイン中のユーザーの情報の応答（200 OK）
  *
  * @param loginId ログイン ID
  * @param createdAt 登録した日時

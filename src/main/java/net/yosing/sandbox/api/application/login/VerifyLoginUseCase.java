@@ -21,7 +21,7 @@ import net.yosing.sandbox.api.domain.service.TotpVerifier;
 import org.springframework.stereotype.Service;
 
 /**
- * ログインの確定（POST /v1/logins/verify）。
+ * ログインの確定（POST /v1/logins/verify）
  *
  * <ol>
  * <li>仮認証 JWT（署名・aud・期限）を検証し、ユーザーを取り出して jti が今の仮認証のものかを確かめる。違えば 401

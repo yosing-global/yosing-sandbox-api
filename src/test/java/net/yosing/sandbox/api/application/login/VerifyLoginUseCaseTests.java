@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
- * ログインの確定の流れ（成功・仮認証 JWT の照合・OTP の失敗とアカウントのロック・同じコードの再利用）を確かめる。
+ * ログイン確定の流れ（成功・仮認証 JWT の照合・OTP の失敗とアカウントのロック・同じコードの再利用）を確かめる。
  */
 class VerifyLoginUseCaseTests {
 

@@ -21,7 +21,7 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * ログインの確定のトランザクション（ユーザーの条件付き更新とセッションの作成を、すべて行うか何もしないか）を、DynamoDB Local で確かめる。
+ * ログイン確定のトランザクション（ユーザーの条件付き更新とセッションの作成を、すべて行うか何もしないか）を、DynamoDB Local で確かめる。
  *
  * <p>テーブルはテストの間で共有するため、テストごとに違うログイン ID を使う。
  */

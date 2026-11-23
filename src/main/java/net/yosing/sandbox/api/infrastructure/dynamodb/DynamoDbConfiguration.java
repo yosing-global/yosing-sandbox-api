@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * DynamoDB のクライアント。
+ * DynamoDB のクライアント
  */
 @Configuration(proxyBeanMethods = false)
 class DynamoDbConfiguration {

@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
- * 登録の確定のトランザクション（すべて書くか何も書かないか、取り消しの理由の見分け）を、DynamoDB Local で確かめる。
+ * 登録確定のトランザクション（すべて書くか何も書かないか、取り消しの理由の見分け）を、DynamoDB Local で確かめる。
  *
  * <p>テーブルはテストの間で共有するため、テストごとに違うログイン ID を使う。
  */

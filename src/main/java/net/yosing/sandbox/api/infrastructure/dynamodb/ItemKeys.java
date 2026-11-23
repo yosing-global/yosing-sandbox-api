@@ -28,7 +28,7 @@ final class ItemKeys {
 	static final Map<String, String> PK_NAMES = Map.of(PK_REF, PK);
 
 	/**
-	 * 項目が無いこと（新しく作るときの条件）。
+	 * 項目が無いこと（新しく作るときの条件）
 	 */
 	static final String NOT_EXISTS = "attribute_not_exists(" + PK_REF + ")";
 

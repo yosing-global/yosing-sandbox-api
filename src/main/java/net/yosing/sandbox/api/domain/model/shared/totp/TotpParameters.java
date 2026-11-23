@@ -13,12 +13,12 @@ public final class TotpParameters {
 	public static final String ALGORITHM = "SHA1";
 
 	/**
-	 * コードの桁数。
+	 * コードの桁数
 	 */
 	public static final int DIGITS = 6;
 
 	/**
-	 * 1ステップの長さ。
+	 * 1ステップの長さ
 	 */
 	public static final Duration PERIOD = Duration.ofSeconds(30);
 

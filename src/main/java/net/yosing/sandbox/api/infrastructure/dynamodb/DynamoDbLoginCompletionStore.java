@@ -17,7 +17,7 @@ import software.amazon.awssdk.services.dynamodb.model.Update;
 import org.springframework.stereotype.Repository;
 
 /**
- * ログインの確定の保存（AP9）。TransactWriteItems で、次の2つをすべて行うか、何もしない。
+ * ログイン確定の保存（AP9）。TransactWriteItems で、次の2つをすべて行うか、何もしない。
  *
  * <ol>
  * <li>ユーザーの更新：最後に使ったステップを一致したステップにし、OTP の失敗回数を0に戻し、仮認証の jti を消す。

@@ -10,7 +10,7 @@ import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
 import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
 
 /**
- * ユーザー（本登録したもの）。
+ * ユーザー（本登録したもの）
  *
  * <p>ログインの状態（パスワード・OTP の失敗回数、ロックの期限、今の仮認証の jti）は、ログインの API で使う。
  *
@@ -32,7 +32,7 @@ public final class User {
 	public static final int MAX_OTP_FAILURES = 5;
 
 	/**
-	 * ロックの長さ（パスワード・OTP で共通）。
+	 * ロックの長さ（パスワード・OTP で共通）
 	 */
 	public static final Duration LOCK_DURATION = Duration.ofMinutes(15);
 

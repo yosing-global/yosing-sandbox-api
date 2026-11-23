@@ -42,7 +42,7 @@ public class InMemoryRegistrationRepository implements RegistrationRepository {
 	}
 
 	/**
-	 * 保存した仮登録（テストの確認用）。
+	 * 保存した仮登録（テストの確認用）
 	 */
 	public List<Registration> all() {
 		return new ArrayList<>(this.registrations.values());

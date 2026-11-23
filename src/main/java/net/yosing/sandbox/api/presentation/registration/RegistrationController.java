@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 登録の API（Notion の 4.2 API設計の 1・2）。
+ * 登録の API（Notion の 4.2 API設計の 1・2）
  */
 @RestController
 @RequestMapping("/v1/registrations")
@@ -36,7 +36,7 @@ class RegistrationController {
 	}
 
 	/**
-	 * 登録の開始。
+	 * 登録の開始
 	 */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
@@ -48,7 +48,7 @@ class RegistrationController {
 	}
 
 	/**
-	 * 登録の確定。
+	 * 登録の確定
 	 */
 	@PostMapping("/{registrationId}/verify")
 	@ResponseStatus(HttpStatus.CREATED)

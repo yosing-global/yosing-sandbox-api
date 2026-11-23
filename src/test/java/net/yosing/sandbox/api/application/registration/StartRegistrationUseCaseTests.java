@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
- * 登録の開始の流れ（仮登録の保存と、設定 URI の返し方、使用済みのログイン ID の扱い）を確かめる。
+ * 登録開始の流れ（仮登録の保存と、設定 URI の返し方、使用済みのログイン ID の扱い）を確かめる。
  */
 class StartRegistrationUseCaseTests {
 

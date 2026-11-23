@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import net.yosing.sandbox.api.domain.model.shared.totp.OtpCode;
 
 /**
- * ログインの確定の要求。コードの形式の規則はドメインの型（{@link OtpCode}）と同じものを使う。
+ * ログイン確定の要求。コードの形式の規則はドメインの型（{@link OtpCode}）と同じものを使う。
  *
  * <p>仮認証 JWT の形式（署名・期限等）は、ここでは確かめず、ユースケースで検証する（不正なら 401）。
  *

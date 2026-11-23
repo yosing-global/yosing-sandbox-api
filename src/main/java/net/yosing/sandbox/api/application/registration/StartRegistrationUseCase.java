@@ -16,7 +16,7 @@ import net.yosing.sandbox.api.domain.model.user.UserRepository;
 import org.springframework.stereotype.Service;
 
 /**
- * 登録の開始（POST /v1/registrations）。
+ * 登録の開始（POST /v1/registrations）
  *
  * <p>ログイン ID が使われていないことを確かめ、TOTP の秘密情報を作って仮登録を保存し、認証アプリの設定 URI を返す。
  * 秘密情報は、仮登録のときに採番した userId で暗号化する。

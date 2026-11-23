@@ -5,7 +5,7 @@ import java.time.Instant;
 import net.yosing.sandbox.api.application.login.VerifyLoginResult;
 
 /**
- * ログインの確定の応答（200 OK）。
+ * ログイン確定の応答（200 OK）
  *
  * @param sessionId セッション ID（BFF が Cookie に設定する）
  * @param sessionExpiresAt セッションの期限

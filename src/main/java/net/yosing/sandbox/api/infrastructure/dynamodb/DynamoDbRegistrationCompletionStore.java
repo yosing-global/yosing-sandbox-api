@@ -20,7 +20,7 @@ import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledExcepti
 import org.springframework.stereotype.Repository;
 
 /**
- * 登録の確定の保存（AP5）。TransactWriteItems で、次の4つをすべて行うか、何もしない。
+ * 登録確定の保存（AP5）。TransactWriteItems で、次の4つをすべて行うか、何もしない。
  *
  * <ol>
  * <li>ユーザーの作成（無いこと）</li>

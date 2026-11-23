@@ -12,7 +12,7 @@ import net.yosing.sandbox.api.domain.model.user.UserRepository;
 import org.springframework.stereotype.Service;
 
 /**
- * ログイン中のユーザーの情報（GET /v1/me）。
+ * ログイン中のユーザーの情報（GET /v1/me）
  *
  * <ol>
  * <li>セッション ID のハッシュでセッションを取り出す。無い・期限切れなら 401</li>

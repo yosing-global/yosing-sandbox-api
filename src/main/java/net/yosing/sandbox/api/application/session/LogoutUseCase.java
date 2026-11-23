@@ -6,7 +6,7 @@ import net.yosing.sandbox.api.domain.model.session.SessionRepository;
 import org.springframework.stereotype.Service;
 
 /**
- * ログアウト（DELETE /v1/sessions/current）。
+ * ログアウト（DELETE /v1/sessions/current）
  *
  * <p>セッションを削除する。既に無い（期限切れ・ログアウト済み）ときも成功にする（何度呼んでも同じ結果にする）。
  */

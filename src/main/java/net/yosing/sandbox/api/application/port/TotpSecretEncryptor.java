@@ -5,7 +5,7 @@ import net.yosing.sandbox.api.domain.model.shared.totp.TotpSecret;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 
 /**
- * TOTP の秘密情報の暗号化・復号。
+ * TOTP の秘密情報の暗号化・復号
  *
  * <p>暗号化コンテキストにユーザーと環境を含めるため、別のユーザー・別の環境の暗号文は復号できない。
  * 復号のときのユーザーは DB から読まず、処理中のユーザー（仮登録・仮認証 JWT のユーザー）を渡す。

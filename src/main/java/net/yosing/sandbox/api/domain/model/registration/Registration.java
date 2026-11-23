@@ -21,12 +21,12 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 public final class Registration {
 
 	/**
-	 * 仮登録の有効期間。
+	 * 仮登録の有効期間
 	 */
 	public static final Duration VALIDITY = Duration.ofMinutes(10);
 
 	/**
-	 * OTP の失敗の上限（1回の仮登録につき）。
+	 * OTP の失敗の上限（1回の仮登録につき）
 	 */
 	public static final int MAX_OTP_FAILURES = 5;
 

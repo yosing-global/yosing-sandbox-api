@@ -7,7 +7,7 @@ import net.yosing.sandbox.api.domain.model.session.Session;
 import net.yosing.sandbox.api.domain.model.user.User;
 
 /**
- * 登録の確定の保存（AP5）。集約（仮登録・ユーザー・セッション）をまたぐため、1つのトランザクションで書く。
+ * 登録確定の保存（AP5）。集約（仮登録・ユーザー・セッション）をまたぐため、1つのトランザクションで書く。
  *
  * <p>ユーザーとログイン ID の作成、仮登録の削除、セッションの作成を、すべて行うか、何もしない。
  * 実装は infrastructure.dynamodb（TransactWriteItems）。

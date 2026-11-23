@@ -5,7 +5,7 @@ import java.util.Optional;
 /**
  * セッションの取り出し・延長・削除。実装は infrastructure.dynamodb。
  *
- * <p>セッションの作成は、本登録・ログインの確定のトランザクション（application.port の *CompletionStore）で行う。
+ * <p>セッションの作成は、本登録・ログイン確定のトランザクション（application.port の *CompletionStore）で行う。
  */
 public interface SessionRepository {
 

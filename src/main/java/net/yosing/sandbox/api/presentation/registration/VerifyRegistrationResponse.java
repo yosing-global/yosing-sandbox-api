@@ -5,7 +5,7 @@ import java.time.Instant;
 import net.yosing.sandbox.api.application.registration.VerifyRegistrationResult;
 
 /**
- * 登録の確定の応答（201 Created）。
+ * 登録確定の応答（201 Created）
  *
  * @param sessionId セッション ID（BFF が Cookie に設定する）
  * @param sessionExpiresAt セッションの期限

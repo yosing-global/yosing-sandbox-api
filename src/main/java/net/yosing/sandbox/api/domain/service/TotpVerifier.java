@@ -24,7 +24,7 @@ import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
 public final class TotpVerifier {
 
 	/**
-	 * 前後に許すステップの数。
+	 * 前後に許すステップの数
 	 */
 	public static final int ALLOWED_STEP_DRIFT = 1;
 

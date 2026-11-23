@@ -7,7 +7,7 @@ import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.Password;
 
 /**
- * ログインの開始の要求。形式の規則はドメインの型（{@link LoginId}・{@link Password}）と同じものを使う。
+ * ログイン開始の要求。形式の規則はドメインの型（{@link LoginId}・{@link Password}）と同じものを使う。
  *
  * @param loginId ログイン ID（大文字は小文字にそろえる）
  * @param password パスワード

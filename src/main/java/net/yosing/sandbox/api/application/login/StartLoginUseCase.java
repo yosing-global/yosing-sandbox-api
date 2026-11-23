@@ -18,7 +18,7 @@ import net.yosing.sandbox.api.domain.model.user.UserRepository;
 import org.springframework.stereotype.Service;
 
 /**
- * ログインの開始（POST /v1/logins）。
+ * ログインの開始（POST /v1/logins）
  *
  * <ol>
  * <li>ログイン ID でユーザーを取り出す。無ければ 401</li>
@@ -35,7 +35,7 @@ import org.springframework.stereotype.Service;
 public class StartLoginUseCase {
 
 	/**
-	 * 仮認証 JWT の有効期間。
+	 * 仮認証 JWT の有効期間
 	 */
 	public static final Duration LOGIN_TOKEN_VALIDITY = Duration.ofMinutes(5);
 

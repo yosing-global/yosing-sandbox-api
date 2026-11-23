@@ -27,7 +27,7 @@ class SessionController {
 	}
 
 	/**
-	 * ログイン中のユーザーの情報。
+	 * ログイン中のユーザーの情報
 	 */
 	@GetMapping("/v1/me")
 	MeResponse me(@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
@@ -35,7 +35,7 @@ class SessionController {
 	}
 
 	/**
-	 * ログアウト。
+	 * ログアウト
 	 */
 	@DeleteMapping("/v1/sessions/current")
 	@ResponseStatus(HttpStatus.NO_CONTENT)

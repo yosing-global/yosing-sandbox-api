@@ -6,7 +6,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * TOTP の秘密情報（認証アプリと共有する鍵）。
+ * TOTP の秘密情報（認証アプリと共有する鍵）
  *
  * <p>ログ等に出ないよう、toString では中身を出さない。保存するときは暗号化する（{@link EncryptedTotpSecret}）。
  */

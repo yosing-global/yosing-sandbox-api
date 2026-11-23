@@ -19,7 +19,7 @@ import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
 import org.springframework.stereotype.Repository;
 
 /**
- * ユーザーとログイン ID の項目の読み書き。
+ * ユーザーとログイン ID の項目の読み書き
  */
 @Repository
 class DynamoDbUserRepository implements UserRepository {

@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * ログインの確定（POST /v1/logins/verify）の API を、DynamoDB Local・ローカルの暗号化と署名で確かめる。
  *
- * <p>ユーザーは DB に直接作り（最後に使ったステップは5ステップ前）、仮認証 JWT はログインの開始の API で受け取る。
+ * <p>ユーザーは DB に直接作り（最後に使ったステップは5ステップ前）、仮認証 JWT はログイン開始の API で受け取る。
  * 正しいコードは、秘密情報から計算する（認証アプリの代わり）。テーブルはテストの間で共有するため、テストごとに違うログイン ID を使う。
  */
 @SpringBootTest

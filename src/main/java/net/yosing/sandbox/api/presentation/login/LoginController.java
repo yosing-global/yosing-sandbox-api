@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * ログインの API（Notion の 4.2 API設計の 3・4）。
+ * ログインの API（Notion の 4.2 API設計の 3・4）
  */
 @RestController
 @RequestMapping("/v1/logins")
@@ -31,7 +31,7 @@ class LoginController {
 	}
 
 	/**
-	 * ログインの開始。
+	 * ログインの開始
 	 */
 	@PostMapping
 	StartLoginResponse start(@Valid @RequestBody StartLoginRequest request) {
@@ -42,7 +42,7 @@ class LoginController {
 	}
 
 	/**
-	 * ログインの確定。
+	 * ログインの確定
 	 */
 	@PostMapping("/verify")
 	VerifyLoginResponse verify(@Valid @RequestBody VerifyLoginRequest request) {

@@ -8,7 +8,7 @@ import net.yosing.sandbox.api.domain.model.user.InMemoryUserRepository;
 import net.yosing.sandbox.api.domain.model.user.User;
 
 /**
- * テスト用のログインの確定の保存（フェイク）。メモリ上のユーザーの保存先を更新し、作ったセッションを覚える。
+ * テスト用のログイン確定の保存（フェイク）。メモリ上のユーザーの保存先を更新し、作ったセッションを覚える。
  *
  * <p>本物と同じく、jti が読んだときと同じことと、一致したステップが最後に使ったステップより後であることを条件にする。
  */
@@ -48,7 +48,7 @@ public class FakeLoginCompletionStore implements LoginCompletionStore {
 	}
 
 	/**
-	 * 作ったセッション（テストの確認用）。
+	 * 作ったセッション（テストの確認用）
 	 */
 	public List<Session> sessions() {
 		return List.copyOf(this.sessions);

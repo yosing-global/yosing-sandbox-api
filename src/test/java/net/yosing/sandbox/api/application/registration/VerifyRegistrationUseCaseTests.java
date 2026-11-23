@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
- * 登録の確定の流れ（成功・OTP の失敗と上限・仮登録が無い・ログイン ID の先取り）を確かめる。
+ * 登録確定の流れ（成功・OTP の失敗と上限・仮登録が無い・ログイン ID の先取り）を確かめる。
  */
 class VerifyRegistrationUseCaseTests {
 

@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
- * ログインの開始の流れ（成功・パスワードの失敗とロック・OTP のロック・ユーザーが無い・同時の試行）を確かめる。
+ * ログイン開始の流れ（成功・パスワードの失敗とロック・OTP のロック・ユーザーが無い・同時の試行）を確かめる。
  */
 class StartLoginUseCaseTests {
 

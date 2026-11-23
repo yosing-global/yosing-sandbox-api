@@ -56,14 +56,14 @@ public class FakeTestUserCleanupStore implements TestUserCleanupStore {
 	}
 
 	/**
-	 * 残っているユーザー。
+	 * 残っているユーザー
 	 */
 	public List<TestUser> users() {
 		return List.copyOf(this.users);
 	}
 
 	/**
-	 * 探した回数。
+	 * 探した回数
 	 */
 	public int findCount() {
 		return this.findCount;

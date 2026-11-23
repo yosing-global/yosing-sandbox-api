@@ -3,7 +3,7 @@ package net.yosing.sandbox.api.domain.model.shared.totp;
 import java.time.Instant;
 
 /**
- * TOTP のステップ（Unix 時刻を30秒で割った値）。
+ * TOTP のステップ（Unix 時刻を30秒で割った値）
  *
  * <p>コードが一致したステップをユーザーに保存し、それより後のステップだけを受け付けることで、同じコードの再利用を防ぐ。
  *
@@ -12,7 +12,7 @@ import java.time.Instant;
 public record TotpStep(long value) implements Comparable<TotpStep> {
 
 	/**
-	 * 日時が含まれるステップ。
+	 * 日時が含まれるステップ
 	 * @param instant 日時
 	 * @return ステップ
 	 */

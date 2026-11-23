@@ -5,7 +5,7 @@ import java.time.Instant;
 import net.yosing.sandbox.api.application.login.StartLoginResult;
 
 /**
- * ログインの開始の応答（200 OK）。
+ * ログイン開始の応答（200 OK）
  *
  * @param loginToken 仮認証 JWT（BFF が HttpOnly の Cookie に保存し、ログインの確定で渡す）
  * @param expiresAt 仮認証の期限

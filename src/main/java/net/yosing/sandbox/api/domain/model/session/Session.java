@@ -8,7 +8,7 @@ import java.util.Objects;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 
 /**
- * ログインしているセッション。
+ * ログインしているセッション
  *
  * <p>期限は、最終操作から12時間、または発行から7日の早い方。認証済みの要求のたびに、最終操作の日時と期限を延ばす（{@link #touch}）。
  * 二要素認証で確かめ直す機会を減らしすぎないよう、短めにしている（一日の作業の中ではログインし直さず、週に一度は確かめ直す）。
@@ -16,7 +16,7 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 public final class Session {
 
 	/**
-	 * 最終操作からの有効期間。
+	 * 最終操作からの有効期間
 	 */
 	public static final Duration IDLE_TIMEOUT = Duration.ofHours(12);
 

@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * ログインの開始の結果。
+ * ログイン開始の結果
  *
  * <p>仮認証 JWT はログ等に出ないよう、toString では中身を出さない。
  *

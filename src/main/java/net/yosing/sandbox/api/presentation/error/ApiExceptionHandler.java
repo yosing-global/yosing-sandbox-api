@@ -122,7 +122,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	}
 
 	/**
-	 * 入力の誤り（項目ごと）。
+	 * 入力の誤り（項目ごと）
 	 *
 	 * @param field 項目名
 	 * @param message 誤りの内容

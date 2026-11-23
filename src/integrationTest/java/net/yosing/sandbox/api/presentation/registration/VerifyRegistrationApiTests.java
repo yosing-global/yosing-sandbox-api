@@ -38,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 登録の確定（POST /v1/registrations/{registrationId}/verify）の API を、DynamoDB Local とローカルの暗号化で確かめる。
  *
- * <p>仮登録は登録の開始の API で作り、正しいコードは DB の秘密情報を復号して計算する（認証アプリの代わり）。
+ * <p>仮登録は登録開始の API で作り、正しいコードは DB の秘密情報を復号して計算する（認証アプリの代わり）。
  * テーブルはテストの間で共有するため、テストごとに違うログイン ID を使う。
  */
 @SpringBootTest

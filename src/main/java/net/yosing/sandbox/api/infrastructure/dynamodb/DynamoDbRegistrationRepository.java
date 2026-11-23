@@ -15,7 +15,7 @@ import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
 import org.springframework.stereotype.Repository;
 
 /**
- * 仮登録の項目の読み書き。
+ * 仮登録の項目の読み書き
  */
 @Repository
 class DynamoDbRegistrationRepository implements RegistrationRepository {
