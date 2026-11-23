@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Instant;
 
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
@@ -13,11 +11,14 @@ import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ログインの確定のトランザクション（ユーザーの条件付き更新とセッションの作成を、すべて行うか何もしないか）を、DynamoDB Local で確かめる。
@@ -93,8 +94,9 @@ class DynamoDbLoginCompletionStoreTests {
 
 	// パスワードが合って、仮認証（jti）が始まっているユーザー（最後に使ったステップは 123）
 	private User putLoggingInUser(String loginId, String loginTokenId) {
-		User user = User.register(UserId.generate(), LoginId.of(loginId), new PasswordHash("{bcrypt}dummy-hash"),
-				new EncryptedTotpSecret(new byte[] { 1 }), new TotpStep(123), NOW)
+		User user = User
+			.register(UserId.generate(), LoginId.of(loginId), new PasswordHash("{bcrypt}dummy-hash"),
+					new EncryptedTotpSecret(new byte[] { 1 }), new TotpStep(123), NOW)
 			.passwordVerified(loginTokenId);
 		items().putUser(user);
 		return user;

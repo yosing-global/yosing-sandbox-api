@@ -1,11 +1,5 @@
 package net.yosing.sandbox.api.presentation.login;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import java.time.Clock;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -26,6 +20,8 @@ import net.yosing.sandbox.api.domain.service.TotpVerifier;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbProperties;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbTestItems;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -34,7 +30,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * ログインの確定（POST /v1/logins/verify）の API を、DynamoDB Local・ローカルの暗号化と署名で確かめる。

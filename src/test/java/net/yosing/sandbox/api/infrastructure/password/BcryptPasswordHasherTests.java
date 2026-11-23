@@ -1,11 +1,12 @@
 package net.yosing.sandbox.api.infrastructure.password;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import net.yosing.sandbox.api.domain.model.user.Password;
 import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import org.junit.jupiter.api.Test;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * bcrypt（強さ12、先頭に方式）でハッシュにすることを確かめる。

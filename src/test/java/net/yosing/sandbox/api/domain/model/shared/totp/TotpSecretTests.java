@@ -1,9 +1,9 @@
 package net.yosing.sandbox.api.domain.model.shared.totp;
 
+import org.junit.jupiter.api.Test;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-
-import org.junit.jupiter.api.Test;
 
 /**
  * TOTP の秘密情報が、中身を漏らさず、外から書き換えられないことを確かめる。

@@ -1,11 +1,5 @@
 package net.yosing.sandbox.api.presentation.login;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import java.time.Clock;
 
 import com.jayway.jsonpath.JsonPath;
@@ -22,6 +16,8 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbProperties;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbTestItems;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -30,7 +26,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * ログインの開始（POST /v1/logins）の API を、DynamoDB Local・bcrypt・ローカルの署名で確かめる。
@@ -81,8 +82,8 @@ class StartLoginApiTests {
 		LoginTokenClaims claims = loginTokenSigner.verify(JsonPath.read(body, "$.loginToken"), clock.instant())
 			.orElseThrow();
 		assertThat(claims.userId()).isEqualTo(user.id());
-		assertThat(items().user(user.id())).hasValueSatisfying(
-				saved -> assertThat(saved.loginTokenId()).hasValue(claims.tokenId()));
+		assertThat(items().user(user.id()))
+			.hasValueSatisfying(saved -> assertThat(saved.loginTokenId()).hasValue(claims.tokenId()));
 	}
 
 	/**
@@ -95,8 +96,8 @@ class StartLoginApiTests {
 		login("dummy_login_wrong", WRONG_PASSWORD).andExpect(status().isUnauthorized())
 			.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
 			.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
-		assertThat(items().user(user.id())).hasValueSatisfying(
-				saved -> assertThat(saved.passwordFailureCount()).isEqualTo(1));
+		assertThat(items().user(user.id()))
+			.hasValueSatisfying(saved -> assertThat(saved.passwordFailureCount()).isEqualTo(1));
 	}
 
 	/**

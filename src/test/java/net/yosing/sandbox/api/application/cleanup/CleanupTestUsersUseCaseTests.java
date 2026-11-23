@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.application.cleanup;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -14,6 +11,9 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * テストのユーザーの掃除（残す期間の境目、件数、掃除してよい環境）を確かめる。

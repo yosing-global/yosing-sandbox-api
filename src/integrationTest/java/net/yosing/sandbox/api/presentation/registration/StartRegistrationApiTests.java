@@ -1,13 +1,5 @@
 package net.yosing.sandbox.api.presentation.registration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.startsWith;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
 import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
@@ -16,6 +8,8 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbProperties;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbTestItems;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -23,7 +17,14 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * 登録の開始（POST /v1/registrations）の API を、DynamoDB Local とローカルの暗号化で確かめる。

@@ -12,6 +12,7 @@ import net.yosing.sandbox.api.domain.model.shared.totp.TotpSecret;
 import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import net.yosing.sandbox.api.domain.model.user.UserRepository;
+
 import org.springframework.stereotype.Service;
 
 /**

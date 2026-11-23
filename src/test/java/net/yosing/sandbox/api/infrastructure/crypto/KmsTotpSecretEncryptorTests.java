@@ -1,11 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.crypto;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import java.util.Map;
 
 import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
@@ -19,6 +13,12 @@ import software.amazon.awssdk.services.kms.model.DecryptRequest;
 import software.amazon.awssdk.services.kms.model.DecryptResponse;
 import software.amazon.awssdk.services.kms.model.EncryptRequest;
 import software.amazon.awssdk.services.kms.model.EncryptResponse;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * KMS の呼び出し方（鍵の ARN・暗号化コンテキスト）を確かめる。実際の KMS での動きは PR 環境で確かめる。

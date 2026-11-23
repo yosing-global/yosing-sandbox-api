@@ -1,12 +1,12 @@
 package net.yosing.sandbox.api;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-import static com.tngtech.archunit.library.Architectures.onionArchitecture;
-
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.library.Architectures.onionArchitecture;
 
 /**
  * パッケージの依存の決まり（オニオンアーキテクチャ）を確認する。
@@ -24,8 +24,7 @@ class ArchitectureTests {
 	 * 層の依存が、内側（domain）に向かう向きだけになっている。
 	 */
 	@ArchTest
-	static final ArchRule ONION_ARCHITECTURE = onionArchitecture()
-		.domainModels("..domain.model..")
+	static final ArchRule ONION_ARCHITECTURE = onionArchitecture().domainModels("..domain.model..")
 		.domainServices("..domain.service..")
 		.applicationServices("..application..")
 		.adapter("presentation", "..presentation..")

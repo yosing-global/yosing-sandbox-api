@@ -94,8 +94,7 @@ public final class Session {
 		}
 		Instant accessedAt = now.truncatedTo(ChronoUnit.SECONDS);
 		// 時計のずれ等で、最終操作の日時を前に戻さない
-		return new Session(idHash, userId, createdAt,
-				accessedAt.isAfter(lastAccessedAt) ? accessedAt : lastAccessedAt);
+		return new Session(idHash, userId, createdAt, accessedAt.isAfter(lastAccessedAt) ? accessedAt : lastAccessedAt);
 	}
 
 	public SessionIdHash idHash() {

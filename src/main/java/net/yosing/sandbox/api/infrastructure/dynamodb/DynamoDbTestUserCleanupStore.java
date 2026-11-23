@@ -8,7 +8,6 @@ import java.util.Map;
 import net.yosing.sandbox.api.application.port.TestUserCleanupStore;
 import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.UserId;
-import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.CancellationReason;
@@ -16,6 +15,8 @@ import software.amazon.awssdk.services.dynamodb.model.Delete;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
+
+import org.springframework.stereotype.Repository;
 
 /**
  * テストのユーザーの掃除の、探す・消す（{@link TestUserCleanupStore}）。
@@ -95,7 +96,8 @@ class DynamoDbTestUserCleanupStore implements TestUserCleanupStore {
 		try {
 			client.transactWriteItems(request -> request.transactItems(items));
 			return true;
-		} catch (TransactionCanceledException ex) {
+		}
+		catch (TransactionCanceledException ex) {
 			if (conditionFailed(ex)) {
 				return false;
 			}

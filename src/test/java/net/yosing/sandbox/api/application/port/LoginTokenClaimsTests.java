@@ -1,11 +1,11 @@
 package net.yosing.sandbox.api.application.port;
 
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-
 import java.time.Instant;
 
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
  * 仮認証 JWT の中身として正しくない値を受け付けないことを確かめる。

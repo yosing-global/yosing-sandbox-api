@@ -66,9 +66,10 @@ public final class TotpVerifier {
 	 */
 	public OtpCode generate(TotpSecret secret, TotpStep step) {
 		try {
-			return new OtpCode(generator.generateOneTimePasswordString(new SecretKeySpec(secret.bytes(), HMAC_ALGORITHM),
-					step.value(), Locale.ROOT));
-		} catch (InvalidKeyException ex) {
+			return new OtpCode(generator.generateOneTimePasswordString(
+					new SecretKeySpec(secret.bytes(), HMAC_ALGORITHM), step.value(), Locale.ROOT));
+		}
+		catch (InvalidKeyException ex) {
 			throw new IllegalStateException("TOTP のコードを計算できない", ex);
 		}
 	}

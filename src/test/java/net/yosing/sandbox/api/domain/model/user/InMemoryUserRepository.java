@@ -92,9 +92,10 @@ public class InMemoryUserRepository implements UserRepository {
 		if (stored == null || !stored.loginTokenId().equals(current.loginTokenId())) {
 			return false;
 		}
-		users.put(stored.id(), User.restore(stored.id(), stored.loginId(), stored.passwordHash(), stored.totpSecret(),
-				stored.lastUsedTotpStep(), stored.passwordFailureCount(), stored.otpFailureCount(),
-				locked.lockedUntil(), Optional.empty(), stored.createdAt()));
+		users.put(stored.id(),
+				User.restore(stored.id(), stored.loginId(), stored.passwordHash(), stored.totpSecret(),
+						stored.lastUsedTotpStep(), stored.passwordFailureCount(), stored.otpFailureCount(),
+						locked.lockedUntil(), Optional.empty(), stored.createdAt()));
 		return true;
 	}
 

@@ -74,8 +74,7 @@ public final class Registration {
 	public static Registration start(RegistrationId id, UserId userId, LoginId loginId, PasswordHash passwordHash,
 			EncryptedTotpSecret totpSecret, Instant now) {
 		Instant createdAt = now.truncatedTo(ChronoUnit.SECONDS);
-		return new Registration(id, userId, loginId, passwordHash, totpSecret, 0, createdAt,
-				createdAt.plus(VALIDITY));
+		return new Registration(id, userId, loginId, passwordHash, totpSecret, 0, createdAt, createdAt.plus(VALIDITY));
 	}
 
 	/**

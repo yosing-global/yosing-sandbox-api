@@ -1,18 +1,19 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
+import software.amazon.awssdk.services.dynamodb.model.KeyType;
+import software.amazon.awssdk.services.dynamodb.model.TableDescription;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
-import software.amazon.awssdk.services.dynamodb.model.KeyType;
-import software.amazon.awssdk.services.dynamodb.model.TableDescription;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * DynamoDB Local に、起動時にテーブルが作られることを確認する。

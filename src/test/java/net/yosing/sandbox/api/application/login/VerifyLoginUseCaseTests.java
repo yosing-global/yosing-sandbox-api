@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.application.login;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -27,6 +24,9 @@ import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import net.yosing.sandbox.api.domain.service.TotpVerifier;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * ログインの確定の流れ（成功・仮認証 JWT の照合・OTP の失敗とアカウントのロック・同じコードの再利用）を確かめる。
@@ -170,9 +170,9 @@ class VerifyLoginUseCaseTests {
 	 */
 	@Test
 	void locksWhenAlreadyExhausted() {
-		users.replace(User.restore(user.id(), user.loginId(), user.passwordHash(), user.totpSecret(),
-				user.lastUsedTotpStep(), 0, User.MAX_OTP_FAILURES, Optional.empty(), Optional.of(TOKEN_ID),
-				user.createdAt()));
+		users.replace(
+				User.restore(user.id(), user.loginId(), user.passwordHash(), user.totpSecret(), user.lastUsedTotpStep(),
+						0, User.MAX_OTP_FAILURES, Optional.empty(), Optional.of(TOKEN_ID), user.createdAt()));
 
 		assertThatExceptionOfType(OtpAttemptsExceededException.class)
 			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(loginToken, validCode)));
@@ -217,8 +217,8 @@ class VerifyLoginUseCaseTests {
 
 	private String signToken(UserId userId, String tokenId) {
 		Instant issuedAt = NOW.minusSeconds(60);
-		return signer.sign(new LoginTokenClaims(userId, tokenId, issuedAt,
-				issuedAt.plus(StartLoginUseCase.LOGIN_TOKEN_VALIDITY)));
+		return signer.sign(
+				new LoginTokenClaims(userId, tokenId, issuedAt, issuedAt.plus(StartLoginUseCase.LOGIN_TOKEN_VALIDITY)));
 	}
 
 	private User saved() {

@@ -1,15 +1,15 @@
 package net.yosing.sandbox.api.domain.model.user;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
-
 import java.time.Instant;
 import java.util.Optional;
 
 import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
 import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
  * ユーザーのロック（パスワード・OTP の試行の数え方・ロックの期限・成功したときの戻し方）と、仮認証・OTP の決まり

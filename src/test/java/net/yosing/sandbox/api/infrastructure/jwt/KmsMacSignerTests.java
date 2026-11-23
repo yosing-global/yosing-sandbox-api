@@ -1,13 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.jwt;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-
 import java.nio.charset.StandardCharsets;
 
 import com.nimbusds.jose.JOSEException;
@@ -21,6 +13,14 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GenerateMacRequest;
 import software.amazon.awssdk.services.kms.model.GenerateMacResponse;
 import software.amazon.awssdk.services.kms.model.MacAlgorithmSpec;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 /**
  * KMS の GenerateMac の呼び出し方（鍵の ARN・アルゴリズム・署名する内容）を確かめる。実際の KMS での動きは PR 環境で確かめる。

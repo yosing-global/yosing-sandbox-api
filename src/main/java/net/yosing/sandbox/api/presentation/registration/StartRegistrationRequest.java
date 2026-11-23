@@ -12,11 +12,9 @@ import net.yosing.sandbox.api.domain.model.user.Password;
  * @param password パスワード
  */
 record StartRegistrationRequest(
-		@NotNull(message = "必須です。")
-		@Pattern(regexp = LoginId.PATTERN, flags = Pattern.Flag.CASE_INSENSITIVE,
+		@NotNull(message = "必須です。") @Pattern(regexp = LoginId.PATTERN, flags = Pattern.Flag.CASE_INSENSITIVE,
 				message = "3〜32文字の英字・数字・_・- で入力してください。") String loginId,
-		@NotNull(message = "必須です。")
-		@Pattern(regexp = Password.PATTERN,
+		@NotNull(message = "必須です。") @Pattern(regexp = Password.PATTERN,
 				message = "12〜64文字の半角の英字・数字・記号・空白で入力してください。") String password) {
 
 	@Override

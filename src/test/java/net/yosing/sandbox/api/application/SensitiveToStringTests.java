@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.application;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
@@ -21,6 +19,8 @@ import net.yosing.sandbox.api.domain.model.shared.totp.TotpSecret;
 import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.Password;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ユースケースの入出力の型が、toString（ログ・例外のメッセージ等）に秘密の値を出さないことを確かめる。
@@ -81,8 +81,7 @@ class SensitiveToStringTests {
 	void hidesLoginVerifySecrets() {
 		SessionId sessionId = SessionId.generate();
 
-		assertThat(new VerifyLoginCommand(LOGIN_TOKEN, new OtpCode(CODE)).toString()).doesNotContain(LOGIN_TOKEN,
-				CODE);
+		assertThat(new VerifyLoginCommand(LOGIN_TOKEN, new OtpCode(CODE)).toString()).doesNotContain(LOGIN_TOKEN, CODE);
 		assertThat(new VerifyLoginResult(sessionId, NOW).toString()).doesNotContain(sessionId.value());
 	}
 

@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.time.Instant;
 
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
@@ -19,11 +16,15 @@ import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * 登録の確定のトランザクション（すべて書くか何も書かないか、取り消しの理由の見分け）を、DynamoDB Local で確かめる。

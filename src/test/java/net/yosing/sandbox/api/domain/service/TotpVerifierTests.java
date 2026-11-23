@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.domain.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Optional;
@@ -10,6 +8,8 @@ import net.yosing.sandbox.api.domain.model.shared.totp.OtpCode;
 import net.yosing.sandbox.api.domain.model.shared.totp.TotpSecret;
 import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * TOTP のコードの計算と照合（前後1ステップの許容、最後に使ったステップより後だけ）を確かめる。

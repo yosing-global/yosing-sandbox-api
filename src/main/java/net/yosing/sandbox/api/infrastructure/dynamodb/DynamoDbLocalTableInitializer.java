@@ -2,10 +2,6 @@ package net.yosing.sandbox.api.infrastructure.dynamodb;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
@@ -14,6 +10,11 @@ import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
 import software.amazon.awssdk.services.dynamodb.model.KeyType;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
+
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Component;
 
 /**
  * DynamoDB Local に、起動時にテーブルを作る（dynamodb-local のプロファイルだけ）。
@@ -48,7 +49,8 @@ class DynamoDbLocalTableInitializer implements ApplicationRunner {
 			try {
 				createTableIfNotExists();
 				return;
-			} catch (SdkClientException ex) {
+			}
+			catch (SdkClientException ex) {
 				if (attempt >= MAX_ATTEMPTS) {
 					throw ex;
 				}
@@ -63,7 +65,8 @@ class DynamoDbLocalTableInitializer implements ApplicationRunner {
 			client.describeTable(request -> request.tableName(tableName));
 			LOGGER.info("テーブルがあるため作らない：{}", tableName);
 			return;
-		} catch (ResourceNotFoundException ex) {
+		}
+		catch (ResourceNotFoundException ex) {
 			// 無ければ作る
 		}
 		client.createTable(request -> request.tableName(tableName)

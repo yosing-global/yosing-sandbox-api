@@ -4,6 +4,7 @@ import java.net.URI;
 
 import jakarta.validation.constraints.NotBlank;
 import org.jspecify.annotations.Nullable;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 

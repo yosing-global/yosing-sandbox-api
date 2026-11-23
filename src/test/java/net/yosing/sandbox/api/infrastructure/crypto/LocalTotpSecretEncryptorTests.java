@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.crypto;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
-
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 
@@ -12,6 +9,9 @@ import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
 import net.yosing.sandbox.api.domain.model.shared.totp.TotpSecret;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
  * ローカルの暗号化（AES-GCM）で、暗号化と復号ができ、ユーザー・環境・改ざんの違いを検出できることを確かめる。
@@ -66,7 +66,8 @@ class LocalTotpSecretEncryptorTests {
 	void cannotDecryptInAnotherEnvironment() {
 		UserId userId = UserId.generate();
 		EncryptedTotpSecret encrypted = encryptor.encrypt(SECRET, userId);
-		LocalTotpSecretEncryptor anotherEnvironment = new LocalTotpSecretEncryptor(key, "dummy-dev", new SecureRandom());
+		LocalTotpSecretEncryptor anotherEnvironment = new LocalTotpSecretEncryptor(key, "dummy-dev",
+				new SecureRandom());
 
 		assertThatIllegalStateException().isThrownBy(() -> anotherEnvironment.decrypt(encrypted, userId));
 	}
@@ -80,8 +81,7 @@ class LocalTotpSecretEncryptorTests {
 		byte[] bytes = encryptor.encrypt(SECRET, userId).bytes();
 		bytes[bytes.length - 1] ^= 1;
 
-		assertThatIllegalStateException()
-			.isThrownBy(() -> encryptor.decrypt(new EncryptedTotpSecret(bytes), userId));
+		assertThatIllegalStateException().isThrownBy(() -> encryptor.decrypt(new EncryptedTotpSecret(bytes), userId));
 	}
 
 }

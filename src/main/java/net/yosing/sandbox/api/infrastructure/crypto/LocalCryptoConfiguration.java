@@ -7,6 +7,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import net.yosing.sandbox.api.application.port.TotpSecretEncryptor;
 import net.yosing.sandbox.api.infrastructure.environment.EnvironmentProperties;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;

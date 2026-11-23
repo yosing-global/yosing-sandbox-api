@@ -42,7 +42,8 @@ final class KmsMacVerifier implements JWSVerifier {
 			.build();
 		try {
 			return Boolean.TRUE.equals(kms.verifyMac(request).macValid());
-		} catch (KmsInvalidMacException ex) {
+		}
+		catch (KmsInvalidMacException ex) {
 			// 署名が合わないとき、KMS は false ではなくこの例外を返す
 			return false;
 		}

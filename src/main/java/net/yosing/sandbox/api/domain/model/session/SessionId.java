@@ -72,7 +72,8 @@ public final class SessionId {
 		try {
 			byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.US_ASCII));
 			return new SessionIdHash(HexFormat.of().formatHex(digest));
-		} catch (NoSuchAlgorithmException ex) {
+		}
+		catch (NoSuchAlgorithmException ex) {
 			// SHA-256 は Java の標準で必ず使える
 			throw new IllegalStateException(ex);
 		}
@@ -87,8 +88,8 @@ public final class SessionId {
 
 	@Override
 	public boolean equals(Object other) {
-		return other instanceof SessionId sessionId && MessageDigest.isEqual(
-				value.getBytes(StandardCharsets.US_ASCII), sessionId.value.getBytes(StandardCharsets.US_ASCII));
+		return other instanceof SessionId sessionId && MessageDigest.isEqual(value.getBytes(StandardCharsets.US_ASCII),
+				sessionId.value.getBytes(StandardCharsets.US_ASCII));
 	}
 
 	@Override

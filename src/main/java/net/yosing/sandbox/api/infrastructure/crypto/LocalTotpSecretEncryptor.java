@@ -51,11 +51,10 @@ final class LocalTotpSecretEncryptor implements TotpSecretEncryptor {
 			cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
 			cipher.updateAAD(additionalData(userId));
 			byte[] ciphertext = cipher.doFinal(secret.bytes());
-			return new EncryptedTotpSecret(ByteBuffer.allocate(iv.length + ciphertext.length)
-				.put(iv)
-				.put(ciphertext)
-				.array());
-		} catch (GeneralSecurityException ex) {
+			return new EncryptedTotpSecret(
+					ByteBuffer.allocate(iv.length + ciphertext.length).put(iv).put(ciphertext).array());
+		}
+		catch (GeneralSecurityException ex) {
 			throw new IllegalStateException("暗号化に失敗した", ex);
 		}
 	}
@@ -73,7 +72,8 @@ final class LocalTotpSecretEncryptor implements TotpSecretEncryptor {
 			cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
 			cipher.updateAAD(additionalData(userId));
 			return new TotpSecret(cipher.doFinal(ciphertext));
-		} catch (GeneralSecurityException ex) {
+		}
+		catch (GeneralSecurityException ex) {
 			// ユーザー・環境の違い、改ざん、鍵の違い（AEADBadTagException）等
 			throw new IllegalStateException("復号に失敗した", ex);
 		}

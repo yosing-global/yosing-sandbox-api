@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.application.login;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -19,6 +16,9 @@ import net.yosing.sandbox.api.domain.model.user.Password;
 import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * ログインの開始の流れ（成功・パスワードの失敗とロック・OTP のロック・ユーザーが無い・同時の試行）を確かめる。
@@ -79,8 +79,7 @@ class StartLoginUseCaseTests {
 			assertThatExceptionOfType(InvalidCredentialsException.class)
 				.isThrownBy(() -> useCase.start(command(WRONG_PASSWORD)));
 		}
-		assertThat(saved().lockedUntil())
-			.hasValue(Instant.parse("2026-11-01T00:00:00Z").plus(User.LOCK_DURATION));
+		assertThat(saved().lockedUntil()).hasValue(Instant.parse("2026-11-01T00:00:00Z").plus(User.LOCK_DURATION));
 
 		assertThatExceptionOfType(InvalidCredentialsException.class).isThrownBy(() -> useCase.start(command(PASSWORD)));
 		assertThat(saved().passwordFailureCount()).isEqualTo(User.MAX_PASSWORD_FAILURES);
@@ -110,8 +109,8 @@ class StartLoginUseCaseTests {
 	void rejectsUnknownLoginId() {
 		int matchesBefore = hasher.matchCount();
 
-		assertThatExceptionOfType(InvalidCredentialsException.class).isThrownBy(
-				() -> useCase.start(new StartLoginCommand(LoginId.of("dummy_unknown"), PASSWORD)));
+		assertThatExceptionOfType(InvalidCredentialsException.class)
+			.isThrownBy(() -> useCase.start(new StartLoginCommand(LoginId.of("dummy_unknown"), PASSWORD)));
 
 		assertThat(hasher.matchCount()).isEqualTo(matchesBefore + 1);
 	}

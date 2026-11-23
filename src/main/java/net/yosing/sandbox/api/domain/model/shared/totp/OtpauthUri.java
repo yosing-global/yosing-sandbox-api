@@ -27,12 +27,9 @@ public record OtpauthUri(String value) {
 	 */
 	public static OtpauthUri create(String issuer, String accountName, TotpSecret secret) {
 		String encodedIssuer = encode(issuer);
-		return new OtpauthUri("otpauth://totp/" + encodedIssuer + ":" + encode(accountName)
-				+ "?secret=" + Base32.encode(secret.bytes())
-				+ "&issuer=" + encodedIssuer
-				+ "&algorithm=" + TotpParameters.ALGORITHM
-				+ "&digits=" + TotpParameters.DIGITS
-				+ "&period=" + TotpParameters.PERIOD.toSeconds());
+		return new OtpauthUri("otpauth://totp/" + encodedIssuer + ":" + encode(accountName) + "?secret="
+				+ Base32.encode(secret.bytes()) + "&issuer=" + encodedIssuer + "&algorithm=" + TotpParameters.ALGORITHM
+				+ "&digits=" + TotpParameters.DIGITS + "&period=" + TotpParameters.PERIOD.toSeconds());
 	}
 
 	// URLEncoder は空白を「+」にするため、URI の形（%20）に直す

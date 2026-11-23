@@ -6,7 +6,6 @@ import java.util.Map;
 import net.yosing.sandbox.api.application.port.LoginCompletionStore;
 import net.yosing.sandbox.api.domain.model.session.Session;
 import net.yosing.sandbox.api.domain.model.user.User;
-import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.CancellationReason;
@@ -14,6 +13,8 @@ import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 import software.amazon.awssdk.services.dynamodb.model.Update;
+
+import org.springframework.stereotype.Repository;
 
 /**
  * ログインの確定の保存（AP9）。TransactWriteItems で、次の2つをすべて行うか、何もしない。
@@ -50,8 +51,7 @@ class DynamoDbLoginCompletionStore implements LoginCompletionStore {
 
 	@Override
 	public boolean complete(User current, User verified, Session session) {
-		String loginTokenId = current.loginTokenId()
-			.orElseThrow(() -> new IllegalArgumentException("仮認証の jti が無い"));
+		String loginTokenId = current.loginTokenId().orElseThrow(() -> new IllegalArgumentException("仮認証の jti が無い"));
 		Update userUpdate = Update.builder()
 			.tableName(tableName)
 			.key(ItemKeys.user(current.id()))
@@ -60,10 +60,10 @@ class DynamoDbLoginCompletionStore implements LoginCompletionStore {
 			.conditionExpression(LOGIN_TOKEN_ID_REF + " = :loginTokenId AND " + STEP_REF + " < :matchedStep")
 			.expressionAttributeNames(Map.of(STEP_REF, UserItemMapper.LAST_USED_TOTP_STEP, OTP_FAILURE_COUNT_REF,
 					UserItemMapper.OTP_FAILURE_COUNT, LOGIN_TOKEN_ID_REF, UserItemMapper.LOGIN_TOKEN_ID))
-			.expressionAttributeValues(Map.of(":matchedStep",
-					AttributeValue.fromN(Long.toString(verified.lastUsedTotpStep().value())), ":otpFailureCount",
-					AttributeValue.fromN(Integer.toString(verified.otpFailureCount())), ":loginTokenId",
-					AttributeValue.fromS(loginTokenId)))
+			.expressionAttributeValues(
+					Map.of(":matchedStep", AttributeValue.fromN(Long.toString(verified.lastUsedTotpStep().value())),
+							":otpFailureCount", AttributeValue.fromN(Integer.toString(verified.otpFailureCount())),
+							":loginTokenId", AttributeValue.fromS(loginTokenId)))
 			.build();
 		Put sessionPut = Put.builder()
 			.tableName(tableName)
@@ -76,7 +76,8 @@ class DynamoDbLoginCompletionStore implements LoginCompletionStore {
 		try {
 			client.transactWriteItems(request -> request.transactItems(items));
 			return true;
-		} catch (TransactionCanceledException ex) {
+		}
+		catch (TransactionCanceledException ex) {
 			if (userConditionFailed(ex)) {
 				return false;
 			}

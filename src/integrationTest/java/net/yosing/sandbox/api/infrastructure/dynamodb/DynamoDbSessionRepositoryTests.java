@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Instant;
 
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
@@ -9,11 +7,14 @@ import net.yosing.sandbox.api.domain.model.session.Session;
 import net.yosing.sandbox.api.domain.model.session.SessionId;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * セッションの読み書き（項目の変換の往復、延長の条件付き更新、削除）を、DynamoDB Local で確かめる。

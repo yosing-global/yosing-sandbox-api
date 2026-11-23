@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.domain.model.registration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Instant;
 
 import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
@@ -12,6 +10,8 @@ import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * 仮登録の始め方（期限・失敗回数）、期限切れ・OTP の失敗の上限の判定、本登録（ユーザーへの置き換え）を確かめる。
  */
@@ -20,8 +20,8 @@ class RegistrationTests {
 	private static final Instant NOW = Instant.parse("2026-11-01T00:00:00.789Z");
 
 	private final Registration registration = Registration.start(RegistrationId.generate(), UserId.generate(),
-			LoginId.of("dummy_alice"), new PasswordHash("{bcrypt}dummy-hash"), new EncryptedTotpSecret(new byte[] { 1 }),
-			NOW);
+			LoginId.of("dummy_alice"), new PasswordHash("{bcrypt}dummy-hash"),
+			new EncryptedTotpSecret(new byte[] { 1 }), NOW);
 
 	/**
 	 * 作成日時は秒にそろえ、期限はその10分後。OTP の失敗回数は0から始める。

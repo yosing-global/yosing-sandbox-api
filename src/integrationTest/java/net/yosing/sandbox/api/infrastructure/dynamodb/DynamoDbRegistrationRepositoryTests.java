@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.time.Instant;
 
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
@@ -13,11 +10,15 @@ import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * 仮登録の読み書き（保存の条件、項目の変換の往復、OTP の試行の数え方、削除）を、DynamoDB Local で確かめる。
@@ -74,8 +75,8 @@ class DynamoDbRegistrationRepositoryTests {
 
 		for (int attempt = 1; attempt <= Registration.MAX_OTP_FAILURES; attempt++) {
 			int expected = attempt;
-			assertThat(repository.countOtpAttempt(registration.id())).hasValueSatisfying(
-					found -> assertThat(found.otpFailureCount()).isEqualTo(expected));
+			assertThat(repository.countOtpAttempt(registration.id()))
+				.hasValueSatisfying(found -> assertThat(found.otpFailureCount()).isEqualTo(expected));
 		}
 		assertThat(repository.countOtpAttempt(registration.id())).isEmpty();
 

@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Instant;
 import java.util.Optional;
 
@@ -13,11 +11,14 @@ import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ユーザーとログイン ID の項目の読み書き（項目の変換の往復、パスワード・OTP の試行の条件付き更新、OTP のロック）を、
@@ -57,9 +58,9 @@ class DynamoDbUserRepositoryTests {
 	 */
 	@Test
 	void findsUserByLoginId() {
-		User user = User.restore(UserId.generate(), LoginId.of("dummy_find_user"), new PasswordHash("{bcrypt}dummy-hash"),
-				new EncryptedTotpSecret(new byte[] { 1, 2, 3 }), new TotpStep(123), 5, 2,
-				Optional.of(NOW.plus(User.LOCK_DURATION)), Optional.of("dummy-jti"), NOW);
+		User user = User.restore(UserId.generate(), LoginId.of("dummy_find_user"),
+				new PasswordHash("{bcrypt}dummy-hash"), new EncryptedTotpSecret(new byte[] { 1, 2, 3 }),
+				new TotpStep(123), 5, 2, Optional.of(NOW.plus(User.LOCK_DURATION)), Optional.of("dummy-jti"), NOW);
 		items().putUser(user);
 
 		assertThat(repository.findByLoginId(user.loginId())).hasValueSatisfying(found -> {
@@ -133,9 +134,9 @@ class DynamoDbUserRepositoryTests {
 	 */
 	@Test
 	void savesPasswordVerified() {
-		User user = User.restore(UserId.generate(), LoginId.of("dummy_verified"), new PasswordHash("{bcrypt}dummy-hash"),
-				new EncryptedTotpSecret(new byte[] { 1 }), new TotpStep(123), 4, 2, Optional.empty(), Optional.empty(),
-				NOW);
+		User user = User.restore(UserId.generate(), LoginId.of("dummy_verified"),
+				new PasswordHash("{bcrypt}dummy-hash"), new EncryptedTotpSecret(new byte[] { 1 }), new TotpStep(123), 4,
+				2, Optional.empty(), Optional.empty(), NOW);
 		items().putUser(user);
 		User counted = user.countPasswordAttempt(NOW);
 		repository.savePasswordAttempt(user, counted);
@@ -158,8 +159,8 @@ class DynamoDbUserRepositoryTests {
 		User user = newUser("dummy_find_by_id", 0);
 		items().putUser(user);
 
-		assertThat(repository.findById(user.id())).hasValueSatisfying(
-				found -> assertThat(found.loginId()).isEqualTo(user.loginId()));
+		assertThat(repository.findById(user.id()))
+			.hasValueSatisfying(found -> assertThat(found.loginId()).isEqualTo(user.loginId()));
 		assertThat(repository.findById(UserId.generate())).isEmpty();
 	}
 
@@ -174,8 +175,8 @@ class DynamoDbUserRepositoryTests {
 		assertThat(repository.countOtpAttempt(user.id(), "dummy-other-jti")).isEmpty();
 		for (int attempt = 1; attempt <= User.MAX_OTP_FAILURES; attempt++) {
 			int expected = attempt;
-			assertThat(repository.countOtpAttempt(user.id(), "dummy-jti")).hasValueSatisfying(
-					counted -> assertThat(counted.otpFailureCount()).isEqualTo(expected));
+			assertThat(repository.countOtpAttempt(user.id(), "dummy-jti"))
+				.hasValueSatisfying(counted -> assertThat(counted.otpFailureCount()).isEqualTo(expected));
 		}
 		assertThat(repository.countOtpAttempt(user.id(), "dummy-jti")).isEmpty();
 		assertThat(repository.countOtpAttempt(UserId.generate(), "dummy-jti")).isEmpty();

@@ -192,8 +192,8 @@ public final class User {
 		if (!otpAttemptsExhausted()) {
 			throw new IllegalStateException("OTP の失敗が上限に達していない");
 		}
-		return new User(id, loginId, passwordHash, totpSecret, lastUsedTotpStep, passwordFailureCount,
-				otpFailureCount, lockFrom(now), null, createdAt);
+		return new User(id, loginId, passwordHash, totpSecret, lastUsedTotpStep, passwordFailureCount, otpFailureCount,
+				lockFrom(now), null, createdAt);
 	}
 
 	/**

@@ -55,7 +55,8 @@ final class NimbusLoginTokenSigner implements LoginTokenSigner {
 		SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(ALGORITHM).type(JOSEObjectType.JWT).build(), claimsSet);
 		try {
 			jwt.sign(signer);
-		} catch (JOSEException ex) {
+		}
+		catch (JOSEException ex) {
 			throw new IllegalStateException("仮認証 JWT の署名に失敗した", ex);
 		}
 		return jwt.serialize();
@@ -77,10 +78,12 @@ final class NimbusLoginTokenSigner implements LoginTokenSigner {
 				return Optional.empty();
 			}
 			return claims;
-		} catch (ParseException ex) {
+		}
+		catch (ParseException ex) {
 			// JWT の形式でない（alg が none の JWT もここ）
 			return Optional.empty();
-		} catch (JOSEException ex) {
+		}
+		catch (JOSEException ex) {
 			throw new IllegalStateException("仮認証 JWT の検証に失敗した", ex);
 		}
 	}
@@ -101,9 +104,10 @@ final class NimbusLoginTokenSigner implements LoginTokenSigner {
 			return Optional.empty();
 		}
 		try {
-			return Optional.of(new LoginTokenClaims(UserId.parse(subject), tokenId, issuedAt.toInstant(),
-					expiresAt.toInstant()));
-		} catch (IllegalArgumentException ex) {
+			return Optional
+				.of(new LoginTokenClaims(UserId.parse(subject), tokenId, issuedAt.toInstant(), expiresAt.toInstant()));
+		}
+		catch (IllegalArgumentException ex) {
 			// sub が UUID でない
 			return Optional.empty();
 		}

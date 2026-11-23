@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.application.session;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,6 +17,9 @@ import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * ログイン中のユーザーの情報の流れ（成功と期限の延長・セッションが無い・期限切れ・同時のログアウト・ユーザーが無い）を確かめる。

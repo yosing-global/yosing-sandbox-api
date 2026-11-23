@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.application.session;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Instant;
 
 import net.yosing.sandbox.api.domain.model.session.InMemorySessionRepository;
@@ -9,6 +7,8 @@ import net.yosing.sandbox.api.domain.model.session.IssuedSession;
 import net.yosing.sandbox.api.domain.model.session.Session;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ログアウト（セッションの削除、何度呼んでも同じ結果）を確かめる。

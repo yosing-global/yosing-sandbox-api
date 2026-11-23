@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.application.registration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -19,6 +16,9 @@ import net.yosing.sandbox.api.domain.model.user.Password;
 import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 /**
  * 登録の開始の流れ（仮登録の保存と、設定 URI の返し方、使用済みのログイン ID の扱い）を確かめる。
  */
@@ -33,7 +33,8 @@ class StartRegistrationUseCaseTests {
 	private final FakeTotpSecretEncryptor encryptor = new FakeTotpSecretEncryptor();
 
 	private final StartRegistrationUseCase useCase = new StartRegistrationUseCase(users, registrations,
-			new FakePasswordHasher(), encryptor, Clock.fixed(NOW, ZoneOffset.UTC), new OtpauthProperties("dummy-sandbox"));
+			new FakePasswordHasher(), encryptor, Clock.fixed(NOW, ZoneOffset.UTC),
+			new OtpauthProperties("dummy-sandbox"));
 
 	private final StartRegistrationCommand command = new StartRegistrationCommand(LoginId.of("dummy_alice"),
 			new Password("dummy correct horse battery"));

@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.application.registration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -26,6 +23,9 @@ import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import net.yosing.sandbox.api.domain.service.TotpVerifier;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * 登録の確定の流れ（成功・OTP の失敗と上限・仮登録が無い・ログイン ID の先取り）を確かめる。
@@ -78,8 +78,8 @@ class VerifyRegistrationUseCaseTests {
 	void recordsOtpFailure() {
 		assertThatExceptionOfType(OtpInvalidException.class).isThrownBy(() -> useCase.verify(command(wrongCode)))
 			.returns(4, OtpInvalidException::remainingAttempts);
-		assertThat(registrations.findById(registration.id())).hasValueSatisfying(
-				found -> assertThat(found.otpFailureCount()).isEqualTo(1));
+		assertThat(registrations.findById(registration.id()))
+			.hasValueSatisfying(found -> assertThat(found.otpFailureCount()).isEqualTo(1));
 		assertThat(completionStore.completions()).isEmpty();
 	}
 
@@ -137,8 +137,8 @@ class VerifyRegistrationUseCaseTests {
 	 */
 	@Test
 	void rejectsMissingOrExpiredRegistration() {
-		assertThatExceptionOfType(RegistrationNotFoundException.class).isThrownBy(
-				() -> useCase.verify(new VerifyRegistrationCommand(RegistrationId.generate(), validCode)));
+		assertThatExceptionOfType(RegistrationNotFoundException.class)
+			.isThrownBy(() -> useCase.verify(new VerifyRegistrationCommand(RegistrationId.generate(), validCode)));
 
 		Registration expired = startRegistration(NOW.minus(Registration.VALIDITY));
 		assertThatExceptionOfType(RegistrationNotFoundException.class)

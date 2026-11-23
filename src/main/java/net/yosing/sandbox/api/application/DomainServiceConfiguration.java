@@ -1,6 +1,7 @@
 package net.yosing.sandbox.api.application;
 
 import net.yosing.sandbox.api.domain.service.TotpVerifier;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

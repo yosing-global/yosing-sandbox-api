@@ -2,6 +2,7 @@ package net.yosing.sandbox.api.presentation.session;
 
 import net.yosing.sandbox.api.application.session.GetCurrentUserUseCase;
 import net.yosing.sandbox.api.application.session.LogoutUseCase;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;

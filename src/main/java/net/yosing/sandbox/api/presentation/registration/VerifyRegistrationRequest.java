@@ -10,8 +10,7 @@ import net.yosing.sandbox.api.domain.model.shared.totp.OtpCode;
  * @param code 認証アプリに表示された OTP コード
  */
 record VerifyRegistrationRequest(
-		@NotNull(message = "必須です。")
-		@Pattern(regexp = OtpCode.PATTERN, message = "数字6桁で入力してください。") String code) {
+		@NotNull(message = "必須です。") @Pattern(regexp = OtpCode.PATTERN, message = "数字6桁で入力してください。") String code) {
 
 	@Override
 	public String toString() {

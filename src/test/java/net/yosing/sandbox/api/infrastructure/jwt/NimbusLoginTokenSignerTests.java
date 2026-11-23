@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.jwt;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.time.Instant;
@@ -16,6 +14,8 @@ import com.nimbusds.jwt.SignedJWT;
 import net.yosing.sandbox.api.application.port.LoginTokenClaims;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 仮認証 JWT の組み立てと検証を、ローカルの鍵（HmacSHA256）で確かめる。
@@ -122,7 +122,8 @@ class NimbusLoginTokenSignerTests {
 	private static NimbusLoginTokenSigner signer(byte[] key, String appEnv) {
 		try {
 			return new NimbusLoginTokenSigner(new MACSigner(key), new MACVerifier(key), appEnv);
-		} catch (JOSEException ex) {
+		}
+		catch (JOSEException ex) {
 			throw new IllegalStateException(ex);
 		}
 	}

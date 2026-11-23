@@ -1,10 +1,11 @@
 package net.yosing.sandbox.api;
 
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.utility.DockerImageName;
+
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistrar;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * テストで使う DynamoDB Local（Testcontainers）。local のプロファイルと一緒に使う。

@@ -1,11 +1,5 @@
 package net.yosing.sandbox.api.presentation.registration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import java.time.Clock;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -24,6 +18,8 @@ import net.yosing.sandbox.api.domain.service.TotpVerifier;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbProperties;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbTestItems;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -32,7 +28,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * 登録の確定（POST /v1/registrations/{registrationId}/verify）の API を、DynamoDB Local とローカルの暗号化で確かめる。
@@ -178,9 +179,9 @@ class VerifyRegistrationApiTests {
 	}
 
 	private ResultActions verify(String registrationId, OtpCode code) throws Exception {
-		return mockMvc.perform(post("/v1/registrations/" + registrationId + "/verify")
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"code\":\"" + code.value() + "\"}"));
+		return mockMvc
+			.perform(post("/v1/registrations/" + registrationId + "/verify").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"code\":\"" + code.value() + "\"}"));
 	}
 
 	// 認証アプリが今表示するコード

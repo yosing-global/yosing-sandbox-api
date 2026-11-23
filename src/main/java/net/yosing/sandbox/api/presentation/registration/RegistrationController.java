@@ -10,6 +10,7 @@ import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
 import net.yosing.sandbox.api.domain.model.shared.totp.OtpCode;
 import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.Password;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -62,7 +63,8 @@ class RegistrationController {
 	private static RegistrationId parseRegistrationId(String value) {
 		try {
 			return RegistrationId.parse(value);
-		} catch (IllegalArgumentException ex) {
+		}
+		catch (IllegalArgumentException ex) {
 			throw new RegistrationNotFoundException();
 		}
 	}

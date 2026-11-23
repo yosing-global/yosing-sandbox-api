@@ -1,13 +1,13 @@
 package net.yosing.sandbox.api.domain.model.session;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
-
 import java.time.Duration;
 import java.time.Instant;
 
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
  * セッションの発行（ID・ハッシュ・期限）、クライアントの値の形、期限の判定と延長を確かめる。

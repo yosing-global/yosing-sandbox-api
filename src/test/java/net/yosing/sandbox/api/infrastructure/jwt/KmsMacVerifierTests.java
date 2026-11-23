@@ -1,13 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.jwt;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-
 import java.nio.charset.StandardCharsets;
 
 import com.nimbusds.jose.JWSAlgorithm;
@@ -21,6 +13,14 @@ import software.amazon.awssdk.services.kms.model.KmsInvalidMacException;
 import software.amazon.awssdk.services.kms.model.MacAlgorithmSpec;
 import software.amazon.awssdk.services.kms.model.VerifyMacRequest;
 import software.amazon.awssdk.services.kms.model.VerifyMacResponse;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 /**
  * KMS の VerifyMac の呼び出し方と、結果（合う・合わない・KMS の失敗）の扱いを確かめる。実際の KMS での動きは PR 環境で確かめる。
@@ -73,7 +73,8 @@ class KmsMacVerifierTests {
 	 */
 	@Test
 	void propagatesOtherKmsFailure() {
-		when(kms.verifyMac(any(VerifyMacRequest.class))).thenThrow(KmsException.builder().message("dummy failure").build());
+		when(kms.verifyMac(any(VerifyMacRequest.class)))
+			.thenThrow(KmsException.builder().message("dummy failure").build());
 
 		assertThatExceptionOfType(KmsException.class)
 			.isThrownBy(() -> verifier.verify(HS256, SIGNING_INPUT, SIGNATURE));
