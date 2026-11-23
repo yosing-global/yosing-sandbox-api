@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.application.session;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -21,6 +18,9 @@ import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 /**
  * ログイン中のユーザーの情報の流れ（成功と期限の延長・セッションが無い・期限切れ・同時のログアウト・ユーザーが無い）を確かめる。
  */
@@ -32,7 +32,7 @@ class GetCurrentUserUseCaseTests {
 
 	private final InMemoryUserRepository users = new InMemoryUserRepository();
 
-	private final GetCurrentUserUseCase useCase = new GetCurrentUserUseCase(sessions, users,
+	private final GetCurrentUserUseCase useCase = new GetCurrentUserUseCase(this.sessions, this.users,
 			Clock.fixed(NOW, ZoneOffset.UTC));
 
 	private final User user = addUser();
@@ -44,12 +44,12 @@ class GetCurrentUserUseCaseTests {
 	void returnsUserAndExtendsSession() {
 		IssuedSession issued = addSession(NOW.minus(Duration.ofHours(1)));
 
-		CurrentUserResult result = useCase.get(issued.sessionId());
+		CurrentUserResult result = this.useCase.get(issued.sessionId());
 
-		assertThat(result.loginId()).isEqualTo(user.loginId());
-		assertThat(result.createdAt()).isEqualTo(user.createdAt());
+		assertThat(result.loginId()).isEqualTo(this.user.loginId());
+		assertThat(result.createdAt()).isEqualTo(this.user.createdAt());
 		assertThat(result.sessionExpiresAt()).isEqualTo(NOW.plus(Session.IDLE_TIMEOUT));
-		assertThat(sessions.findByIdHash(issued.session().idHash())).hasValueSatisfying(saved -> {
+		assertThat(this.sessions.findByIdHash(issued.session().idHash())).hasValueSatisfying((saved) -> {
 			assertThat(saved.lastAccessedAt()).isEqualTo(NOW);
 			assertThat(saved.expiresAt()).isEqualTo(result.sessionExpiresAt());
 		});
@@ -62,11 +62,11 @@ class GetCurrentUserUseCaseTests {
 	void returnsExpiryCappedAtAbsoluteTimeout() {
 		// 上限まで6時間のセッション（最終操作は1時間前。最終操作から12時間より、発行から7日の方が先）
 		Instant issuedAt = NOW.minus(Session.ABSOLUTE_TIMEOUT).plus(Duration.ofHours(6));
-		IssuedSession issued = Session.issue(user.id(), issuedAt);
-		sessions.add(Session.restore(issued.session().idHash(), user.id(), issued.session().createdAt(),
+		IssuedSession issued = Session.issue(this.user.id(), issuedAt);
+		this.sessions.add(Session.restore(issued.session().idHash(), this.user.id(), issued.session().createdAt(),
 				NOW.minus(Duration.ofHours(1))));
 
-		CurrentUserResult result = useCase.get(issued.sessionId());
+		CurrentUserResult result = this.useCase.get(issued.sessionId());
 
 		assertThat(result.sessionExpiresAt()).isEqualTo(issued.session().createdAt().plus(Session.ABSOLUTE_TIMEOUT));
 	}
@@ -76,10 +76,12 @@ class GetCurrentUserUseCaseTests {
 	 */
 	@Test
 	void rejectsMissingOrExpiredSession() {
-		assertThatExceptionOfType(SessionInvalidException.class).isThrownBy(() -> useCase.get(SessionId.generate()));
+		assertThatExceptionOfType(SessionInvalidException.class)
+			.isThrownBy(() -> this.useCase.get(SessionId.generate()));
 
 		IssuedSession expired = addSession(NOW.minus(Session.IDLE_TIMEOUT));
-		assertThatExceptionOfType(SessionInvalidException.class).isThrownBy(() -> useCase.get(expired.sessionId()));
+		assertThatExceptionOfType(SessionInvalidException.class)
+			.isThrownBy(() -> this.useCase.get(expired.sessionId()));
 	}
 
 	/**
@@ -87,7 +89,7 @@ class GetCurrentUserUseCaseTests {
 	 */
 	@Test
 	void rejectsSessionLoggedOutConcurrently() {
-		IssuedSession issued = Session.issue(user.id(), NOW.minusSeconds(60));
+		IssuedSession issued = Session.issue(this.user.id(), NOW.minusSeconds(60));
 		InMemorySessionRepository racing = new InMemorySessionRepository() {
 			@Override
 			public boolean saveAccess(Session touched) {
@@ -96,7 +98,7 @@ class GetCurrentUserUseCaseTests {
 			}
 		};
 		racing.add(issued.session());
-		GetCurrentUserUseCase racingUseCase = new GetCurrentUserUseCase(racing, users,
+		GetCurrentUserUseCase racingUseCase = new GetCurrentUserUseCase(racing, this.users,
 				Clock.fixed(NOW, ZoneOffset.UTC));
 
 		assertThatExceptionOfType(SessionInvalidException.class)
@@ -110,14 +112,14 @@ class GetCurrentUserUseCaseTests {
 	@Test
 	void rejectsSessionOfMissingUser() {
 		IssuedSession issued = Session.issue(UserId.generate(), NOW.minusSeconds(60));
-		sessions.add(issued.session());
+		this.sessions.add(issued.session());
 
-		assertThatExceptionOfType(SessionInvalidException.class).isThrownBy(() -> useCase.get(issued.sessionId()));
+		assertThatExceptionOfType(SessionInvalidException.class).isThrownBy(() -> this.useCase.get(issued.sessionId()));
 	}
 
 	private IssuedSession addSession(Instant issuedAt) {
-		IssuedSession issued = Session.issue(user.id(), issuedAt);
-		sessions.add(issued.session());
+		IssuedSession issued = Session.issue(this.user.id(), issuedAt);
+		this.sessions.add(issued.session());
 		return issued;
 	}
 
@@ -125,7 +127,7 @@ class GetCurrentUserUseCaseTests {
 		User registered = User.register(UserId.generate(), LoginId.of("dummy_alice"),
 				new PasswordHash("{dummy}dummy-hash"), new EncryptedTotpSecret(new byte[] { 1 }), new TotpStep(123),
 				Instant.parse("2026-10-01T00:00:00Z"));
-		users.addUser(registered);
+		this.users.addUser(registered);
 		return registered;
 	}
 

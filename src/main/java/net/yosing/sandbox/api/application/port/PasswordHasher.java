@@ -10,7 +10,6 @@ public interface PasswordHasher {
 
 	/**
 	 * パスワードをハッシュにする。同じパスワードでも、毎回違うハッシュになる（ソルト）。
-	 *
 	 * @param password パスワード
 	 * @return ハッシュ（先頭に方式が付く）
 	 */
@@ -18,7 +17,6 @@ public interface PasswordHasher {
 
 	/**
 	 * パスワードがハッシュと合うかを照合する。
-	 *
 	 * @param password 入力されたパスワード
 	 * @param hash 保存したハッシュ
 	 * @return 合えば true

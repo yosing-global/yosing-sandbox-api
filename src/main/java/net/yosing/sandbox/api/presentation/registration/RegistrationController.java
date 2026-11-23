@@ -10,6 +10,7 @@ import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
 import net.yosing.sandbox.api.domain.model.shared.totp.OtpCode;
 import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.Password;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 登録の API（Notion の 4.2 API設計の 1・2）。
+ * 登録の API（Notion の 4.2 API設計の 1・2）
  */
 @RestController
 @RequestMapping("/v1/registrations")
@@ -35,7 +36,7 @@ class RegistrationController {
 	}
 
 	/**
-	 * 登録の開始。
+	 * 登録の開始
 	 */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
@@ -43,11 +44,11 @@ class RegistrationController {
 		// 形式は検証済みのため、ドメインの型にできる
 		StartRegistrationCommand command = new StartRegistrationCommand(LoginId.of(request.loginId()),
 				new Password(request.password()));
-		return StartRegistrationResponse.from(startRegistration.start(command));
+		return StartRegistrationResponse.from(this.startRegistration.start(command));
 	}
 
 	/**
-	 * 登録の確定。
+	 * 登録の確定
 	 */
 	@PostMapping("/{registrationId}/verify")
 	@ResponseStatus(HttpStatus.CREATED)
@@ -55,14 +56,15 @@ class RegistrationController {
 			@Valid @RequestBody VerifyRegistrationRequest request) {
 		VerifyRegistrationCommand command = new VerifyRegistrationCommand(parseRegistrationId(registrationId),
 				new OtpCode(request.code()));
-		return VerifyRegistrationResponse.from(verifyRegistration.verify(command));
+		return VerifyRegistrationResponse.from(this.verifyRegistration.verify(command));
 	}
 
 	// UUID の形でない登録 ID は、無い登録 ID と同じ 404 にする
 	private static RegistrationId parseRegistrationId(String value) {
 		try {
 			return RegistrationId.parse(value);
-		} catch (IllegalArgumentException ex) {
+		}
+		catch (IllegalArgumentException ex) {
 			throw new RegistrationNotFoundException();
 		}
 	}

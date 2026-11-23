@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.application;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
@@ -22,6 +20,8 @@ import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.Password;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * ユースケースの入出力の型が、toString（ログ・例外のメッセージ等）に秘密の値を出さないことを確かめる。
  *
@@ -39,7 +39,7 @@ class SensitiveToStringTests {
 	private static final Instant NOW = Instant.parse("2026-11-01T00:00:00Z");
 
 	/**
-	 * 登録の開始の入力にパスワードを、結果に設定 URI（秘密情報）を出さない。
+	 * 登録開始の入力にパスワードを、結果に設定 URI（秘密情報）を出さない。
 	 */
 	@Test
 	void hidesRegistrationStartSecrets() {
@@ -53,7 +53,7 @@ class SensitiveToStringTests {
 	}
 
 	/**
-	 * 登録の確定の入力に OTP コードを、結果にセッション ID を出さない。
+	 * 登録確定の入力に OTP コードを、結果にセッション ID を出さない。
 	 */
 	@Test
 	void hidesRegistrationVerifySecrets() {
@@ -65,7 +65,7 @@ class SensitiveToStringTests {
 	}
 
 	/**
-	 * ログインの開始の入力にパスワードを、結果に仮認証 JWT を出さない。
+	 * ログイン開始の入力にパスワードを、結果に仮認証 JWT を出さない。
 	 */
 	@Test
 	void hidesLoginStartSecrets() {
@@ -75,14 +75,13 @@ class SensitiveToStringTests {
 	}
 
 	/**
-	 * ログインの確定の入力に仮認証 JWT と OTP コードを、結果にセッション ID を出さない。
+	 * ログイン確定の入力に仮認証 JWT と OTP コードを、結果にセッション ID を出さない。
 	 */
 	@Test
 	void hidesLoginVerifySecrets() {
 		SessionId sessionId = SessionId.generate();
 
-		assertThat(new VerifyLoginCommand(LOGIN_TOKEN, new OtpCode(CODE)).toString()).doesNotContain(LOGIN_TOKEN,
-				CODE);
+		assertThat(new VerifyLoginCommand(LOGIN_TOKEN, new OtpCode(CODE)).toString()).doesNotContain(LOGIN_TOKEN, CODE);
 		assertThat(new VerifyLoginResult(sessionId, NOW).toString()).doesNotContain(sessionId.value());
 	}
 

@@ -13,6 +13,7 @@ import net.yosing.sandbox.api.application.registration.RegistrationNotFoundExcep
 import net.yosing.sandbox.api.application.session.SessionInvalidException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
@@ -46,7 +47,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 		List<FieldErrorResponse> errors = ex.getBindingResult()
 			.getFieldErrors()
 			.stream()
-			.map(error -> new FieldErrorResponse(error.getField(), Objects.toString(error.getDefaultMessage(), "")))
+			.map((error) -> new FieldErrorResponse(error.getField(), Objects.toString(error.getDefaultMessage(), "")))
 			.sorted(Comparator.comparing(FieldErrorResponse::field).thenComparing(FieldErrorResponse::message))
 			.toList();
 		return validationFailed(errors);
@@ -121,7 +122,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	}
 
 	/**
-	 * 入力の誤り（項目ごと）。
+	 * 入力の誤り（項目ごと）
 	 *
 	 * @param field 項目名
 	 * @param message 誤りの内容

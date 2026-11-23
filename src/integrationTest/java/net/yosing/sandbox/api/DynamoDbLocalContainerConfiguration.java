@@ -1,10 +1,11 @@
 package net.yosing.sandbox.api;
 
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.utility.DockerImageName;
+
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistrar;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * テストで使う DynamoDB Local（Testcontainers）。local のプロファイルと一緒に使う。
@@ -29,7 +30,7 @@ public class DynamoDbLocalContainerConfiguration {
 	// application-dynamodb-local.yml の接続先（localhost:8000）を、コンテナの接続先で上書きする
 	@Bean
 	DynamicPropertyRegistrar dynamoDbLocalProperties(GenericContainer<?> dynamoDbLocal) {
-		return registry -> registry.add("sandbox.dynamodb.endpoint",
+		return (registry) -> registry.add("sandbox.dynamodb.endpoint",
 				() -> "http://" + dynamoDbLocal.getHost() + ":" + dynamoDbLocal.getMappedPort(PORT));
 	}
 

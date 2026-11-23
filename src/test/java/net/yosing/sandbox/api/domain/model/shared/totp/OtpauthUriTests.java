@@ -1,10 +1,10 @@
 package net.yosing.sandbox.api.domain.model.shared.totp;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 認証アプリの設定 URI の形と、秘密情報の Base32 の符号化を確かめる。
@@ -12,8 +12,7 @@ import org.junit.jupiter.api.Test;
 class OtpauthUriTests {
 
 	// RFC 6238 の試験用の秘密情報（Base32 にすると GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ）
-	private static final TotpSecret SECRET = new TotpSecret(
-			"12345678901234567890".getBytes(StandardCharsets.US_ASCII));
+	private static final TotpSecret SECRET = new TotpSecret("12345678901234567890".getBytes(StandardCharsets.US_ASCII));
 
 	/**
 	 * 発行者・アカウント名・秘密情報（Base32）・TOTP の決まりを含む URI を作る。

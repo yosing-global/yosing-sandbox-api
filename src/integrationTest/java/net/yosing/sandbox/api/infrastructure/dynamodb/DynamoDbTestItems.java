@@ -38,15 +38,15 @@ public final class DynamoDbTestItems {
 	public void putLoginId(LoginId loginId, UserId userId) {
 		Map<String, AttributeValue> item = new HashMap<>(ItemKeys.loginId(loginId));
 		item.put(UserItemMapper.USER_ID, AttributeValue.fromS(userId.toString()));
-		client.putItem(request -> request.tableName(tableName).item(item));
+		this.client.putItem((request) -> request.tableName(this.tableName).item(item));
 	}
 
 	/**
 	 * ユーザーとログイン ID の項目を作る（本登録済みのユーザーの準備）。
 	 */
 	public void putUser(User user) {
-		client.putItem(request -> request.tableName(tableName).item(UserItemMapper.toItem(user)));
-		client.putItem(request -> request.tableName(tableName).item(UserItemMapper.toLoginIdItem(user)));
+		this.client.putItem((request) -> request.tableName(this.tableName).item(UserItemMapper.toItem(user)));
+		this.client.putItem((request) -> request.tableName(this.tableName).item(UserItemMapper.toLoginIdItem(user)));
 	}
 
 	/**
@@ -88,14 +88,14 @@ public final class DynamoDbTestItems {
 	 * セッションの項目を作る（ログイン済みのセッションの準備）。
 	 */
 	public void putSession(Session session) {
-		client.putItem(request -> request.tableName(tableName).item(SessionItemMapper.toItem(session)));
+		this.client.putItem((request) -> request.tableName(this.tableName).item(SessionItemMapper.toItem(session)));
 	}
 
 	/**
 	 * セッションを読む。
 	 */
 	public Optional<Session> session(SessionIdHash idHash) {
-		return get(ItemKeys.session(idHash)).map(item -> SessionItemMapper.fromItem(idHash, item));
+		return get(ItemKeys.session(idHash)).map((item) -> SessionItemMapper.fromItem(idHash, item));
 	}
 
 	/**
@@ -106,8 +106,8 @@ public final class DynamoDbTestItems {
 	}
 
 	private Optional<Map<String, AttributeValue>> get(Map<String, AttributeValue> key) {
-		GetItemResponse response = client
-			.getItem(request -> request.tableName(tableName).key(key).consistentRead(true));
+		GetItemResponse response = this.client
+			.getItem((request) -> request.tableName(this.tableName).key(key).consistentRead(true));
 		return response.hasItem() ? Optional.of(response.item()) : Optional.empty();
 	}
 

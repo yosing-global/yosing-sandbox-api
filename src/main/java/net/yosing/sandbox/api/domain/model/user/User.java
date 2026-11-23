@@ -10,7 +10,7 @@ import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
 import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
 
 /**
- * ユーザー（本登録したもの）。
+ * ユーザー（本登録したもの）
  *
  * <p>ログインの状態（パスワード・OTP の失敗回数、ロックの期限、今の仮認証の jti）は、ログインの API で使う。
  *
@@ -32,7 +32,7 @@ public final class User {
 	public static final int MAX_OTP_FAILURES = 5;
 
 	/**
-	 * ロックの長さ（パスワード・OTP で共通）。
+	 * ロックの長さ（パスワード・OTP で共通）
 	 */
 	public static final Duration LOCK_DURATION = Duration.ofMinutes(15);
 
@@ -75,7 +75,6 @@ public final class User {
 
 	/**
 	 * 本登録する。失敗回数は0、ロック・仮認証は無しから始める。
-	 *
 	 * @param id ユーザーの ID（仮登録のときに採番したもの）
 	 * @param loginId ログイン ID
 	 * @param passwordHash パスワードのハッシュ
@@ -92,7 +91,6 @@ public final class User {
 
 	/**
 	 * 保存したユーザーを戻す（DB から読んだとき）。
-	 *
 	 * @param id ユーザーの ID
 	 * @param loginId ログイン ID
 	 * @param passwordHash パスワードのハッシュ
@@ -114,12 +112,11 @@ public final class User {
 
 	/**
 	 * ロック中か。ロックの期限の日時になったら解ける。
-	 *
 	 * @param now 今の日時
 	 * @return ロック中なら true
 	 */
 	public boolean isLocked(Instant now) {
-		return lockedUntil != null && now.isBefore(lockedUntil);
+		return this.lockedUntil != null && now.isBefore(this.lockedUntil);
 	}
 
 	/**
@@ -130,7 +127,6 @@ public final class User {
 	 * <li>数えた結果が上限に達したら、今から {@link #LOCK_DURATION} ロックする（この試行が成功すれば
 	 * {@link #passwordVerified(String)} で解く）</li>
 	 * </ul>
-	 *
 	 * @param now 今の日時
 	 * @return 数えた後のユーザー
 	 * @throws IllegalStateException ロック中の場合（ロック中は照合しない）
@@ -139,51 +135,47 @@ public final class User {
 		if (isLocked(now)) {
 			throw new IllegalStateException("ロック中は照合しない");
 		}
-		boolean lockExpired = lockedUntil != null;
-		int count = (lockExpired ? 0 : passwordFailureCount) + 1;
-		int otpCount = lockExpired ? 0 : otpFailureCount;
-		Instant newLockedUntil = count >= MAX_PASSWORD_FAILURES ? lockFrom(now) : null;
-		return new User(id, loginId, passwordHash, totpSecret, lastUsedTotpStep, count, otpCount, newLockedUntil,
-				loginTokenId, createdAt);
+		boolean lockExpired = this.lockedUntil != null;
+		int count = (lockExpired ? 0 : this.passwordFailureCount) + 1;
+		int otpCount = lockExpired ? 0 : this.otpFailureCount;
+		Instant newLockedUntil = (count >= MAX_PASSWORD_FAILURES) ? lockFrom(now) : null;
+		return new User(this.id, this.loginId, this.passwordHash, this.totpSecret, this.lastUsedTotpStep, count,
+				otpCount, newLockedUntil, this.loginTokenId, this.createdAt);
 	}
 
 	/**
 	 * パスワードが合った（ログインの開始が成功した）。パスワードの失敗回数を0に戻してロックを解き、新しい仮認証を始める
 	 * （前の仮認証の JWT は使えなくなる）。OTP の失敗回数は戻さない（OTP が合ったときだけ戻す）。
-	 *
 	 * @param newLoginTokenId 新しい仮認証の jti
 	 * @return 更新した後のユーザー
 	 */
 	public User passwordVerified(String newLoginTokenId) {
 		Objects.requireNonNull(newLoginTokenId, "newLoginTokenId");
-		return new User(id, loginId, passwordHash, totpSecret, lastUsedTotpStep, 0, otpFailureCount, null,
-				newLoginTokenId, createdAt);
+		return new User(this.id, this.loginId, this.passwordHash, this.totpSecret, this.lastUsedTotpStep, 0,
+				this.otpFailureCount, null, newLoginTokenId, this.createdAt);
 	}
 
 	/**
 	 * 今の仮認証の jti か（使用済み・置き換わった仮認証の JWT は使えない）。
-	 *
 	 * @param tokenId JWT の jti
 	 * @return 今の仮認証の jti なら true
 	 */
 	public boolean hasLoginToken(String tokenId) {
-		return loginTokenId != null && loginTokenId.equals(tokenId);
+		return this.loginTokenId != null && this.loginTokenId.equals(tokenId);
 	}
 
 	/**
 	 * OTP の試行が上限に達したか（達したら、アカウントをロックして仮認証を終える）。
 	 *
 	 * <p>OTP の失敗回数は、照合の前に試行として数える（同時に試されても上限を超えて照合しないため）。
-	 *
 	 * @return 達していれば true
 	 */
 	public boolean otpAttemptsExhausted() {
-		return otpFailureCount >= MAX_OTP_FAILURES;
+		return this.otpFailureCount >= MAX_OTP_FAILURES;
 	}
 
 	/**
 	 * OTP の失敗が上限に達したので、今から {@link #LOCK_DURATION} ロックし、仮認証を終える。
-	 *
 	 * @param now 今の日時
 	 * @return ロックした後のユーザー
 	 * @throws IllegalStateException 上限に達していない場合
@@ -192,31 +184,30 @@ public final class User {
 		if (!otpAttemptsExhausted()) {
 			throw new IllegalStateException("OTP の失敗が上限に達していない");
 		}
-		return new User(id, loginId, passwordHash, totpSecret, lastUsedTotpStep, passwordFailureCount,
-				otpFailureCount, lockFrom(now), null, createdAt);
+		return new User(this.id, this.loginId, this.passwordHash, this.totpSecret, this.lastUsedTotpStep,
+				this.passwordFailureCount, this.otpFailureCount, lockFrom(now), null, this.createdAt);
 	}
 
 	/**
 	 * @return OTP の残りの回数（0以上）
 	 */
 	public int remainingOtpAttempts() {
-		return Math.max(0, MAX_OTP_FAILURES - otpFailureCount);
+		return Math.max(0, MAX_OTP_FAILURES - this.otpFailureCount);
 	}
 
 	/**
 	 * OTP が合った（ログインの確定が成功した）。一致したステップを最後に使ったステップにし（同じコードを使えないようにする）、
 	 * OTP の失敗回数を0に戻して、仮認証を終える。
-	 *
 	 * @param matchedStep OTP が一致したステップ
 	 * @return 更新した後のユーザー
 	 * @throws IllegalArgumentException 最後に使ったステップより後でない場合
 	 */
 	public User otpVerified(TotpStep matchedStep) {
-		if (!matchedStep.isAfter(lastUsedTotpStep)) {
+		if (!matchedStep.isAfter(this.lastUsedTotpStep)) {
 			throw new IllegalArgumentException("最後に使ったステップより後のステップにする");
 		}
-		return new User(id, loginId, passwordHash, totpSecret, matchedStep, passwordFailureCount, 0, lockedUntil, null,
-				createdAt);
+		return new User(this.id, this.loginId, this.passwordHash, this.totpSecret, matchedStep,
+				this.passwordFailureCount, 0, this.lockedUntil, null, this.createdAt);
 	}
 
 	// ロックの期限（日時は秒の単位にそろえる）
@@ -225,43 +216,43 @@ public final class User {
 	}
 
 	public UserId id() {
-		return id;
+		return this.id;
 	}
 
 	public LoginId loginId() {
-		return loginId;
+		return this.loginId;
 	}
 
 	public PasswordHash passwordHash() {
-		return passwordHash;
+		return this.passwordHash;
 	}
 
 	public EncryptedTotpSecret totpSecret() {
-		return totpSecret;
+		return this.totpSecret;
 	}
 
 	public TotpStep lastUsedTotpStep() {
-		return lastUsedTotpStep;
+		return this.lastUsedTotpStep;
 	}
 
 	public int passwordFailureCount() {
-		return passwordFailureCount;
+		return this.passwordFailureCount;
 	}
 
 	public int otpFailureCount() {
-		return otpFailureCount;
+		return this.otpFailureCount;
 	}
 
 	public Optional<Instant> lockedUntil() {
-		return Optional.ofNullable(lockedUntil);
+		return Optional.ofNullable(this.lockedUntil);
 	}
 
 	public Optional<String> loginTokenId() {
-		return Optional.ofNullable(loginTokenId);
+		return Optional.ofNullable(this.loginTokenId);
 	}
 
 	public Instant createdAt() {
-		return createdAt;
+		return this.createdAt;
 	}
 
 }

@@ -9,31 +9,31 @@ import org.springframework.http.HttpStatus;
  */
 enum ErrorCode {
 
-	/** 入力の形式の誤り。 */
+	/** 入力の形式の誤り */
 	VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "入力の形式が正しくありません。"),
 
-	/** ログイン ID かパスワードが違う（どちらが違うか、ロック中かは返さない）。 */
+	/** ログイン ID かパスワードが違う（どちらが違うか、ロック中かは返さない） */
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "ログイン ID かパスワードが正しくありません。"),
 
-	/** OTP コードが違う、または使用済み。 */
+	/** OTP コードが違う、または使用済み */
 	OTP_INVALID(HttpStatus.UNAUTHORIZED, "OTP コードが正しくありません。"),
 
-	/** 仮認証 JWT が無効・期限切れ・使用済み。 */
+	/** 仮認証 JWT が無効・期限切れ・使用済み */
 	LOGIN_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "仮認証が無効か、期限が切れています。ログインを最初からやり直してください。"),
 
-	/** セッションが無い・無効・期限切れ。 */
+	/** セッションが無い・無効・期限切れ */
 	SESSION_INVALID(HttpStatus.UNAUTHORIZED, "ログインしていないか、ログインの期限が切れています。"),
 
-	/** 登録 ID が無い、または期限切れ。 */
+	/** 登録 ID が無い、または期限切れ */
 	REGISTRATION_NOT_FOUND(HttpStatus.NOT_FOUND, "登録が見つからないか、期限が切れています。最初からやり直してください。"),
 
-	/** ログイン ID が使用済み。 */
+	/** ログイン ID が使用済み */
 	LOGIN_ID_TAKEN(HttpStatus.CONFLICT, "このログイン ID は使われています。"),
 
-	/** OTP の失敗が上限に達した。 */
+	/** OTP の失敗が上限に達した */
 	OTP_ATTEMPTS_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "OTP コードを続けて間違えたため、最初からやり直してください。"),
 
-	/** 想定外のエラー。 */
+	/** 想定外のエラー */
 	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "想定外のエラーが発生しました。");
 
 	private final HttpStatus status;
@@ -46,11 +46,11 @@ enum ErrorCode {
 	}
 
 	HttpStatus status() {
-		return status;
+		return this.status;
 	}
 
 	String detail() {
-		return detail;
+		return this.detail;
 	}
 
 }

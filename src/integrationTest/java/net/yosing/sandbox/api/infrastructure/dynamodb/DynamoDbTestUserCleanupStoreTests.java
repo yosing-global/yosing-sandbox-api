@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import java.time.Instant;
 
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
@@ -14,11 +11,15 @@ import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * テストのユーザーの掃除の、探す（Scan）・消す（ユーザーとログイン ID の項目をまとめて、条件付きで）を、DynamoDB Local で確かめる。
@@ -50,7 +51,7 @@ class DynamoDbTestUserCleanupStoreTests {
 		User second = putUser("e2e_dummy_cleanfind_b");
 		putUser("dummy_cleanfind_c");
 
-		assertThat(store.findByLoginIdPrefix("e2e_dummy_cleanfind_")).containsExactlyInAnyOrder(testUser(first),
+		assertThat(this.store.findByLoginIdPrefix("e2e_dummy_cleanfind_")).containsExactlyInAnyOrder(testUser(first),
 				testUser(second));
 	}
 
@@ -61,7 +62,7 @@ class DynamoDbTestUserCleanupStoreTests {
 	void deletesUserAndLoginIdItems() {
 		User user = putUser("e2e_dummy_cleandel_a");
 
-		assertThat(store.delete(testUser(user))).isTrue();
+		assertThat(this.store.delete(testUser(user))).isTrue();
 
 		assertThat(items().userItem(user.id())).isEmpty();
 		assertThat(items().loginIdItem(user.loginId())).isEmpty();
@@ -73,9 +74,9 @@ class DynamoDbTestUserCleanupStoreTests {
 	@Test
 	void returnsFalseWhenAlreadyDeleted() {
 		User user = putUser("e2e_dummy_cleangone_a");
-		store.delete(testUser(user));
+		this.store.delete(testUser(user));
 
-		assertThat(store.delete(testUser(user))).isFalse();
+		assertThat(this.store.delete(testUser(user))).isFalse();
 	}
 
 	/**
@@ -86,7 +87,7 @@ class DynamoDbTestUserCleanupStoreTests {
 		User user = putUser("e2e_dummy_cleanmis_a");
 		items().putLoginId(user.loginId(), UserId.generate());
 
-		assertThat(store.delete(testUser(user))).isFalse();
+		assertThat(this.store.delete(testUser(user))).isFalse();
 
 		assertThat(items().userItem(user.id())).isPresent();
 		assertThat(items().loginIdItem(user.loginId())).isPresent();
@@ -99,8 +100,8 @@ class DynamoDbTestUserCleanupStoreTests {
 	void rejectsNonTestLoginId() {
 		User user = putUser("dummy_cleanreject_a");
 
-		assertThatThrownBy(() -> store.findByLoginIdPrefix("dummy_")).isInstanceOf(IllegalArgumentException.class);
-		assertThatThrownBy(() -> store.delete(testUser(user))).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> this.store.findByLoginIdPrefix("dummy_")).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> this.store.delete(testUser(user))).isInstanceOf(IllegalArgumentException.class);
 
 		assertThat(items().userItem(user.id())).isPresent();
 	}
@@ -117,7 +118,7 @@ class DynamoDbTestUserCleanupStoreTests {
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, properties);
+		return new DynamoDbTestItems(this.dynamoDb, this.properties);
 	}
 
 }

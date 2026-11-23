@@ -7,6 +7,8 @@ plugins {
 	id("org.springframework.boot") version "4.1.2"
 	id("io.spring.dependency-management") version "1.1.7"
 	id("com.github.spotbugs") version "6.5.13"
+	// コードの整形（Eclipse のフォーマッター、Spring の流儀の設定）。./gradlew spotlessApply で整形し、check・build で崩れを確かめる
+	id("com.diffplug.spotless") version "8.11.0"
 }
 
 group = "net.yosing.sandbox"
@@ -15,6 +17,9 @@ description = "sandbox API"
 
 // SpotBugs 本体と注釈（@SuppressFBWarnings）のバージョンを揃える
 val spotbugsVersion = "4.10.5"
+
+// Checkstyle 本体のバージョン（toolVersion と、Spring のルールと一緒に足す本体で揃える）
+val checkstyleVersion = "14.3.0"
 
 java {
 	toolchain {
@@ -53,6 +58,10 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	// SpotBugs のセキュリティ向けの検出（弱い乱数・暗号やハッシュの誤用等）
 	spotbugsPlugins("com.h3xstream.findsecbugs:findsecbugs-plugin:1.14.0")
+	// Checkstyle の Spring のルール（SpringChecks。Spring Java Format に付いている、Spring Boot の開発の決まり）
+	//   依存を足すと、Gradle は既定の Checkstyle 本体（toolVersion）を足さなくなるため、本体も書く
+	checkstyle("com.puppycrawl.tools:checkstyle:$checkstyleVersion")
+	checkstyle("io.spring.javaformat:spring-javaformat-checkstyle:0.0.48")
 }
 
 // テストは2つに分ける
@@ -94,9 +103,21 @@ tasks.withType<Test> {
 	useJUnitPlatform()
 }
 
+// コードの整形（./gradlew check・build の spotlessCheck で崩れを確かめ、./gradlew spotlessApply で整形する）
+//   設定は Spring Java Format の Eclipse の設定から、コメントの整形だけを切ったもの（config/formatter/eclipse-formatter.prefs）
+spotless {
+	java {
+		eclipse().configFile("config/formatter/eclipse-formatter.prefs")
+		// import の順は、Checkstyle の Spring のルール（SpringImportOrderCheck）と同じにする
+		//   java → javax → その他 → org.springframework → static（グループの間は空行）
+		importOrder("java", "javax", "", "org.springframework", "\\#")
+	}
+}
+
 // 静的チェック（./gradlew check・build で動く。1件でも検出したら失敗する）
+//   使うルールは config/checkstyle/checkstyle.xml（Spring のルール＋独自のルール）
 checkstyle {
-	toolVersion = "14.3.0"
+	toolVersion = checkstyleVersion
 	maxWarnings = 0
 }
 

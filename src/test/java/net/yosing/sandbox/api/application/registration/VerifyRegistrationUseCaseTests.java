@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.application.registration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -27,8 +24,11 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 import net.yosing.sandbox.api.domain.service.TotpVerifier;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 /**
- * 登録の確定の流れ（成功・OTP の失敗と上限・仮登録が無い・ログイン ID の先取り）を確かめる。
+ * 登録確定の流れ（成功・OTP の失敗と上限・仮登録が無い・ログイン ID の先取り）を確かめる。
  */
 class VerifyRegistrationUseCaseTests {
 
@@ -44,12 +44,12 @@ class VerifyRegistrationUseCaseTests {
 
 	private final TotpVerifier totpVerifier = new TotpVerifier();
 
-	private final VerifyRegistrationUseCase useCase = new VerifyRegistrationUseCase(registrations, completionStore,
-			encryptor, totpVerifier, Clock.fixed(NOW, ZoneOffset.UTC));
+	private final VerifyRegistrationUseCase useCase = new VerifyRegistrationUseCase(this.registrations,
+			this.completionStore, this.encryptor, this.totpVerifier, Clock.fixed(NOW, ZoneOffset.UTC));
 
 	private final Registration registration = startRegistration(Instant.parse("2026-11-01T00:00:00Z"));
 
-	private final OtpCode validCode = totpVerifier.generate(SECRET, TotpStep.at(NOW));
+	private final OtpCode validCode = this.totpVerifier.generate(SECRET, TotpStep.at(NOW));
 
 	private final OtpCode wrongCode = codeOutsideWindow();
 
@@ -59,14 +59,14 @@ class VerifyRegistrationUseCaseTests {
 	 */
 	@Test
 	void completesRegistration() {
-		VerifyRegistrationResult result = useCase.verify(command(validCode));
+		VerifyRegistrationResult result = this.useCase.verify(command(this.validCode));
 
-		assertThat(completionStore.completions()).hasSize(1);
-		Completion completion = completionStore.completions().get(0);
-		assertThat(completion.registration().id()).isEqualTo(registration.id());
-		assertThat(completion.user().id()).isEqualTo(registration.userId());
+		assertThat(this.completionStore.completions()).hasSize(1);
+		Completion completion = this.completionStore.completions().get(0);
+		assertThat(completion.registration().id()).isEqualTo(this.registration.id());
+		assertThat(completion.user().id()).isEqualTo(this.registration.userId());
 		assertThat(completion.user().lastUsedTotpStep()).isEqualTo(TotpStep.at(NOW));
-		assertThat(completion.session().userId()).isEqualTo(registration.userId());
+		assertThat(completion.session().userId()).isEqualTo(this.registration.userId());
 		assertThat(completion.session().idHash()).isEqualTo(result.sessionId().hash());
 		assertThat(result.sessionExpiresAt()).isEqualTo(completion.session().expiresAt());
 	}
@@ -76,11 +76,12 @@ class VerifyRegistrationUseCaseTests {
 	 */
 	@Test
 	void recordsOtpFailure() {
-		assertThatExceptionOfType(OtpInvalidException.class).isThrownBy(() -> useCase.verify(command(wrongCode)))
+		assertThatExceptionOfType(OtpInvalidException.class)
+			.isThrownBy(() -> this.useCase.verify(command(this.wrongCode)))
 			.returns(4, OtpInvalidException::remainingAttempts);
-		assertThat(registrations.findById(registration.id())).hasValueSatisfying(
-				found -> assertThat(found.otpFailureCount()).isEqualTo(1));
-		assertThat(completionStore.completions()).isEmpty();
+		assertThat(this.registrations.findById(this.registration.id()))
+			.hasValueSatisfying((found) -> assertThat(found.otpFailureCount()).isEqualTo(1));
+		assertThat(this.completionStore.completions()).isEmpty();
 	}
 
 	/**
@@ -89,12 +90,13 @@ class VerifyRegistrationUseCaseTests {
 	@Test
 	void deletesRegistrationAtFifthFailure() {
 		for (int attempt = 1; attempt <= 4; attempt++) {
-			assertThatExceptionOfType(OtpInvalidException.class).isThrownBy(() -> useCase.verify(command(wrongCode)));
+			assertThatExceptionOfType(OtpInvalidException.class)
+				.isThrownBy(() -> this.useCase.verify(command(this.wrongCode)));
 		}
 
 		assertThatExceptionOfType(OtpAttemptsExceededException.class)
-			.isThrownBy(() -> useCase.verify(command(wrongCode)));
-		assertThat(registrations.findById(registration.id())).isEmpty();
+			.isThrownBy(() -> this.useCase.verify(command(this.wrongCode)));
+		assertThat(this.registrations.findById(this.registration.id())).isEmpty();
 	}
 
 	/**
@@ -103,12 +105,13 @@ class VerifyRegistrationUseCaseTests {
 	@Test
 	void completesAtFifthAttempt() {
 		for (int attempt = 1; attempt < Registration.MAX_OTP_FAILURES; attempt++) {
-			assertThatExceptionOfType(OtpInvalidException.class).isThrownBy(() -> useCase.verify(command(wrongCode)));
+			assertThatExceptionOfType(OtpInvalidException.class)
+				.isThrownBy(() -> this.useCase.verify(command(this.wrongCode)));
 		}
 
-		useCase.verify(command(validCode));
+		this.useCase.verify(command(this.validCode));
 
-		assertThat(completionStore.completions()).hasSize(1);
+		assertThat(this.completionStore.completions()).hasSize(1);
 	}
 
 	/**
@@ -123,13 +126,13 @@ class VerifyRegistrationUseCaseTests {
 				return super.countOtpAttempt(id);
 			}
 		};
-		racing.add(registration);
-		VerifyRegistrationUseCase racingUseCase = new VerifyRegistrationUseCase(racing, completionStore, encryptor,
-				totpVerifier, Clock.fixed(NOW, ZoneOffset.UTC));
+		racing.add(this.registration);
+		VerifyRegistrationUseCase racingUseCase = new VerifyRegistrationUseCase(racing, this.completionStore,
+				this.encryptor, this.totpVerifier, Clock.fixed(NOW, ZoneOffset.UTC));
 
 		assertThatExceptionOfType(RegistrationNotFoundException.class)
-			.isThrownBy(() -> racingUseCase.verify(command(validCode)));
-		assertThat(completionStore.completions()).isEmpty();
+			.isThrownBy(() -> racingUseCase.verify(command(this.validCode)));
+		assertThat(this.completionStore.completions()).isEmpty();
 	}
 
 	/**
@@ -138,11 +141,11 @@ class VerifyRegistrationUseCaseTests {
 	@Test
 	void rejectsMissingOrExpiredRegistration() {
 		assertThatExceptionOfType(RegistrationNotFoundException.class).isThrownBy(
-				() -> useCase.verify(new VerifyRegistrationCommand(RegistrationId.generate(), validCode)));
+				() -> this.useCase.verify(new VerifyRegistrationCommand(RegistrationId.generate(), this.validCode)));
 
 		Registration expired = startRegistration(NOW.minus(Registration.VALIDITY));
 		assertThatExceptionOfType(RegistrationNotFoundException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyRegistrationCommand(expired.id(), validCode)));
+			.isThrownBy(() -> this.useCase.verify(new VerifyRegistrationCommand(expired.id(), this.validCode)));
 	}
 
 	/**
@@ -150,9 +153,10 @@ class VerifyRegistrationUseCaseTests {
 	 */
 	@Test
 	void propagatesLoginIdTaken() {
-		completionStore.failWith(new LoginIdTakenException());
+		this.completionStore.failWith(new LoginIdTakenException());
 
-		assertThatExceptionOfType(LoginIdTakenException.class).isThrownBy(() -> useCase.verify(command(validCode)));
+		assertThatExceptionOfType(LoginIdTakenException.class)
+			.isThrownBy(() -> this.useCase.verify(command(this.validCode)));
 	}
 
 	// 前後1ステップのどのコードとも違うコード（偶然一致しないようにする）
@@ -160,20 +164,20 @@ class VerifyRegistrationUseCaseTests {
 		TotpStep step = TotpStep.at(NOW);
 		return Stream.of("000000", "111111", "222222", "333333")
 			.map(OtpCode::new)
-			.filter(code -> totpVerifier.verify(SECRET, code, step, Optional.empty()).isEmpty())
+			.filter((code) -> this.totpVerifier.verify(SECRET, code, step, Optional.empty()).isEmpty())
 			.findFirst()
 			.orElseThrow();
 	}
 
 	private VerifyRegistrationCommand command(OtpCode code) {
-		return new VerifyRegistrationCommand(registration.id(), code);
+		return new VerifyRegistrationCommand(this.registration.id(), code);
 	}
 
 	private Registration startRegistration(Instant startedAt) {
 		UserId userId = UserId.generate();
 		Registration started = Registration.start(RegistrationId.generate(), userId, LoginId.of("dummy_alice"),
-				new PasswordHash("{dummy}dummy-hash"), encryptor.encrypt(SECRET, userId), startedAt);
-		registrations.add(started);
+				new PasswordHash("{dummy}dummy-hash"), this.encryptor.encrypt(SECRET, userId), startedAt);
+		this.registrations.add(started);
 		return started;
 	}
 

@@ -4,6 +4,7 @@ import net.yosing.sandbox.api.application.cleanup.CleanupTestUsersResult;
 import net.yosing.sandbox.api.application.cleanup.CleanupTestUsersUseCase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -37,10 +38,9 @@ class CleanupTestUsersRunner implements ApplicationRunner {
 
 	@Override
 	public void run(ApplicationArguments args) {
-		LOGGER.info("テストのユーザーの掃除を始める（環境：{}）", environment);
-		CleanupTestUsersResult result = useCase.cleanup(environment);
-		LOGGER.info("テストのユーザーの掃除が終わった（見つかった：{}、期間を過ぎた：{}、消した：{}）", result.found(), result.expired(),
-				result.deleted());
+		LOGGER.info("テストのユーザーの掃除を始める（環境：{}）", this.environment);
+		CleanupTestUsersResult result = this.useCase.cleanup(this.environment);
+		LOGGER.info("テストのユーザーの掃除が終わった（見つかった：{}、期間を過ぎた：{}、消した：{}）", result.found(), result.expired(), result.deleted());
 	}
 
 }

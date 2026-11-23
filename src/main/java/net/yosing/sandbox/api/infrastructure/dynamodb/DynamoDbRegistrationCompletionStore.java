@@ -9,7 +9,6 @@ import net.yosing.sandbox.api.application.registration.RegistrationNotFoundExcep
 import net.yosing.sandbox.api.domain.model.registration.Registration;
 import net.yosing.sandbox.api.domain.model.session.Session;
 import net.yosing.sandbox.api.domain.model.user.User;
-import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.CancellationReason;
@@ -18,8 +17,10 @@ import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 
+import org.springframework.stereotype.Repository;
+
 /**
- * 登録の確定の保存（AP5）。TransactWriteItems で、次の4つをすべて行うか、何もしない。
+ * 登録確定の保存（AP5）。TransactWriteItems で、次の4つをすべて行うか、何もしない。
  *
  * <ol>
  * <li>ユーザーの作成（無いこと）</li>
@@ -53,7 +54,7 @@ class DynamoDbRegistrationCompletionStore implements RegistrationCompletionStore
 				putIfNotExists(UserItemMapper.toLoginIdItem(user)),
 				TransactWriteItem.builder()
 					.delete(Delete.builder()
-						.tableName(tableName)
+						.tableName(this.tableName)
 						.key(ItemKeys.registration(registration.id()))
 						.conditionExpression(ItemKeys.EXISTS)
 						.expressionAttributeNames(ItemKeys.PK_NAMES)
@@ -61,8 +62,9 @@ class DynamoDbRegistrationCompletionStore implements RegistrationCompletionStore
 					.build(),
 				putIfNotExists(SessionItemMapper.toItem(session)));
 		try {
-			client.transactWriteItems(request -> request.transactItems(items));
-		} catch (TransactionCanceledException ex) {
+			this.client.transactWriteItems((request) -> request.transactItems(items));
+		}
+		catch (TransactionCanceledException ex) {
 			if (conditionFailed(ex, LOGIN_ID_INDEX)) {
 				throw new LoginIdTakenException();
 			}
@@ -76,7 +78,7 @@ class DynamoDbRegistrationCompletionStore implements RegistrationCompletionStore
 	private TransactWriteItem putIfNotExists(Map<String, AttributeValue> item) {
 		return TransactWriteItem.builder()
 			.put(Put.builder()
-				.tableName(tableName)
+				.tableName(this.tableName)
 				.item(item)
 				.conditionExpression(ItemKeys.NOT_EXISTS)
 				.expressionAttributeNames(ItemKeys.PK_NAMES)

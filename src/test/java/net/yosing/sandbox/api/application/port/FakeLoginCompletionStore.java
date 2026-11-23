@@ -8,7 +8,7 @@ import net.yosing.sandbox.api.domain.model.user.InMemoryUserRepository;
 import net.yosing.sandbox.api.domain.model.user.User;
 
 /**
- * テスト用のログインの確定の保存（フェイク）。メモリ上のユーザーの保存先を更新し、作ったセッションを覚える。
+ * テスト用のログイン確定の保存（フェイク）。メモリ上のユーザーの保存先を更新し、作ったセッションを覚える。
  *
  * <p>本物と同じく、jti が読んだときと同じことと、一致したステップが最後に使ったステップより後であることを条件にする。
  */
@@ -26,17 +26,17 @@ public class FakeLoginCompletionStore implements LoginCompletionStore {
 
 	@Override
 	public boolean complete(User current, User verified, Session session) {
-		if (rejectNext) {
-			rejectNext = false;
+		if (this.rejectNext) {
+			this.rejectNext = false;
 			return false;
 		}
-		User stored = users.findById(current.id()).orElseThrow();
+		User stored = this.users.findById(current.id()).orElseThrow();
 		if (!stored.loginTokenId().equals(current.loginTokenId())
 				|| !verified.lastUsedTotpStep().isAfter(stored.lastUsedTotpStep())) {
 			return false;
 		}
-		users.replace(verified);
-		sessions.add(session);
+		this.users.replace(verified);
+		this.sessions.add(session);
 		return true;
 	}
 
@@ -44,14 +44,14 @@ public class FakeLoginCompletionStore implements LoginCompletionStore {
 	 * 次の保存を、条件に合わなかったことにする（同じコードが先に使われた。テストの準備）。
 	 */
 	public void rejectNext() {
-		rejectNext = true;
+		this.rejectNext = true;
 	}
 
 	/**
-	 * 作ったセッション（テストの確認用）。
+	 * 作ったセッション（テストの確認用）
 	 */
 	public List<Session> sessions() {
-		return List.copyOf(sessions);
+		return List.copyOf(this.sessions);
 	}
 
 }

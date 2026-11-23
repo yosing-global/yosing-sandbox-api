@@ -16,7 +16,6 @@ public record RegistrationId(UUID value) {
 
 	/**
 	 * 新しい ID を採番する。
-	 *
 	 * @return 新しい ID
 	 */
 	public static RegistrationId generate() {
@@ -25,7 +24,6 @@ public record RegistrationId(UUID value) {
 
 	/**
 	 * 文字列（パスの値・保存した値）から ID を作る。
-	 *
 	 * @param value UUID の文字列
 	 * @return ID
 	 * @throws IllegalArgumentException UUID の形式でない場合
@@ -36,7 +34,7 @@ public record RegistrationId(UUID value) {
 
 	@Override
 	public String toString() {
-		return value.toString();
+		return this.value.toString();
 	}
 
 }

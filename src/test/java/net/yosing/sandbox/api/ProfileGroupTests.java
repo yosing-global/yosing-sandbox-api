@@ -1,12 +1,13 @@
 package net.yosing.sandbox.api;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.jupiter.api.Test;
+
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 環境名のプロファイルを指定したとき、application.yml のグループで動き方のプロファイルが有効になることを確認する。

@@ -27,22 +27,22 @@ public final class EncryptedTotpSecret {
 	 * @return 暗号文のバイト列（コピー）
 	 */
 	public byte[] bytes() {
-		return value.clone();
+		return this.value.clone();
 	}
 
 	@Override
 	public boolean equals(Object other) {
-		return other instanceof EncryptedTotpSecret secret && Arrays.equals(value, secret.value);
+		return other instanceof EncryptedTotpSecret secret && Arrays.equals(this.value, secret.value);
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(value);
+		return Arrays.hashCode(this.value);
 	}
 
 	@Override
 	public String toString() {
-		return "EncryptedTotpSecret[" + value.length + " bytes]";
+		return "EncryptedTotpSecret[" + this.value.length + " bytes]";
 	}
 
 }

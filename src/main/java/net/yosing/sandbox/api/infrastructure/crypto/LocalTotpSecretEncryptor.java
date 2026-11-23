@@ -45,17 +45,16 @@ final class LocalTotpSecretEncryptor implements TotpSecretEncryptor {
 	@Override
 	public EncryptedTotpSecret encrypt(TotpSecret secret, UserId userId) {
 		byte[] iv = new byte[IV_BYTES];
-		random.nextBytes(iv);
+		this.random.nextBytes(iv);
 		try {
 			Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-			cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
+			cipher.init(Cipher.ENCRYPT_MODE, this.key, new GCMParameterSpec(TAG_BITS, iv));
 			cipher.updateAAD(additionalData(userId));
 			byte[] ciphertext = cipher.doFinal(secret.bytes());
-			return new EncryptedTotpSecret(ByteBuffer.allocate(iv.length + ciphertext.length)
-				.put(iv)
-				.put(ciphertext)
-				.array());
-		} catch (GeneralSecurityException ex) {
+			return new EncryptedTotpSecret(
+					ByteBuffer.allocate(iv.length + ciphertext.length).put(iv).put(ciphertext).array());
+		}
+		catch (GeneralSecurityException ex) {
 			throw new IllegalStateException("暗号化に失敗した", ex);
 		}
 	}
@@ -70,17 +69,18 @@ final class LocalTotpSecretEncryptor implements TotpSecretEncryptor {
 		byte[] ciphertext = Arrays.copyOfRange(bytes, IV_BYTES, bytes.length);
 		try {
 			Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-			cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
+			cipher.init(Cipher.DECRYPT_MODE, this.key, new GCMParameterSpec(TAG_BITS, iv));
 			cipher.updateAAD(additionalData(userId));
 			return new TotpSecret(cipher.doFinal(ciphertext));
-		} catch (GeneralSecurityException ex) {
+		}
+		catch (GeneralSecurityException ex) {
 			// ユーザー・環境の違い、改ざん、鍵の違い（AEADBadTagException）等
 			throw new IllegalStateException("復号に失敗した", ex);
 		}
 	}
 
 	private byte[] additionalData(UserId userId) {
-		return ("env=" + roleEnv + ";userId=" + userId).getBytes(StandardCharsets.UTF_8);
+		return ("env=" + this.roleEnv + ";userId=" + userId).getBytes(StandardCharsets.UTF_8);
 	}
 
 }

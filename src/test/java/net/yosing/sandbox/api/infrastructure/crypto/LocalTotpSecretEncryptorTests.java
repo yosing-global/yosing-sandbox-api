@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.crypto;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
-
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 
@@ -12,6 +9,9 @@ import net.yosing.sandbox.api.domain.model.shared.totp.EncryptedTotpSecret;
 import net.yosing.sandbox.api.domain.model.shared.totp.TotpSecret;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
  * ローカルの暗号化（AES-GCM）で、暗号化と復号ができ、ユーザー・環境・改ざんの違いを検出できることを確かめる。
@@ -24,7 +24,7 @@ class LocalTotpSecretEncryptorTests {
 	private final SecretKeySpec key = new SecretKeySpec(
 			"dummy-aes-key-0123456789abcdefgh".getBytes(StandardCharsets.US_ASCII), "AES");
 
-	private final LocalTotpSecretEncryptor encryptor = new LocalTotpSecretEncryptor(key, "dummy-local",
+	private final LocalTotpSecretEncryptor encryptor = new LocalTotpSecretEncryptor(this.key, "dummy-local",
 			new SecureRandom());
 
 	/**
@@ -34,9 +34,9 @@ class LocalTotpSecretEncryptorTests {
 	void decryptsWhatItEncrypted() {
 		UserId userId = UserId.generate();
 
-		EncryptedTotpSecret encrypted = encryptor.encrypt(SECRET, userId);
+		EncryptedTotpSecret encrypted = this.encryptor.encrypt(SECRET, userId);
 
-		assertThat(encryptor.decrypt(encrypted, userId)).isEqualTo(SECRET);
+		assertThat(this.encryptor.decrypt(encrypted, userId)).isEqualTo(SECRET);
 	}
 
 	/**
@@ -46,7 +46,7 @@ class LocalTotpSecretEncryptorTests {
 	void producesDifferentCiphertextEachTime() {
 		UserId userId = UserId.generate();
 
-		assertThat(encryptor.encrypt(SECRET, userId)).isNotEqualTo(encryptor.encrypt(SECRET, userId));
+		assertThat(this.encryptor.encrypt(SECRET, userId)).isNotEqualTo(this.encryptor.encrypt(SECRET, userId));
 	}
 
 	/**
@@ -54,9 +54,9 @@ class LocalTotpSecretEncryptorTests {
 	 */
 	@Test
 	void cannotDecryptForAnotherUser() {
-		EncryptedTotpSecret encrypted = encryptor.encrypt(SECRET, UserId.generate());
+		EncryptedTotpSecret encrypted = this.encryptor.encrypt(SECRET, UserId.generate());
 
-		assertThatIllegalStateException().isThrownBy(() -> encryptor.decrypt(encrypted, UserId.generate()));
+		assertThatIllegalStateException().isThrownBy(() -> this.encryptor.decrypt(encrypted, UserId.generate()));
 	}
 
 	/**
@@ -65,8 +65,9 @@ class LocalTotpSecretEncryptorTests {
 	@Test
 	void cannotDecryptInAnotherEnvironment() {
 		UserId userId = UserId.generate();
-		EncryptedTotpSecret encrypted = encryptor.encrypt(SECRET, userId);
-		LocalTotpSecretEncryptor anotherEnvironment = new LocalTotpSecretEncryptor(key, "dummy-dev", new SecureRandom());
+		EncryptedTotpSecret encrypted = this.encryptor.encrypt(SECRET, userId);
+		LocalTotpSecretEncryptor anotherEnvironment = new LocalTotpSecretEncryptor(this.key, "dummy-dev",
+				new SecureRandom());
 
 		assertThatIllegalStateException().isThrownBy(() -> anotherEnvironment.decrypt(encrypted, userId));
 	}
@@ -77,11 +78,11 @@ class LocalTotpSecretEncryptorTests {
 	@Test
 	void cannotDecryptTamperedCiphertext() {
 		UserId userId = UserId.generate();
-		byte[] bytes = encryptor.encrypt(SECRET, userId).bytes();
+		byte[] bytes = this.encryptor.encrypt(SECRET, userId).bytes();
 		bytes[bytes.length - 1] ^= 1;
 
 		assertThatIllegalStateException()
-			.isThrownBy(() -> encryptor.decrypt(new EncryptedTotpSecret(bytes), userId));
+			.isThrownBy(() -> this.encryptor.decrypt(new EncryptedTotpSecret(bytes), userId));
 	}
 
 }

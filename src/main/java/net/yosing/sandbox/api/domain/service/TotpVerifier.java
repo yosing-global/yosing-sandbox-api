@@ -24,7 +24,7 @@ import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
 public final class TotpVerifier {
 
 	/**
-	 * 前後に許すステップの数。
+	 * 前後に許すステップの数
 	 */
 	public static final int ALLOWED_STEP_DRIFT = 1;
 
@@ -35,7 +35,6 @@ public final class TotpVerifier {
 
 	/**
 	 * コードを照合する。
-	 *
 	 * @param secret 秘密情報
 	 * @param code 入力されたコード
 	 * @param step 今のステップ
@@ -59,16 +58,16 @@ public final class TotpVerifier {
 
 	/**
 	 * ステップのコードを計算する（認証アプリが表示するものと同じ）。
-	 *
 	 * @param secret 秘密情報
 	 * @param step ステップ
 	 * @return コード
 	 */
 	public OtpCode generate(TotpSecret secret, TotpStep step) {
 		try {
-			return new OtpCode(generator.generateOneTimePasswordString(new SecretKeySpec(secret.bytes(), HMAC_ALGORITHM),
-					step.value(), Locale.ROOT));
-		} catch (InvalidKeyException ex) {
+			return new OtpCode(this.generator.generateOneTimePasswordString(
+					new SecretKeySpec(secret.bytes(), HMAC_ALGORITHM), step.value(), Locale.ROOT));
+		}
+		catch (InvalidKeyException ex) {
 			throw new IllegalStateException("TOTP のコードを計算できない", ex);
 		}
 	}

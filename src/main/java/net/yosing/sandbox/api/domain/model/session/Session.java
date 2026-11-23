@@ -8,7 +8,7 @@ import java.util.Objects;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 
 /**
- * ログインしているセッション。
+ * ログインしているセッション
  *
  * <p>期限は、最終操作から12時間、または発行から7日の早い方。認証済みの要求のたびに、最終操作の日時と期限を延ばす（{@link #touch}）。
  * 二要素認証で確かめ直す機会を減らしすぎないよう、短めにしている（一日の作業の中ではログインし直さず、週に一度は確かめ直す）。
@@ -16,7 +16,7 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 public final class Session {
 
 	/**
-	 * 最終操作からの有効期間。
+	 * 最終操作からの有効期間
 	 */
 	public static final Duration IDLE_TIMEOUT = Duration.ofHours(12);
 
@@ -47,7 +47,6 @@ public final class Session {
 
 	/**
 	 * 新しいセッションを発行する。セッション ID はランダムに作り、セッションには、そのハッシュだけを持たせる。
-	 *
 	 * @param userId ログインしたユーザー
 	 * @param now 今の日時（秒にそろえる）
 	 * @return セッション ID（クライアントに返す元の値）とセッション
@@ -60,7 +59,6 @@ public final class Session {
 
 	/**
 	 * 保存したセッションを戻す（DB から読んだとき）。期限は、発行と最終操作の日時から計算し直す。
-	 *
 	 * @param idHash セッション ID のハッシュ
 	 * @param userId ログインしたユーザー
 	 * @param createdAt 発行した日時
@@ -73,17 +71,15 @@ public final class Session {
 
 	/**
 	 * 期限が切れているか。期限の日時になったら切れている。
-	 *
 	 * @param now 今の日時
 	 * @return 切れていれば true
 	 */
 	public boolean isExpired(Instant now) {
-		return !now.isBefore(expiresAt);
+		return !now.isBefore(this.expiresAt);
 	}
 
 	/**
 	 * 操作があった（認証済みの要求）。最終操作の日時を今にして、期限を延ばす（発行から7日より後にはならない）。
-	 *
 	 * @param now 今の日時（秒にそろえる）
 	 * @return 延ばした後のセッション
 	 * @throws IllegalStateException 期限が切れている場合
@@ -94,28 +90,28 @@ public final class Session {
 		}
 		Instant accessedAt = now.truncatedTo(ChronoUnit.SECONDS);
 		// 時計のずれ等で、最終操作の日時を前に戻さない
-		return new Session(idHash, userId, createdAt,
-				accessedAt.isAfter(lastAccessedAt) ? accessedAt : lastAccessedAt);
+		return new Session(this.idHash, this.userId, this.createdAt,
+				accessedAt.isAfter(this.lastAccessedAt) ? accessedAt : this.lastAccessedAt);
 	}
 
 	public SessionIdHash idHash() {
-		return idHash;
+		return this.idHash;
 	}
 
 	public UserId userId() {
-		return userId;
+		return this.userId;
 	}
 
 	public Instant createdAt() {
-		return createdAt;
+		return this.createdAt;
 	}
 
 	public Instant lastAccessedAt() {
-		return lastAccessedAt;
+		return this.lastAccessedAt;
 	}
 
 	public Instant expiresAt() {
-		return expiresAt;
+		return this.expiresAt;
 	}
 
 }

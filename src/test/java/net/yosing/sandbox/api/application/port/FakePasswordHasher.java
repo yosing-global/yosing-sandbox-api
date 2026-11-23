@@ -19,7 +19,7 @@ public class FakePasswordHasher implements PasswordHasher {
 
 	@Override
 	public boolean matches(Password password, PasswordHash hash) {
-		matchCount++;
+		this.matchCount++;
 		return hash.value().equals("{dummy}" + password.value());
 	}
 
@@ -27,7 +27,7 @@ public class FakePasswordHasher implements PasswordHasher {
 	 * @return 照合した回数
 	 */
 	public int matchCount() {
-		return matchCount;
+		return this.matchCount;
 	}
 
 }

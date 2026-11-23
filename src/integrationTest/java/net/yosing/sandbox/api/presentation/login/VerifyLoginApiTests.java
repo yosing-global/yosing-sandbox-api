@@ -1,11 +1,5 @@
 package net.yosing.sandbox.api.presentation.login;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import java.time.Clock;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -26,6 +20,8 @@ import net.yosing.sandbox.api.domain.service.TotpVerifier;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbProperties;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbTestItems;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -34,12 +30,17 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * ログインの確定（POST /v1/logins/verify）の API を、DynamoDB Local・ローカルの暗号化と署名で確かめる。
  *
- * <p>ユーザーは DB に直接作り（最後に使ったステップは5ステップ前）、仮認証 JWT はログインの開始の API で受け取る。
+ * <p>ユーザーは DB に直接作り（最後に使ったステップは5ステップ前）、仮認証 JWT はログイン開始の API で受け取る。
  * 正しいコードは、秘密情報から計算する（認証アプリの代わり）。テーブルはテストの間で共有するため、テストごとに違うログイン ID を使う。
  */
 @SpringBootTest
@@ -89,7 +90,7 @@ class VerifyLoginApiTests {
 
 		SessionId sessionId = new SessionId(JsonPath.read(body, "$.sessionId"));
 		assertThat(items().sessionItem(sessionId.hash())).isPresent();
-		assertThat(items().user(user.id())).hasValueSatisfying(saved -> {
+		assertThat(items().user(user.id())).hasValueSatisfying((saved) -> {
 			assertThat(saved.lastUsedTotpStep().isAfter(user.lastUsedTotpStep())).isTrue();
 			assertThat(saved.otpFailureCount()).isZero();
 			assertThat(saved.loginTokenId()).isEmpty();
@@ -154,7 +155,7 @@ class VerifyLoginApiTests {
 			.andExpect(jsonPath("$.code").value("LOGIN_TOKEN_INVALID"));
 		startLoginRequest("dummy_login_verify_limit").andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
-		assertThat(items().user(user.id())).hasValueSatisfying(saved -> assertThat(saved.lockedUntil()).isPresent());
+		assertThat(items().user(user.id())).hasValueSatisfying((saved) -> assertThat(saved.lockedUntil()).isPresent());
 	}
 
 	/**
@@ -186,7 +187,7 @@ class VerifyLoginApiTests {
 	 */
 	@Test
 	void rejectsInvalidInput() throws Exception {
-		mockMvc
+		this.mockMvc
 			.perform(post("/v1/logins/verify").contentType(MediaType.APPLICATION_JSON)
 				.content("{\"loginToken\":\"\",\"code\":\"12ab\"}"))
 			.andExpect(status().isBadRequest())
@@ -204,40 +205,41 @@ class VerifyLoginApiTests {
 	}
 
 	private ResultActions startLoginRequest(String loginId) throws Exception {
-		return mockMvc.perform(post("/v1/logins").contentType(MediaType.APPLICATION_JSON)
+		return this.mockMvc.perform(post("/v1/logins").contentType(MediaType.APPLICATION_JSON)
 			.content("{\"loginId\":\"" + loginId + "\",\"password\":\"" + PASSWORD + "\"}"));
 	}
 
 	private ResultActions verify(String loginToken, OtpCode code) throws Exception {
-		return mockMvc.perform(post("/v1/logins/verify").contentType(MediaType.APPLICATION_JSON)
+		return this.mockMvc.perform(post("/v1/logins/verify").contentType(MediaType.APPLICATION_JSON)
 			.content("{\"loginToken\":\"" + loginToken + "\",\"code\":\"" + code.value() + "\"}"));
 	}
 
 	// 認証アプリが今表示するコード
 	private OtpCode validCode() {
-		return totpVerifier.generate(secret, TotpStep.at(clock.instant()));
+		return this.totpVerifier.generate(this.secret, TotpStep.at(this.clock.instant()));
 	}
 
 	// 前後1ステップのどのコードとも違うコード（偶然一致しないようにする）
 	private OtpCode wrongCode() {
-		TotpStep step = TotpStep.at(clock.instant());
+		TotpStep step = TotpStep.at(this.clock.instant());
 		return Stream.of("000000", "111111", "222222", "333333")
 			.map(OtpCode::new)
-			.filter(code -> totpVerifier.verify(secret, code, step, Optional.empty()).isEmpty())
+			.filter((code) -> this.totpVerifier.verify(this.secret, code, step, Optional.empty()).isEmpty())
 			.findFirst()
 			.orElseThrow();
 	}
 
 	private User putUser(String loginId) {
 		UserId userId = UserId.generate();
-		User user = User.register(userId, LoginId.of(loginId), passwordHasher.hash(new Password(PASSWORD)),
-				totpSecretEncryptor.encrypt(secret, userId), TotpStep.at(clock.instant()).plus(-5), clock.instant());
+		User user = User.register(userId, LoginId.of(loginId), this.passwordHasher.hash(new Password(PASSWORD)),
+				this.totpSecretEncryptor.encrypt(this.secret, userId), TotpStep.at(this.clock.instant()).plus(-5),
+				this.clock.instant());
 		items().putUser(user);
 		return user;
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, dynamoDbProperties);
+		return new DynamoDbTestItems(this.dynamoDb, this.dynamoDbProperties);
 	}
 
 }

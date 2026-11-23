@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.application.login;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -20,8 +17,11 @@ import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 /**
- * ログインの開始の流れ（成功・パスワードの失敗とロック・OTP のロック・ユーザーが無い・同時の試行）を確かめる。
+ * ログイン開始の流れ（成功・パスワードの失敗とロック・OTP のロック・ユーザーが無い・同時の試行）を確かめる。
  */
 class StartLoginUseCaseTests {
 
@@ -37,7 +37,7 @@ class StartLoginUseCaseTests {
 
 	private final FakeLoginTokenSigner signer = new FakeLoginTokenSigner();
 
-	private final StartLoginUseCase useCase = new StartLoginUseCase(users, hasher, signer,
+	private final StartLoginUseCase useCase = new StartLoginUseCase(this.users, this.hasher, this.signer,
 			Clock.fixed(NOW, ZoneOffset.UTC));
 
 	private final User user = addUser();
@@ -47,12 +47,12 @@ class StartLoginUseCaseTests {
 	 */
 	@Test
 	void issuesLoginToken() {
-		StartLoginResult result = useCase.start(command(PASSWORD));
+		StartLoginResult result = this.useCase.start(command(PASSWORD));
 
 		Instant issuedAt = Instant.parse("2026-11-01T00:00:00Z");
 		assertThat(result.expiresAt()).isEqualTo(issuedAt.plus(StartLoginUseCase.LOGIN_TOKEN_VALIDITY));
-		LoginTokenClaims claims = signer.verify(result.loginToken(), NOW).orElseThrow();
-		assertThat(claims.userId()).isEqualTo(user.id());
+		LoginTokenClaims claims = this.signer.verify(result.loginToken(), NOW).orElseThrow();
+		assertThat(claims.userId()).isEqualTo(this.user.id());
 		assertThat(claims.issuedAt()).isEqualTo(issuedAt);
 		assertThat(saved().loginTokenId()).hasValue(claims.tokenId());
 		assertThat(saved().passwordFailureCount()).isZero();
@@ -64,7 +64,7 @@ class StartLoginUseCaseTests {
 	@Test
 	void countsWrongPassword() {
 		assertThatExceptionOfType(InvalidCredentialsException.class)
-			.isThrownBy(() -> useCase.start(command(WRONG_PASSWORD)));
+			.isThrownBy(() -> this.useCase.start(command(WRONG_PASSWORD)));
 
 		assertThat(saved().passwordFailureCount()).isEqualTo(1);
 		assertThat(saved().loginTokenId()).isEmpty();
@@ -77,12 +77,12 @@ class StartLoginUseCaseTests {
 	void locksAfterFiveFailures() {
 		for (int attempt = 1; attempt <= User.MAX_PASSWORD_FAILURES; attempt++) {
 			assertThatExceptionOfType(InvalidCredentialsException.class)
-				.isThrownBy(() -> useCase.start(command(WRONG_PASSWORD)));
+				.isThrownBy(() -> this.useCase.start(command(WRONG_PASSWORD)));
 		}
-		assertThat(saved().lockedUntil())
-			.hasValue(Instant.parse("2026-11-01T00:00:00Z").plus(User.LOCK_DURATION));
+		assertThat(saved().lockedUntil()).hasValue(Instant.parse("2026-11-01T00:00:00Z").plus(User.LOCK_DURATION));
 
-		assertThatExceptionOfType(InvalidCredentialsException.class).isThrownBy(() -> useCase.start(command(PASSWORD)));
+		assertThatExceptionOfType(InvalidCredentialsException.class)
+			.isThrownBy(() -> this.useCase.start(command(PASSWORD)));
 		assertThat(saved().passwordFailureCount()).isEqualTo(User.MAX_PASSWORD_FAILURES);
 		assertThat(saved().loginTokenId()).isEmpty();
 	}
@@ -94,10 +94,10 @@ class StartLoginUseCaseTests {
 	void resetsFailuresOnSuccess() {
 		for (int attempt = 1; attempt < User.MAX_PASSWORD_FAILURES; attempt++) {
 			assertThatExceptionOfType(InvalidCredentialsException.class)
-				.isThrownBy(() -> useCase.start(command(WRONG_PASSWORD)));
+				.isThrownBy(() -> this.useCase.start(command(WRONG_PASSWORD)));
 		}
 
-		useCase.start(command(PASSWORD));
+		this.useCase.start(command(PASSWORD));
 
 		assertThat(saved().passwordFailureCount()).isZero();
 		assertThat(saved().lockedUntil()).isEmpty();
@@ -108,12 +108,12 @@ class StartLoginUseCaseTests {
 	 */
 	@Test
 	void rejectsUnknownLoginId() {
-		int matchesBefore = hasher.matchCount();
+		int matchesBefore = this.hasher.matchCount();
 
-		assertThatExceptionOfType(InvalidCredentialsException.class).isThrownBy(
-				() -> useCase.start(new StartLoginCommand(LoginId.of("dummy_unknown"), PASSWORD)));
+		assertThatExceptionOfType(InvalidCredentialsException.class)
+			.isThrownBy(() -> this.useCase.start(new StartLoginCommand(LoginId.of("dummy_unknown"), PASSWORD)));
 
-		assertThat(hasher.matchCount()).isEqualTo(matchesBefore + 1);
+		assertThat(this.hasher.matchCount()).isEqualTo(matchesBefore + 1);
 	}
 
 	/**
@@ -121,9 +121,10 @@ class StartLoginUseCaseTests {
 	 */
 	@Test
 	void rejectsWhenAnotherAttemptWins() {
-		users.conflictOnNextPasswordAttempt();
+		this.users.conflictOnNextPasswordAttempt();
 
-		assertThatExceptionOfType(InvalidCredentialsException.class).isThrownBy(() -> useCase.start(command(PASSWORD)));
+		assertThatExceptionOfType(InvalidCredentialsException.class)
+			.isThrownBy(() -> this.useCase.start(command(PASSWORD)));
 		assertThat(saved().loginTokenId()).isEmpty();
 	}
 
@@ -132,9 +133,9 @@ class StartLoginUseCaseTests {
 	 */
 	@Test
 	void keepsOtpFailureCount() {
-		users.replace(withOtpState(3, Optional.empty()));
+		this.users.replace(withOtpState(3, Optional.empty()));
 
-		useCase.start(command(PASSWORD));
+		this.useCase.start(command(PASSWORD));
 
 		assertThat(saved().otpFailureCount()).isEqualTo(3);
 	}
@@ -145,20 +146,21 @@ class StartLoginUseCaseTests {
 	@Test
 	void rejectsWhileLockedByOtpFailures() {
 		Instant lockedUntil = NOW.plusSeconds(60);
-		users.replace(withOtpState(User.MAX_OTP_FAILURES, Optional.of(lockedUntil)));
+		this.users.replace(withOtpState(User.MAX_OTP_FAILURES, Optional.of(lockedUntil)));
 
-		assertThatExceptionOfType(InvalidCredentialsException.class).isThrownBy(() -> useCase.start(command(PASSWORD)));
+		assertThatExceptionOfType(InvalidCredentialsException.class)
+			.isThrownBy(() -> this.useCase.start(command(PASSWORD)));
 
-		users.replace(withOtpState(User.MAX_OTP_FAILURES, Optional.of(NOW)));
-		useCase.start(command(PASSWORD));
+		this.users.replace(withOtpState(User.MAX_OTP_FAILURES, Optional.of(NOW)));
+		this.useCase.start(command(PASSWORD));
 		assertThat(saved().otpFailureCount()).isZero();
 		assertThat(saved().lockedUntil()).isEmpty();
 	}
 
 	// OTP の失敗回数とロックの期限を変えたユーザー
 	private User withOtpState(int otpFailureCount, Optional<Instant> lockedUntil) {
-		return User.restore(user.id(), user.loginId(), user.passwordHash(), user.totpSecret(), user.lastUsedTotpStep(),
-				0, otpFailureCount, lockedUntil, Optional.empty(), user.createdAt());
+		return User.restore(this.user.id(), this.user.loginId(), this.user.passwordHash(), this.user.totpSecret(),
+				this.user.lastUsedTotpStep(), 0, otpFailureCount, lockedUntil, Optional.empty(), this.user.createdAt());
 	}
 
 	private StartLoginCommand command(Password password) {
@@ -167,13 +169,13 @@ class StartLoginUseCaseTests {
 	}
 
 	private User saved() {
-		return users.user(user.id()).orElseThrow();
+		return this.users.user(this.user.id()).orElseThrow();
 	}
 
 	private User addUser() {
-		User registered = User.register(UserId.generate(), LoginId.of("dummy_alice"), hasher.hash(PASSWORD),
+		User registered = User.register(UserId.generate(), LoginId.of("dummy_alice"), this.hasher.hash(PASSWORD),
 				new EncryptedTotpSecret(new byte[] { 1 }), new TotpStep(123), NOW.minusSeconds(3600));
-		users.addUser(registered);
+		this.users.addUser(registered);
 		return registered;
 	}
 
