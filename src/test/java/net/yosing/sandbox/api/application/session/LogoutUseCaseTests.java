@@ -17,7 +17,7 @@ class LogoutUseCaseTests {
 
 	private final InMemorySessionRepository sessions = new InMemorySessionRepository();
 
-	private final LogoutUseCase useCase = new LogoutUseCase(sessions);
+	private final LogoutUseCase useCase = new LogoutUseCase(this.sessions);
 
 	/**
 	 * セッションを削除する。もう一度呼んでも失敗しない。
@@ -25,12 +25,12 @@ class LogoutUseCaseTests {
 	@Test
 	void deletesSession() {
 		IssuedSession issued = Session.issue(UserId.generate(), Instant.parse("2026-11-01T00:00:00Z"));
-		sessions.add(issued.session());
+		this.sessions.add(issued.session());
 
-		useCase.logout(issued.sessionId());
-		useCase.logout(issued.sessionId());
+		this.useCase.logout(issued.sessionId());
+		this.useCase.logout(issued.sessionId());
 
-		assertThat(sessions.findByIdHash(issued.session().idHash())).isEmpty();
+		assertThat(this.sessions.findByIdHash(issued.session().idHash())).isEmpty();
 	}
 
 }

@@ -100,9 +100,9 @@ class SensitiveDataLoggingTests {
 		Registration registration = items()
 			.registration(RegistrationId.parse(JsonPath.read(startBody, "$.registrationId")))
 			.orElseThrow();
-		TotpSecret secret = totpSecretEncryptor.decrypt(registration.totpSecret(), registration.userId());
+		TotpSecret secret = this.totpSecretEncryptor.decrypt(registration.totpSecret(), registration.userId());
 		OtpCode wrongCode = wrongCode(secret);
-		OtpCode validCode = totpVerifier.generate(secret, TotpStep.at(clock.instant()));
+		OtpCode validCode = this.totpVerifier.generate(secret, TotpStep.at(this.clock.instant()));
 
 		String verifyPath = "/v1/registrations/" + registration.id() + "/verify";
 		postJson(verifyPath, "{\"code\":\"" + wrongCode.value() + "\"}").andExpect(status().isUnauthorized());
@@ -111,9 +111,9 @@ class SensitiveDataLoggingTests {
 				.andReturn()
 				.getResponse()
 				.getContentAsString(), "$.sessionId");
-		mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + sessionId))
+		this.mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + sessionId))
 			.andExpect(status().isOk());
-		mockMvc.perform(delete("/v1/sessions/current").header(HttpHeaders.AUTHORIZATION, "Bearer " + sessionId))
+		this.mockMvc.perform(delete("/v1/sessions/current").header(HttpHeaders.AUTHORIZATION, "Bearer " + sessionId))
 			.andExpect(status().isNoContent());
 
 		// ログを捕まえられていて、要求の型が隠した形で出ていること（下の確認が、空のログに対するものでないこと）
@@ -130,11 +130,12 @@ class SensitiveDataLoggingTests {
 	void doesNotLogSecretsInLogin(CapturedOutput output) throws Exception {
 		TotpSecret secret = TotpSecret.generate();
 		UserId userId = UserId.generate();
-		User user = User.register(userId, LoginId.of("dummy_log_login"), passwordHasher.hash(new Password(PASSWORD)),
-				totpSecretEncryptor.encrypt(secret, userId), TotpStep.at(clock.instant()).plus(-5), clock.instant());
+		User user = User.register(userId, LoginId.of("dummy_log_login"),
+				this.passwordHasher.hash(new Password(PASSWORD)), this.totpSecretEncryptor.encrypt(secret, userId),
+				TotpStep.at(this.clock.instant()).plus(-5), this.clock.instant());
 		items().putUser(user);
 		OtpCode wrongCode = wrongCode(secret);
-		OtpCode validCode = totpVerifier.generate(secret, TotpStep.at(clock.instant()));
+		OtpCode validCode = this.totpVerifier.generate(secret, TotpStep.at(this.clock.instant()));
 
 		postJson("/v1/logins", "{\"loginId\":\"dummy_log_login\",\"password\":\"" + WRONG_PASSWORD + "\"}")
 			.andExpect(status().isUnauthorized());
@@ -172,21 +173,21 @@ class SensitiveDataLoggingTests {
 	}
 
 	private ResultActions postJson(String path, String json) throws Exception {
-		return mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(json));
+		return this.mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(json));
 	}
 
 	// 前後1ステップのどのコードとも違うコード（偶然一致しないようにする）
 	private OtpCode wrongCode(TotpSecret secret) {
-		TotpStep step = TotpStep.at(clock.instant());
+		TotpStep step = TotpStep.at(this.clock.instant());
 		return Stream.of("000000", "111111", "222222", "333333")
 			.map(OtpCode::new)
-			.filter(code -> totpVerifier.verify(secret, code, step, Optional.empty()).isEmpty())
+			.filter((code) -> this.totpVerifier.verify(secret, code, step, Optional.empty()).isEmpty())
 			.findFirst()
 			.orElseThrow();
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, dynamoDbProperties);
+		return new DynamoDbTestItems(this.dynamoDb, this.dynamoDbProperties);
 	}
 
 }

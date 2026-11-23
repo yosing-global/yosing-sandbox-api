@@ -37,12 +37,13 @@ class DynamoDbLocalTableInitializerTests {
 	 */
 	@Test
 	void createsTableOnStartup() {
-		TableDescription table = client.describeTable(request -> request.tableName(properties.tableName())).table();
+		TableDescription table = this.client.describeTable((request) -> request.tableName(this.properties.tableName()))
+			.table();
 
 		assertThat(table.keySchema()).containsExactly(
 				KeySchemaElement.builder().attributeName("PK").keyType(KeyType.HASH).build(),
 				KeySchemaElement.builder().attributeName("SK").keyType(KeyType.RANGE).build());
-		assertThat(client.describeTimeToLive(request -> request.tableName(properties.tableName()))
+		assertThat(this.client.describeTimeToLive((request) -> request.tableName(this.properties.tableName()))
 			.timeToLiveDescription()
 			.attributeName()).isEqualTo("expiresAt");
 	}
@@ -52,9 +53,9 @@ class DynamoDbLocalTableInitializerTests {
 	 */
 	@Test
 	void skipsWhenTableExists() throws InterruptedException {
-		initializer.run(new DefaultApplicationArguments());
+		this.initializer.run(new DefaultApplicationArguments());
 
-		assertThat(client.listTables().tableNames()).containsOnlyOnce(properties.tableName());
+		assertThat(this.client.listTables().tableNames()).containsOnlyOnce(this.properties.tableName());
 	}
 
 }

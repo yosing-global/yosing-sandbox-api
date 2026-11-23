@@ -35,7 +35,6 @@ public final class TotpVerifier {
 
 	/**
 	 * コードを照合する。
-	 *
 	 * @param secret 秘密情報
 	 * @param code 入力されたコード
 	 * @param step 今のステップ
@@ -59,14 +58,13 @@ public final class TotpVerifier {
 
 	/**
 	 * ステップのコードを計算する（認証アプリが表示するものと同じ）。
-	 *
 	 * @param secret 秘密情報
 	 * @param step ステップ
 	 * @return コード
 	 */
 	public OtpCode generate(TotpSecret secret, TotpStep step) {
 		try {
-			return new OtpCode(generator.generateOneTimePasswordString(
+			return new OtpCode(this.generator.generateOneTimePasswordString(
 					new SecretKeySpec(secret.bytes(), HMAC_ALGORITHM), step.value(), Locale.ROOT));
 		}
 		catch (InvalidKeyException ex) {

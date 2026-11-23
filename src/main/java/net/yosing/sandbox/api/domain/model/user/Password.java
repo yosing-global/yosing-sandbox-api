@@ -38,7 +38,7 @@ public final class Password {
 	 * @return パスワード（ハッシュにするときだけ使う）
 	 */
 	public String value() {
-		return value;
+		return this.value;
 	}
 
 	@Override

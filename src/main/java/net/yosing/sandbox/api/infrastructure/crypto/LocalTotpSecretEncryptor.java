@@ -45,10 +45,10 @@ final class LocalTotpSecretEncryptor implements TotpSecretEncryptor {
 	@Override
 	public EncryptedTotpSecret encrypt(TotpSecret secret, UserId userId) {
 		byte[] iv = new byte[IV_BYTES];
-		random.nextBytes(iv);
+		this.random.nextBytes(iv);
 		try {
 			Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-			cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
+			cipher.init(Cipher.ENCRYPT_MODE, this.key, new GCMParameterSpec(TAG_BITS, iv));
 			cipher.updateAAD(additionalData(userId));
 			byte[] ciphertext = cipher.doFinal(secret.bytes());
 			return new EncryptedTotpSecret(
@@ -69,7 +69,7 @@ final class LocalTotpSecretEncryptor implements TotpSecretEncryptor {
 		byte[] ciphertext = Arrays.copyOfRange(bytes, IV_BYTES, bytes.length);
 		try {
 			Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-			cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
+			cipher.init(Cipher.DECRYPT_MODE, this.key, new GCMParameterSpec(TAG_BITS, iv));
 			cipher.updateAAD(additionalData(userId));
 			return new TotpSecret(cipher.doFinal(ciphertext));
 		}
@@ -80,7 +80,7 @@ final class LocalTotpSecretEncryptor implements TotpSecretEncryptor {
 	}
 
 	private byte[] additionalData(UserId userId) {
-		return ("env=" + roleEnv + ";userId=" + userId).getBytes(StandardCharsets.UTF_8);
+		return ("env=" + this.roleEnv + ";userId=" + userId).getBytes(StandardCharsets.UTF_8);
 	}
 
 }

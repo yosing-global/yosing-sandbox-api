@@ -54,7 +54,7 @@ class DynamoDbRegistrationCompletionStore implements RegistrationCompletionStore
 				putIfNotExists(UserItemMapper.toLoginIdItem(user)),
 				TransactWriteItem.builder()
 					.delete(Delete.builder()
-						.tableName(tableName)
+						.tableName(this.tableName)
 						.key(ItemKeys.registration(registration.id()))
 						.conditionExpression(ItemKeys.EXISTS)
 						.expressionAttributeNames(ItemKeys.PK_NAMES)
@@ -62,7 +62,7 @@ class DynamoDbRegistrationCompletionStore implements RegistrationCompletionStore
 					.build(),
 				putIfNotExists(SessionItemMapper.toItem(session)));
 		try {
-			client.transactWriteItems(request -> request.transactItems(items));
+			this.client.transactWriteItems((request) -> request.transactItems(items));
 		}
 		catch (TransactionCanceledException ex) {
 			if (conditionFailed(ex, LOGIN_ID_INDEX)) {
@@ -78,7 +78,7 @@ class DynamoDbRegistrationCompletionStore implements RegistrationCompletionStore
 	private TransactWriteItem putIfNotExists(Map<String, AttributeValue> item) {
 		return TransactWriteItem.builder()
 			.put(Put.builder()
-				.tableName(tableName)
+				.tableName(this.tableName)
 				.item(item)
 				.conditionExpression(ItemKeys.NOT_EXISTS)
 				.expressionAttributeNames(ItemKeys.PK_NAMES)

@@ -62,24 +62,24 @@ class DynamoDbLocalTableInitializer implements ApplicationRunner {
 
 	private void createTableIfNotExists() {
 		try {
-			client.describeTable(request -> request.tableName(tableName));
-			LOGGER.info("テーブルがあるため作らない：{}", tableName);
+			this.client.describeTable((request) -> request.tableName(this.tableName));
+			LOGGER.info("テーブルがあるため作らない：{}", this.tableName);
 			return;
 		}
 		catch (ResourceNotFoundException ex) {
 			// 無ければ作る
 		}
-		client.createTable(request -> request.tableName(tableName)
+		this.client.createTable((request) -> request.tableName(this.tableName)
 			.attributeDefinitions(
 					AttributeDefinition.builder().attributeName("PK").attributeType(ScalarAttributeType.S).build(),
 					AttributeDefinition.builder().attributeName("SK").attributeType(ScalarAttributeType.S).build())
 			.keySchema(KeySchemaElement.builder().attributeName("PK").keyType(KeyType.HASH).build(),
 					KeySchemaElement.builder().attributeName("SK").keyType(KeyType.RANGE).build())
 			.billingMode(BillingMode.PAY_PER_REQUEST));
-		client.waiter().waitUntilTableExists(request -> request.tableName(tableName));
-		client.updateTimeToLive(request -> request.tableName(tableName)
-			.timeToLiveSpecification(ttl -> ttl.attributeName("expiresAt").enabled(true)));
-		LOGGER.info("テーブルを作った：{}", tableName);
+		this.client.waiter().waitUntilTableExists((request) -> request.tableName(this.tableName));
+		this.client.updateTimeToLive((request) -> request.tableName(this.tableName)
+			.timeToLiveSpecification((ttl) -> ttl.attributeName("expiresAt").enabled(true)));
+		LOGGER.info("テーブルを作った：{}", this.tableName);
 	}
 
 }

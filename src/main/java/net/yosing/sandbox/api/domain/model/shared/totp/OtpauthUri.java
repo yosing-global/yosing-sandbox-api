@@ -19,7 +19,6 @@ public record OtpauthUri(String value) {
 
 	/**
 	 * 設定 URI を作る。認証アプリには「発行者:アカウント名」で表示される。
-	 *
 	 * @param issuer 発行者（サービスの名前）
 	 * @param accountName アカウント名（ログイン ID）
 	 * @param secret 秘密情報

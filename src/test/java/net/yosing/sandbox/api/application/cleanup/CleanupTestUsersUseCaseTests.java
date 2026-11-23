@@ -24,7 +24,7 @@ class CleanupTestUsersUseCaseTests {
 
 	private final FakeTestUserCleanupStore store = new FakeTestUserCleanupStore();
 
-	private final CleanupTestUsersUseCase useCase = new CleanupTestUsersUseCase(store,
+	private final CleanupTestUsersUseCase useCase = new CleanupTestUsersUseCase(this.store,
 			Clock.fixed(NOW, ZoneOffset.UTC));
 
 	/**
@@ -35,14 +35,14 @@ class CleanupTestUsersUseCaseTests {
 		TestUser old = testUser("e2e_dummy_old", NOW.minusSeconds(24 * 3600 + 1));
 		TestUser boundary = testUser("e2e_dummy_boundary", NOW.minusSeconds(24 * 3600));
 		TestUser recent = testUser("e2e_dummy_recent", NOW.minusSeconds(60));
-		store.add(old);
-		store.add(boundary);
-		store.add(recent);
+		this.store.add(old);
+		this.store.add(boundary);
+		this.store.add(recent);
 
-		CleanupTestUsersResult result = useCase.cleanup("test");
+		CleanupTestUsersResult result = this.useCase.cleanup("test");
 
 		assertThat(result).isEqualTo(new CleanupTestUsersResult(3, 1, 1));
-		assertThat(store.users()).containsExactlyInAnyOrder(boundary, recent);
+		assertThat(this.store.users()).containsExactlyInAnyOrder(boundary, recent);
 	}
 
 	/**
@@ -52,11 +52,11 @@ class CleanupTestUsersUseCaseTests {
 	void doesNotCountRejectedDeletes() {
 		TestUser deleted = testUser("e2e_dummy_deleted", NOW.minusSeconds(48 * 3600));
 		TestUser rejected = testUser("e2e_dummy_rejected", NOW.minusSeconds(48 * 3600));
-		store.add(deleted);
-		store.add(rejected);
-		store.rejectDelete(rejected.id());
+		this.store.add(deleted);
+		this.store.add(rejected);
+		this.store.rejectDelete(rejected.id());
 
-		CleanupTestUsersResult result = useCase.cleanup("dev");
+		CleanupTestUsersResult result = this.useCase.cleanup("dev");
 
 		assertThat(result).isEqualTo(new CleanupTestUsersResult(2, 2, 1));
 	}
@@ -67,7 +67,7 @@ class CleanupTestUsersUseCaseTests {
 	@ParameterizedTest
 	@ValueSource(strings = { "dev", "test", "stg" })
 	void returnsZeroWhenNoTestUsers(String environment) {
-		assertThat(useCase.cleanup(environment)).isEqualTo(new CleanupTestUsersResult(0, 0, 0));
+		assertThat(this.useCase.cleanup(environment)).isEqualTo(new CleanupTestUsersResult(0, 0, 0));
 	}
 
 	/**
@@ -76,12 +76,12 @@ class CleanupTestUsersUseCaseTests {
 	@ParameterizedTest
 	@ValueSource(strings = { "prod", "pr", "local", "dummy-env" })
 	void rejectsOtherEnvironments(String environment) {
-		store.add(testUser("e2e_dummy_old", NOW.minusSeconds(48 * 3600)));
+		this.store.add(testUser("e2e_dummy_old", NOW.minusSeconds(48 * 3600)));
 
-		assertThatThrownBy(() -> useCase.cleanup(environment)).isInstanceOf(IllegalStateException.class);
+		assertThatThrownBy(() -> this.useCase.cleanup(environment)).isInstanceOf(IllegalStateException.class);
 
-		assertThat(store.findCount()).isZero();
-		assertThat(store.users()).hasSize(1);
+		assertThat(this.store.findCount()).isZero();
+		assertThat(this.store.users()).hasSize(1);
 	}
 
 	private static TestUser testUser(String loginId, Instant createdAt) {

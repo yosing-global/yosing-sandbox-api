@@ -16,7 +16,6 @@ public interface RegistrationCompletionStore {
 
 	/**
 	 * 本登録を保存する。
-	 *
 	 * @param registration 確定する仮登録（削除する）
 	 * @param user 作るユーザー
 	 * @param session 作るセッション

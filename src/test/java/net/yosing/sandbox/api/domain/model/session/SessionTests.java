@@ -71,7 +71,7 @@ class SessionTests {
 	void acceptsOnlyIssuedFormatFromClient() {
 		String issued = SessionId.generate().value();
 
-		assertThat(SessionId.fromClient(issued)).hasValueSatisfying(id -> assertThat(id.value()).isEqualTo(issued));
+		assertThat(SessionId.fromClient(issued)).hasValueSatisfying((id) -> assertThat(id.value()).isEqualTo(issued));
 		assertThat(SessionId.fromClient(null)).isEmpty();
 		assertThat(SessionId.fromClient("dummy-session-id")).isEmpty();
 		assertThat(SessionId.fromClient(issued + "A")).isEmpty();

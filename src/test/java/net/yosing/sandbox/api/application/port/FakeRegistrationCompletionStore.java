@@ -19,24 +19,24 @@ public class FakeRegistrationCompletionStore implements RegistrationCompletionSt
 
 	@Override
 	public void complete(Registration registration, User user, Session session) {
-		if (failure.isPresent()) {
-			throw failure.get();
+		if (this.failure.isPresent()) {
+			throw this.failure.get();
 		}
-		completions.add(new Completion(registration, user, session));
+		this.completions.add(new Completion(registration, user, session));
 	}
 
 	/**
 	 * 次からの保存を、この例外で失敗させる（テストの準備）。
 	 */
 	public void failWith(RuntimeException exception) {
-		failure = Optional.of(exception);
+		this.failure = Optional.of(exception);
 	}
 
 	/**
 	 * 保存したもの（テストの確認用）。
 	 */
 	public List<Completion> completions() {
-		return List.copyOf(completions);
+		return List.copyOf(this.completions);
 	}
 
 	/**

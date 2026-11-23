@@ -23,76 +23,76 @@ public class InMemoryUserRepository implements UserRepository {
 	 * 本登録済みのログイン ID を足す（ユーザーは作らない。テストの準備）。
 	 */
 	public void addLoginId(LoginId loginId) {
-		loginIds.add(loginId);
+		this.loginIds.add(loginId);
 	}
 
 	/**
 	 * ユーザーとログイン ID を足す（テストの準備）。
 	 */
 	public void addUser(User user) {
-		loginIds.add(user.loginId());
-		users.put(user.id(), user);
+		this.loginIds.add(user.loginId());
+		this.users.put(user.id(), user);
 	}
 
 	/**
 	 * 保存したユーザーを読む（テストの確認）。
 	 */
 	public Optional<User> user(UserId id) {
-		return Optional.ofNullable(users.get(id));
+		return Optional.ofNullable(this.users.get(id));
 	}
 
 	/**
 	 * 次のパスワードの試行の保存を、ほかの試行に先を越されたことにする（テストの準備）。
 	 */
 	public void conflictOnNextPasswordAttempt() {
-		conflictOnNextPasswordAttempt = true;
+		this.conflictOnNextPasswordAttempt = true;
 	}
 
 	@Override
 	public boolean existsByLoginId(LoginId loginId) {
-		return loginIds.contains(loginId);
+		return this.loginIds.contains(loginId);
 	}
 
 	@Override
 	public Optional<User> findByLoginId(LoginId loginId) {
-		return users.values().stream().filter(user -> user.loginId().equals(loginId)).findFirst();
+		return this.users.values().stream().filter((user) -> user.loginId().equals(loginId)).findFirst();
 	}
 
 	/**
 	 * ユーザーを置き換える（フェイクの保存先から使う）。
 	 */
 	public void replace(User user) {
-		if (!users.containsKey(user.id())) {
+		if (!this.users.containsKey(user.id())) {
 			throw new IllegalStateException("ユーザーが無い");
 		}
-		users.put(user.id(), user);
+		this.users.put(user.id(), user);
 	}
 
 	@Override
 	public Optional<User> findById(UserId id) {
-		return Optional.ofNullable(users.get(id));
+		return Optional.ofNullable(this.users.get(id));
 	}
 
 	@Override
 	public Optional<User> countOtpAttempt(UserId id, String loginTokenId) {
-		User stored = users.get(id);
+		User stored = this.users.get(id);
 		if (stored == null || !stored.hasLoginToken(loginTokenId) || stored.otpAttemptsExhausted()) {
 			return Optional.empty();
 		}
 		User counted = User.restore(stored.id(), stored.loginId(), stored.passwordHash(), stored.totpSecret(),
 				stored.lastUsedTotpStep(), stored.passwordFailureCount(), stored.otpFailureCount() + 1,
 				stored.lockedUntil(), stored.loginTokenId(), stored.createdAt());
-		users.put(id, counted);
+		this.users.put(id, counted);
 		return Optional.of(counted);
 	}
 
 	@Override
 	public boolean saveOtpLock(User current, User locked) {
-		User stored = users.get(current.id());
+		User stored = this.users.get(current.id());
 		if (stored == null || !stored.loginTokenId().equals(current.loginTokenId())) {
 			return false;
 		}
-		users.put(stored.id(),
+		this.users.put(stored.id(),
 				User.restore(stored.id(), stored.loginId(), stored.passwordHash(), stored.totpSecret(),
 						stored.lastUsedTotpStep(), stored.passwordFailureCount(), stored.otpFailureCount(),
 						locked.lockedUntil(), Optional.empty(), stored.createdAt()));
@@ -101,26 +101,26 @@ public class InMemoryUserRepository implements UserRepository {
 
 	@Override
 	public boolean savePasswordAttempt(User current, User counted) {
-		if (conflictOnNextPasswordAttempt) {
-			conflictOnNextPasswordAttempt = false;
+		if (this.conflictOnNextPasswordAttempt) {
+			this.conflictOnNextPasswordAttempt = false;
 			return false;
 		}
-		User stored = users.get(current.id());
+		User stored = this.users.get(current.id());
 		if (stored == null || stored.passwordFailureCount() != current.passwordFailureCount()
 				|| stored.otpFailureCount() != current.otpFailureCount()
 				|| !stored.lockedUntil().equals(current.lockedUntil())) {
 			return false;
 		}
-		users.put(counted.id(), counted);
+		this.users.put(counted.id(), counted);
 		return true;
 	}
 
 	@Override
 	public void savePasswordVerified(User verified) {
-		if (!users.containsKey(verified.id())) {
+		if (!this.users.containsKey(verified.id())) {
 			throw new IllegalStateException("ユーザーが無い");
 		}
-		users.put(verified.id(), verified);
+		this.users.put(verified.id(), verified);
 	}
 
 }

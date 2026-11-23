@@ -35,8 +35,8 @@ class LocalJwtConfigurationTests {
 		LoginTokenClaims claims = new LoginTokenClaims(UserId.generate(), "dummy-token-id", issuedAt,
 				issuedAt.plusSeconds(300));
 
-		assertThat(signer).isInstanceOf(NimbusLoginTokenSigner.class);
-		assertThat(signer.verify(signer.sign(claims), issuedAt)).contains(claims);
+		assertThat(this.signer).isInstanceOf(NimbusLoginTokenSigner.class);
+		assertThat(this.signer.verify(this.signer.sign(claims), issuedAt)).contains(claims);
 	}
 
 }

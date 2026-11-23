@@ -13,7 +13,6 @@ public record TotpStep(long value) implements Comparable<TotpStep> {
 
 	/**
 	 * 日時が含まれるステップ。
-	 *
 	 * @param instant 日時
 	 * @return ステップ
 	 */
@@ -26,7 +25,7 @@ public record TotpStep(long value) implements Comparable<TotpStep> {
 	 * @return 進めたステップ
 	 */
 	public TotpStep plus(long steps) {
-		return new TotpStep(value + steps);
+		return new TotpStep(this.value + steps);
 	}
 
 	/**
@@ -34,12 +33,12 @@ public record TotpStep(long value) implements Comparable<TotpStep> {
 	 * @return このステップが other より後なら true
 	 */
 	public boolean isAfter(TotpStep other) {
-		return value > other.value;
+		return this.value > other.value;
 	}
 
 	@Override
 	public int compareTo(TotpStep other) {
-		return Long.compare(value, other.value);
+		return Long.compare(this.value, other.value);
 	}
 
 }

@@ -31,9 +31,9 @@ class TotpVerifierTests {
 	 */
 	@Test
 	void generatesRfcTestVectors() {
-		assertThat(verifier.generate(RFC_SECRET, TotpStep.at(Instant.ofEpochSecond(59))))
+		assertThat(this.verifier.generate(RFC_SECRET, TotpStep.at(Instant.ofEpochSecond(59))))
 			.isEqualTo(new OtpCode("287082"));
-		assertThat(verifier.generate(RFC_SECRET, TotpStep.at(Instant.ofEpochSecond(1111111109L))))
+		assertThat(this.verifier.generate(RFC_SECRET, TotpStep.at(Instant.ofEpochSecond(1111111109L))))
 			.isEqualTo(new OtpCode("081804"));
 	}
 
@@ -43,9 +43,10 @@ class TotpVerifierTests {
 	@Test
 	void acceptsAdjacentSteps() {
 		for (long offset = -1; offset <= 1; offset++) {
-			TotpStep candidate = step.plus(offset);
+			TotpStep candidate = this.step.plus(offset);
 
-			assertThat(verifier.verify(secret, verifier.generate(secret, candidate), step, Optional.empty()))
+			assertThat(this.verifier.verify(this.secret, this.verifier.generate(this.secret, candidate), this.step,
+					Optional.empty()))
 				.contains(candidate);
 		}
 	}
@@ -55,8 +56,12 @@ class TotpVerifierTests {
 	 */
 	@Test
 	void rejectsDistantSteps() {
-		assertThat(verifier.verify(secret, verifier.generate(secret, step.plus(-2)), step, Optional.empty())).isEmpty();
-		assertThat(verifier.verify(secret, verifier.generate(secret, step.plus(2)), step, Optional.empty())).isEmpty();
+		assertThat(this.verifier.verify(this.secret, this.verifier.generate(this.secret, this.step.plus(-2)), this.step,
+				Optional.empty()))
+			.isEmpty();
+		assertThat(this.verifier.verify(this.secret, this.verifier.generate(this.secret, this.step.plus(2)), this.step,
+				Optional.empty()))
+			.isEmpty();
 	}
 
 	/**
@@ -64,10 +69,11 @@ class TotpVerifierTests {
 	 */
 	@Test
 	void rejectsStepsNotAfterLastUsed() {
-		OtpCode code = verifier.generate(secret, step);
+		OtpCode code = this.verifier.generate(this.secret, this.step);
 
-		assertThat(verifier.verify(secret, code, step, Optional.of(step))).isEmpty();
-		assertThat(verifier.verify(secret, code, step, Optional.of(step.plus(-1)))).contains(step);
+		assertThat(this.verifier.verify(this.secret, code, this.step, Optional.of(this.step))).isEmpty();
+		assertThat(this.verifier.verify(this.secret, code, this.step, Optional.of(this.step.plus(-1))))
+			.contains(this.step);
 	}
 
 	/**
@@ -77,7 +83,9 @@ class TotpVerifierTests {
 	void rejectsCodeOfAnotherSecret() {
 		TotpSecret another = new TotpSecret("dummy-another-secret".getBytes(StandardCharsets.US_ASCII));
 
-		assertThat(verifier.verify(secret, verifier.generate(another, step), step, Optional.empty())).isEmpty();
+		assertThat(this.verifier.verify(this.secret, this.verifier.generate(another, this.step), this.step,
+				Optional.empty()))
+			.isEmpty();
 	}
 
 }

@@ -62,7 +62,6 @@ public final class Registration {
 	 * 仮登録を始める。期限は今から10分後。
 	 *
 	 * <p>日時は秒の単位にそろえる（DynamoDB の TTL と API の応答が秒の単位のため）。
-	 *
 	 * @param id 登録 ID
 	 * @param userId 本登録したときのユーザーの ID
 	 * @param loginId ログイン ID
@@ -79,7 +78,6 @@ public final class Registration {
 
 	/**
 	 * 保存した仮登録を戻す（DB から読んだとき）。
-	 *
 	 * @param id 登録 ID
 	 * @param userId 本登録したときのユーザーの ID
 	 * @param loginId ログイン ID
@@ -97,71 +95,68 @@ public final class Registration {
 
 	/**
 	 * 期限が切れているか。期限の日時になったら切れている。
-	 *
 	 * @param now 今の日時
 	 * @return 切れていれば true
 	 */
 	public boolean isExpired(Instant now) {
-		return !now.isBefore(expiresAt);
+		return !now.isBefore(this.expiresAt);
 	}
 
 	/**
 	 * OTP の失敗が上限に達したか（達したら、仮登録を削除して最初からやり直してもらう）。
-	 *
 	 * @return 達していれば true
 	 */
 	public boolean otpAttemptsExhausted() {
-		return otpFailureCount >= MAX_OTP_FAILURES;
+		return this.otpFailureCount >= MAX_OTP_FAILURES;
 	}
 
 	/**
 	 * @return OTP の残りの回数（0以上）
 	 */
 	public int remainingOtpAttempts() {
-		return Math.max(0, MAX_OTP_FAILURES - otpFailureCount);
+		return Math.max(0, MAX_OTP_FAILURES - this.otpFailureCount);
 	}
 
 	/**
 	 * 本登録する（OTP の確認が済んだとき）。ユーザーの ID・ログイン ID・パスワード・秘密情報は、仮登録のものを引き継ぐ。
-	 *
 	 * @param matchedStep OTP が一致したステップ（同じコードをログインで使えないよう、最後に使ったステップにする）
 	 * @param now 今の日時
 	 * @return ユーザー
 	 */
 	public User complete(TotpStep matchedStep, Instant now) {
-		return User.register(userId, loginId, passwordHash, totpSecret, matchedStep, now);
+		return User.register(this.userId, this.loginId, this.passwordHash, this.totpSecret, matchedStep, now);
 	}
 
 	public RegistrationId id() {
-		return id;
+		return this.id;
 	}
 
 	public UserId userId() {
-		return userId;
+		return this.userId;
 	}
 
 	public LoginId loginId() {
-		return loginId;
+		return this.loginId;
 	}
 
 	public PasswordHash passwordHash() {
-		return passwordHash;
+		return this.passwordHash;
 	}
 
 	public EncryptedTotpSecret totpSecret() {
-		return totpSecret;
+		return this.totpSecret;
 	}
 
 	public int otpFailureCount() {
-		return otpFailureCount;
+		return this.otpFailureCount;
 	}
 
 	public Instant createdAt() {
-		return createdAt;
+		return this.createdAt;
 	}
 
 	public Instant expiresAt() {
-		return expiresAt;
+		return this.expiresAt;
 	}
 
 }

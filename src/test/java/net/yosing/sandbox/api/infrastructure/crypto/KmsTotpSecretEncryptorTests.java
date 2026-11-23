@@ -16,9 +16,9 @@ import software.amazon.awssdk.services.kms.model.EncryptResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * KMS の呼び出し方（鍵の ARN・暗号化コンテキスト）を確かめる。実際の KMS での動きは PR 環境で確かめる。
@@ -29,7 +29,7 @@ class KmsTotpSecretEncryptorTests {
 
 	private final KmsClient kms = mock(KmsClient.class);
 
-	private final KmsTotpSecretEncryptor encryptor = new KmsTotpSecretEncryptor(kms, KEY_ARN, "dummy-pr");
+	private final KmsTotpSecretEncryptor encryptor = new KmsTotpSecretEncryptor(this.kms, KEY_ARN, "dummy-pr");
 
 	/**
 	 * 暗号化で、鍵の ARN・秘密情報・暗号化コンテキスト（userId と環境名）を KMS に渡し、KMS の返した暗号文を返す。
@@ -37,13 +37,13 @@ class KmsTotpSecretEncryptorTests {
 	@Test
 	void encryptsWithKeyAndEncryptionContext() {
 		UserId userId = UserId.generate();
-		when(kms.encrypt(any(EncryptRequest.class)))
-			.thenReturn(EncryptResponse.builder().ciphertextBlob(SdkBytes.fromByteArray(new byte[] { 9, 9 })).build());
+		given(this.kms.encrypt(any(EncryptRequest.class)))
+			.willReturn(EncryptResponse.builder().ciphertextBlob(SdkBytes.fromByteArray(new byte[] { 9, 9 })).build());
 
-		EncryptedTotpSecret encrypted = encryptor.encrypt(new TotpSecret(new byte[] { 1, 2, 3 }), userId);
+		EncryptedTotpSecret encrypted = this.encryptor.encrypt(new TotpSecret(new byte[] { 1, 2, 3 }), userId);
 
 		ArgumentCaptor<EncryptRequest> request = ArgumentCaptor.forClass(EncryptRequest.class);
-		verify(kms).encrypt(request.capture());
+		then(this.kms).should().encrypt(request.capture());
 		assertThat(request.getValue().keyId()).isEqualTo(KEY_ARN);
 		assertThat(request.getValue().plaintext().asByteArray()).containsExactly(1, 2, 3);
 		assertThat(request.getValue().encryptionContext())
@@ -57,13 +57,13 @@ class KmsTotpSecretEncryptorTests {
 	@Test
 	void decryptsWithKeyAndEncryptionContext() {
 		UserId userId = UserId.generate();
-		when(kms.decrypt(any(DecryptRequest.class)))
-			.thenReturn(DecryptResponse.builder().plaintext(SdkBytes.fromByteArray(new byte[] { 1, 2, 3 })).build());
+		given(this.kms.decrypt(any(DecryptRequest.class)))
+			.willReturn(DecryptResponse.builder().plaintext(SdkBytes.fromByteArray(new byte[] { 1, 2, 3 })).build());
 
-		TotpSecret secret = encryptor.decrypt(new EncryptedTotpSecret(new byte[] { 9, 9 }), userId);
+		TotpSecret secret = this.encryptor.decrypt(new EncryptedTotpSecret(new byte[] { 9, 9 }), userId);
 
 		ArgumentCaptor<DecryptRequest> request = ArgumentCaptor.forClass(DecryptRequest.class);
-		verify(kms).decrypt(request.capture());
+		then(this.kms).should().decrypt(request.capture());
 		assertThat(request.getValue().keyId()).isEqualTo(KEY_ARN);
 		assertThat(request.getValue().ciphertextBlob().asByteArray()).containsExactly(9, 9);
 		assertThat(request.getValue().encryptionContext())

@@ -38,7 +38,7 @@ class LoginController {
 		// 形式は検証済みのため、ドメインの型にできる
 		StartLoginCommand command = new StartLoginCommand(LoginId.of(request.loginId()),
 				new Password(request.password()));
-		return StartLoginResponse.from(startLogin.start(command));
+		return StartLoginResponse.from(this.startLogin.start(command));
 	}
 
 	/**
@@ -47,7 +47,7 @@ class LoginController {
 	@PostMapping("/verify")
 	VerifyLoginResponse verify(@Valid @RequestBody VerifyLoginRequest request) {
 		VerifyLoginCommand command = new VerifyLoginCommand(request.loginToken(), new OtpCode(request.code()));
-		return VerifyLoginResponse.from(verifyLogin.verify(command));
+		return VerifyLoginResponse.from(this.verifyLogin.verify(command));
 	}
 
 }

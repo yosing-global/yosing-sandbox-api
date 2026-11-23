@@ -54,7 +54,6 @@ public class VerifyRegistrationUseCase {
 
 	/**
 	 * 登録を確定する。
-	 *
 	 * @param command 入力
 	 * @return セッション ID と期限
 	 * @throws RegistrationNotFoundException 仮登録が無い・期限切れの場合
@@ -63,21 +62,21 @@ public class VerifyRegistrationUseCase {
 	 * @throws LoginIdTakenException 同じログイン ID が先に本登録されていた場合
 	 */
 	public VerifyRegistrationResult verify(VerifyRegistrationCommand command) {
-		Instant now = clock.instant();
-		Registration registration = registrations.findById(command.registrationId())
-			.filter(found -> !found.isExpired(now))
+		Instant now = this.clock.instant();
+		Registration registration = this.registrations.findById(command.registrationId())
+			.filter((found) -> !found.isExpired(now))
 			.orElseThrow(RegistrationNotFoundException::new);
 		if (registration.otpAttemptsExhausted()) {
 			// 上限に達したときに削除できていなかった場合
-			registrations.delete(registration.id());
+			this.registrations.delete(registration.id());
 			throw new OtpAttemptsExceededException();
 		}
 
 		// 照合の前に試行を数える。同時のほかの試行で、仮登録が消えたか上限に達していれば数えられない
-		Registration counted = registrations.countOtpAttempt(registration.id())
+		Registration counted = this.registrations.countOtpAttempt(registration.id())
 			.orElseThrow(RegistrationNotFoundException::new);
-		TotpSecret secret = totpSecretEncryptor.decrypt(registration.totpSecret(), registration.userId());
-		Optional<TotpStep> matchedStep = totpVerifier.verify(secret, command.code(), TotpStep.at(now),
+		TotpSecret secret = this.totpSecretEncryptor.decrypt(registration.totpSecret(), registration.userId());
+		Optional<TotpStep> matchedStep = this.totpVerifier.verify(secret, command.code(), TotpStep.at(now),
 				Optional.empty());
 		if (matchedStep.isEmpty()) {
 			throw otpFailure(counted);
@@ -85,13 +84,13 @@ public class VerifyRegistrationUseCase {
 
 		User user = registration.complete(matchedStep.get(), now);
 		IssuedSession issued = Session.issue(user.id(), now);
-		completionStore.complete(registration, user, issued.session());
+		this.completionStore.complete(registration, user, issued.session());
 		return new VerifyRegistrationResult(issued.sessionId(), issued.session().expiresAt());
 	}
 
 	private RuntimeException otpFailure(Registration counted) {
 		if (counted.otpAttemptsExhausted()) {
-			registrations.delete(counted.id());
+			this.registrations.delete(counted.id());
 			return new OtpAttemptsExceededException();
 		}
 		return new OtpInvalidException(counted.remainingOtpAttempts());

@@ -14,7 +14,6 @@ public interface LoginTokenSigner {
 
 	/**
 	 * 署名した JWT を作る。
-	 *
 	 * @param claims JWT の中身
 	 * @return JWT（コンパクトな形式の文字列）
 	 */
@@ -22,7 +21,6 @@ public interface LoginTokenSigner {
 
 	/**
 	 * JWT を検証し、中身を取り出す。
-	 *
 	 * @param token クライアントから受け取った JWT
 	 * @param now 今の日時（有効期限の判定に使う）
 	 * @return 中身。署名・形式・aud・有効期限のどれかが正しくなければ空

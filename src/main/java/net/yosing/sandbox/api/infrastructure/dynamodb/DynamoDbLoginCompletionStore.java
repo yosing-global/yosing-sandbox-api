@@ -53,7 +53,7 @@ class DynamoDbLoginCompletionStore implements LoginCompletionStore {
 	public boolean complete(User current, User verified, Session session) {
 		String loginTokenId = current.loginTokenId().orElseThrow(() -> new IllegalArgumentException("仮認証の jti が無い"));
 		Update userUpdate = Update.builder()
-			.tableName(tableName)
+			.tableName(this.tableName)
 			.key(ItemKeys.user(current.id()))
 			.updateExpression("SET " + STEP_REF + " = :matchedStep, " + OTP_FAILURE_COUNT_REF + " = :otpFailureCount"
 					+ " REMOVE " + LOGIN_TOKEN_ID_REF)
@@ -66,7 +66,7 @@ class DynamoDbLoginCompletionStore implements LoginCompletionStore {
 							":loginTokenId", AttributeValue.fromS(loginTokenId)))
 			.build();
 		Put sessionPut = Put.builder()
-			.tableName(tableName)
+			.tableName(this.tableName)
 			.item(SessionItemMapper.toItem(session))
 			.conditionExpression(ItemKeys.NOT_EXISTS)
 			.expressionAttributeNames(ItemKeys.PK_NAMES)
@@ -74,7 +74,7 @@ class DynamoDbLoginCompletionStore implements LoginCompletionStore {
 		List<TransactWriteItem> items = List.of(TransactWriteItem.builder().update(userUpdate).build(),
 				TransactWriteItem.builder().put(sessionPut).build());
 		try {
-			client.transactWriteItems(request -> request.transactItems(items));
+			this.client.transactWriteItems((request) -> request.transactItems(items));
 			return true;
 		}
 		catch (TransactionCanceledException ex) {

@@ -30,7 +30,7 @@ public class DynamoDbLocalContainerConfiguration {
 	// application-dynamodb-local.yml の接続先（localhost:8000）を、コンテナの接続先で上書きする
 	@Bean
 	DynamicPropertyRegistrar dynamoDbLocalProperties(GenericContainer<?> dynamoDbLocal) {
-		return registry -> registry.add("sandbox.dynamodb.endpoint",
+		return (registry) -> registry.add("sandbox.dynamodb.endpoint",
 				() -> "http://" + dynamoDbLocal.getHost() + ":" + dynamoDbLocal.getMappedPort(PORT));
 	}
 

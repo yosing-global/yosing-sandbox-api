@@ -22,7 +22,7 @@ class BcryptPasswordHasherTests {
 	 */
 	@Test
 	void hashesWithBcryptStrength12() {
-		PasswordHash hash = hasher.hash(PASSWORD);
+		PasswordHash hash = this.hasher.hash(PASSWORD);
 
 		assertThat(hash.value()).startsWith("{bcrypt}$2a$12$");
 		assertThat(new BCryptPasswordEncoder().matches(PASSWORD.value(), hash.value().substring("{bcrypt}".length())))
@@ -34,10 +34,10 @@ class BcryptPasswordHasherTests {
 	 */
 	@Test
 	void matchesOnlySamePassword() {
-		PasswordHash hash = hasher.hash(PASSWORD);
+		PasswordHash hash = this.hasher.hash(PASSWORD);
 
-		assertThat(hasher.matches(PASSWORD, hash)).isTrue();
-		assertThat(hasher.matches(new Password("dummy wrong horse battery"), hash)).isFalse();
+		assertThat(this.hasher.matches(PASSWORD, hash)).isTrue();
+		assertThat(this.hasher.matches(new Password("dummy wrong horse battery"), hash)).isFalse();
 	}
 
 	/**
@@ -45,7 +45,7 @@ class BcryptPasswordHasherTests {
 	 */
 	@Test
 	void producesDifferentHashEachTime() {
-		assertThat(hasher.hash(PASSWORD)).isNotEqualTo(hasher.hash(PASSWORD));
+		assertThat(this.hasher.hash(PASSWORD)).isNotEqualTo(this.hasher.hash(PASSWORD));
 	}
 
 }

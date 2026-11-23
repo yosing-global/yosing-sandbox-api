@@ -51,7 +51,7 @@ class DynamoDbTestUserCleanupStoreTests {
 		User second = putUser("e2e_dummy_cleanfind_b");
 		putUser("dummy_cleanfind_c");
 
-		assertThat(store.findByLoginIdPrefix("e2e_dummy_cleanfind_")).containsExactlyInAnyOrder(testUser(first),
+		assertThat(this.store.findByLoginIdPrefix("e2e_dummy_cleanfind_")).containsExactlyInAnyOrder(testUser(first),
 				testUser(second));
 	}
 
@@ -62,7 +62,7 @@ class DynamoDbTestUserCleanupStoreTests {
 	void deletesUserAndLoginIdItems() {
 		User user = putUser("e2e_dummy_cleandel_a");
 
-		assertThat(store.delete(testUser(user))).isTrue();
+		assertThat(this.store.delete(testUser(user))).isTrue();
 
 		assertThat(items().userItem(user.id())).isEmpty();
 		assertThat(items().loginIdItem(user.loginId())).isEmpty();
@@ -74,9 +74,9 @@ class DynamoDbTestUserCleanupStoreTests {
 	@Test
 	void returnsFalseWhenAlreadyDeleted() {
 		User user = putUser("e2e_dummy_cleangone_a");
-		store.delete(testUser(user));
+		this.store.delete(testUser(user));
 
-		assertThat(store.delete(testUser(user))).isFalse();
+		assertThat(this.store.delete(testUser(user))).isFalse();
 	}
 
 	/**
@@ -87,7 +87,7 @@ class DynamoDbTestUserCleanupStoreTests {
 		User user = putUser("e2e_dummy_cleanmis_a");
 		items().putLoginId(user.loginId(), UserId.generate());
 
-		assertThat(store.delete(testUser(user))).isFalse();
+		assertThat(this.store.delete(testUser(user))).isFalse();
 
 		assertThat(items().userItem(user.id())).isPresent();
 		assertThat(items().loginIdItem(user.loginId())).isPresent();
@@ -100,8 +100,8 @@ class DynamoDbTestUserCleanupStoreTests {
 	void rejectsNonTestLoginId() {
 		User user = putUser("dummy_cleanreject_a");
 
-		assertThatThrownBy(() -> store.findByLoginIdPrefix("dummy_")).isInstanceOf(IllegalArgumentException.class);
-		assertThatThrownBy(() -> store.delete(testUser(user))).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> this.store.findByLoginIdPrefix("dummy_")).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> this.store.delete(testUser(user))).isInstanceOf(IllegalArgumentException.class);
 
 		assertThat(items().userItem(user.id())).isPresent();
 	}
@@ -118,7 +118,7 @@ class DynamoDbTestUserCleanupStoreTests {
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, properties);
+		return new DynamoDbTestItems(this.dynamoDb, this.properties);
 	}
 
 }

@@ -14,7 +14,6 @@ public interface LoginCompletionStore {
 
 	/**
 	 * ログインの確定を保存する。
-	 *
 	 * @param current OTP の試行を数えた後のユーザー（条件に使う jti を持つ）
 	 * @param verified {@link User#otpVerified} の結果
 	 * @param session 作るセッション

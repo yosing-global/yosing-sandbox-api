@@ -18,7 +18,7 @@ record VerifyLoginResponse(String sessionId, Instant sessionExpiresAt) {
 
 	@Override
 	public String toString() {
-		return "VerifyLoginResponse[sessionId=****, sessionExpiresAt=" + sessionExpiresAt + "]";
+		return "VerifyLoginResponse[sessionId=****, sessionExpiresAt=" + this.sessionExpiresAt + "]";
 	}
 
 }

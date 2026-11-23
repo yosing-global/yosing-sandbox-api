@@ -20,7 +20,7 @@ public record StartLoginResult(String loginToken, Instant expiresAt) {
 
 	@Override
 	public String toString() {
-		return "StartLoginResult[loginToken=****, expiresAt=" + expiresAt + "]";
+		return "StartLoginResult[loginToken=****, expiresAt=" + this.expiresAt + "]";
 	}
 
 }

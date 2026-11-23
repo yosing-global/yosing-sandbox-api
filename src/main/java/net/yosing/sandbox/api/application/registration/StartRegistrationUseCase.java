@@ -49,23 +49,22 @@ public class StartRegistrationUseCase {
 
 	/**
 	 * 登録を始める。
-	 *
 	 * @param command 入力
 	 * @return 登録 ID・設定 URI・期限
 	 * @throws LoginIdTakenException ログイン ID が使われている場合
 	 */
 	public StartRegistrationResult start(StartRegistrationCommand command) {
-		if (users.existsByLoginId(command.loginId())) {
+		if (this.users.existsByLoginId(command.loginId())) {
 			throw new LoginIdTakenException();
 		}
-		PasswordHash passwordHash = passwordHasher.hash(command.password());
+		PasswordHash passwordHash = this.passwordHasher.hash(command.password());
 		TotpSecret secret = TotpSecret.generate();
 		UserId userId = UserId.generate();
 		Registration registration = Registration.start(RegistrationId.generate(), userId, command.loginId(),
-				passwordHash, totpSecretEncryptor.encrypt(secret, userId), clock.instant());
-		registrations.add(registration);
+				passwordHash, this.totpSecretEncryptor.encrypt(secret, userId), this.clock.instant());
+		this.registrations.add(registration);
 		return new StartRegistrationResult(registration.id(),
-				OtpauthUri.create(issuer, command.loginId().value(), secret), registration.expiresAt());
+				OtpauthUri.create(this.issuer, command.loginId().value(), secret), registration.expiresAt());
 	}
 
 }

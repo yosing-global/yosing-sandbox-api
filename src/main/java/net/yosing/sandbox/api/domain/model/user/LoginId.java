@@ -32,7 +32,6 @@ public record LoginId(String value) {
 
 	/**
 	 * 入力されたログイン ID を、小文字にそろえて作る。
-	 *
 	 * @param input 入力されたログイン ID（大文字を含んでよい）
 	 * @return ログイン ID
 	 * @throws IllegalArgumentException 形式が違う場合
@@ -47,7 +46,7 @@ public record LoginId(String value) {
 
 	@Override
 	public String toString() {
-		return value;
+		return this.value;
 	}
 
 }

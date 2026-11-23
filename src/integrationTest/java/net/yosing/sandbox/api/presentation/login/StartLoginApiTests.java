@@ -79,11 +79,12 @@ class StartLoginApiTests {
 			.getResponse()
 			.getContentAsString();
 
-		LoginTokenClaims claims = loginTokenSigner.verify(JsonPath.read(body, "$.loginToken"), clock.instant())
+		LoginTokenClaims claims = this.loginTokenSigner
+			.verify(JsonPath.read(body, "$.loginToken"), this.clock.instant())
 			.orElseThrow();
 		assertThat(claims.userId()).isEqualTo(user.id());
 		assertThat(items().user(user.id()))
-			.hasValueSatisfying(saved -> assertThat(saved.loginTokenId()).hasValue(claims.tokenId()));
+			.hasValueSatisfying((saved) -> assertThat(saved.loginTokenId()).hasValue(claims.tokenId()));
 	}
 
 	/**
@@ -97,7 +98,7 @@ class StartLoginApiTests {
 			.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
 			.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
 		assertThat(items().user(user.id()))
-			.hasValueSatisfying(saved -> assertThat(saved.passwordFailureCount()).isEqualTo(1));
+			.hasValueSatisfying((saved) -> assertThat(saved.passwordFailureCount()).isEqualTo(1));
 	}
 
 	/**
@@ -112,7 +113,7 @@ class StartLoginApiTests {
 
 		login("dummy_login_lock", PASSWORD).andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
-		assertThat(items().user(user.id())).hasValueSatisfying(saved -> {
+		assertThat(items().user(user.id())).hasValueSatisfying((saved) -> {
 			assertThat(saved.lockedUntil()).isPresent();
 			assertThat(saved.loginTokenId()).isEmpty();
 		});
@@ -139,19 +140,20 @@ class StartLoginApiTests {
 	}
 
 	private ResultActions login(String loginId, String password) throws Exception {
-		return mockMvc.perform(post("/v1/logins").contentType(MediaType.APPLICATION_JSON)
+		return this.mockMvc.perform(post("/v1/logins").contentType(MediaType.APPLICATION_JSON)
 			.content("{\"loginId\":\"" + loginId + "\",\"password\":\"" + password + "\"}"));
 	}
 
 	private User putUser(String loginId) {
-		User user = User.register(UserId.generate(), LoginId.of(loginId), passwordHasher.hash(new Password(PASSWORD)),
-				new EncryptedTotpSecret(new byte[] { 1 }), new TotpStep(123), clock.instant());
+		User user = User.register(UserId.generate(), LoginId.of(loginId),
+				this.passwordHasher.hash(new Password(PASSWORD)), new EncryptedTotpSecret(new byte[] { 1 }),
+				new TotpStep(123), this.clock.instant());
 		items().putUser(user);
 		return user;
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, dynamoDbProperties);
+		return new DynamoDbTestItems(this.dynamoDb, this.dynamoDbProperties);
 	}
 
 }

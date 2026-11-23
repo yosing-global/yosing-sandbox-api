@@ -144,7 +144,7 @@ class VerifyRegistrationApiTests {
 	 */
 	@Test
 	void rejectsInvalidCodeFormat() throws Exception {
-		mockMvc
+		this.mockMvc
 			.perform(post("/v1/registrations/" + RegistrationId.generate() + "/verify")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"code\":\"12ab\"}"))
@@ -168,7 +168,7 @@ class VerifyRegistrationApiTests {
 	}
 
 	private Registration startRegistration(String loginId) throws Exception {
-		String body = mockMvc
+		String body = this.mockMvc
 			.perform(post("/v1/registrations").contentType(MediaType.APPLICATION_JSON)
 				.content("{\"loginId\":\"" + loginId + "\",\"password\":\"dummy correct horse battery\"}"))
 			.andExpect(status().isCreated())
@@ -179,33 +179,33 @@ class VerifyRegistrationApiTests {
 	}
 
 	private ResultActions verify(String registrationId, OtpCode code) throws Exception {
-		return mockMvc
+		return this.mockMvc
 			.perform(post("/v1/registrations/" + registrationId + "/verify").contentType(MediaType.APPLICATION_JSON)
 				.content("{\"code\":\"" + code.value() + "\"}"));
 	}
 
 	// 認証アプリが今表示するコード
 	private OtpCode validCode(Registration registration) {
-		return totpVerifier.generate(secret(registration), TotpStep.at(clock.instant()));
+		return this.totpVerifier.generate(secret(registration), TotpStep.at(this.clock.instant()));
 	}
 
 	// 前後1ステップのどのコードとも違うコード（偶然一致しないようにする）
 	private OtpCode wrongCode(Registration registration) {
 		TotpSecret secret = secret(registration);
-		TotpStep step = TotpStep.at(clock.instant());
+		TotpStep step = TotpStep.at(this.clock.instant());
 		return Stream.of("000000", "111111", "222222", "333333")
 			.map(OtpCode::new)
-			.filter(code -> totpVerifier.verify(secret, code, step, Optional.empty()).isEmpty())
+			.filter((code) -> this.totpVerifier.verify(secret, code, step, Optional.empty()).isEmpty())
 			.findFirst()
 			.orElseThrow();
 	}
 
 	private TotpSecret secret(Registration registration) {
-		return totpSecretEncryptor.decrypt(registration.totpSecret(), registration.userId());
+		return this.totpSecretEncryptor.decrypt(registration.totpSecret(), registration.userId());
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, dynamoDbProperties);
+		return new DynamoDbTestItems(this.dynamoDb, this.dynamoDbProperties);
 	}
 
 }

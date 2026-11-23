@@ -39,9 +39,9 @@ class DynamoDbRegistrationRepositoryTests {
 	@Test
 	void findsWhatWasAdded() {
 		Registration registration = newRegistration();
-		repository.add(registration);
+		this.repository.add(registration);
 
-		assertThat(repository.findById(registration.id())).hasValueSatisfying(found -> {
+		assertThat(this.repository.findById(registration.id())).hasValueSatisfying((found) -> {
 			assertThat(found.id()).isEqualTo(registration.id());
 			assertThat(found.userId()).isEqualTo(registration.userId());
 			assertThat(found.loginId()).isEqualTo(registration.loginId());
@@ -51,7 +51,7 @@ class DynamoDbRegistrationRepositoryTests {
 			assertThat(found.createdAt()).isEqualTo(registration.createdAt());
 			assertThat(found.expiresAt()).isEqualTo(registration.expiresAt());
 		});
-		assertThat(repository.findById(RegistrationId.generate())).isEmpty();
+		assertThat(this.repository.findById(RegistrationId.generate())).isEmpty();
 	}
 
 	/**
@@ -60,9 +60,10 @@ class DynamoDbRegistrationRepositoryTests {
 	@Test
 	void doesNotOverwriteExistingRegistration() {
 		Registration registration = newRegistration();
-		repository.add(registration);
+		this.repository.add(registration);
 
-		assertThatExceptionOfType(ConditionalCheckFailedException.class).isThrownBy(() -> repository.add(registration));
+		assertThatExceptionOfType(ConditionalCheckFailedException.class)
+			.isThrownBy(() -> this.repository.add(registration));
 	}
 
 	/**
@@ -71,18 +72,18 @@ class DynamoDbRegistrationRepositoryTests {
 	@Test
 	void countsOtpAttemptUpToLimit() {
 		Registration registration = newRegistration();
-		repository.add(registration);
+		this.repository.add(registration);
 
 		for (int attempt = 1; attempt <= Registration.MAX_OTP_FAILURES; attempt++) {
 			int expected = attempt;
-			assertThat(repository.countOtpAttempt(registration.id()))
-				.hasValueSatisfying(found -> assertThat(found.otpFailureCount()).isEqualTo(expected));
+			assertThat(this.repository.countOtpAttempt(registration.id()))
+				.hasValueSatisfying((found) -> assertThat(found.otpFailureCount()).isEqualTo(expected));
 		}
-		assertThat(repository.countOtpAttempt(registration.id())).isEmpty();
+		assertThat(this.repository.countOtpAttempt(registration.id())).isEmpty();
 
 		RegistrationId missing = RegistrationId.generate();
-		assertThat(repository.countOtpAttempt(missing)).isEmpty();
-		assertThat(repository.findById(missing)).isEmpty();
+		assertThat(this.repository.countOtpAttempt(missing)).isEmpty();
+		assertThat(this.repository.findById(missing)).isEmpty();
 	}
 
 	/**
@@ -91,12 +92,12 @@ class DynamoDbRegistrationRepositoryTests {
 	@Test
 	void deletesRegistration() {
 		Registration registration = newRegistration();
-		repository.add(registration);
+		this.repository.add(registration);
 
-		repository.delete(registration.id());
-		repository.delete(registration.id());
+		this.repository.delete(registration.id());
+		this.repository.delete(registration.id());
 
-		assertThat(repository.findById(registration.id())).isEmpty();
+		assertThat(this.repository.findById(registration.id())).isEmpty();
 	}
 
 	private static Registration newRegistration() {

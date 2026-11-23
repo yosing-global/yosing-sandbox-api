@@ -28,9 +28,9 @@ class RegistrationTests {
 	 */
 	@Test
 	void startsWithTenMinutesValidity() {
-		assertThat(registration.createdAt()).isEqualTo(Instant.parse("2026-11-01T00:00:00Z"));
-		assertThat(registration.expiresAt()).isEqualTo(Instant.parse("2026-11-01T00:10:00Z"));
-		assertThat(registration.otpFailureCount()).isZero();
+		assertThat(this.registration.createdAt()).isEqualTo(Instant.parse("2026-11-01T00:00:00Z"));
+		assertThat(this.registration.expiresAt()).isEqualTo(Instant.parse("2026-11-01T00:10:00Z"));
+		assertThat(this.registration.otpFailureCount()).isZero();
 	}
 
 	/**
@@ -38,8 +38,8 @@ class RegistrationTests {
 	 */
 	@Test
 	void expiresWhenExpiresAtComes() {
-		assertThat(registration.isExpired(registration.expiresAt().minusMillis(1))).isFalse();
-		assertThat(registration.isExpired(registration.expiresAt())).isTrue();
+		assertThat(this.registration.isExpired(this.registration.expiresAt().minusMillis(1))).isFalse();
+		assertThat(this.registration.isExpired(this.registration.expiresAt())).isTrue();
 	}
 
 	/**
@@ -60,12 +60,12 @@ class RegistrationTests {
 	void completesToUser() {
 		TotpStep step = new TotpStep(123);
 
-		User user = registration.complete(step, NOW);
+		User user = this.registration.complete(step, NOW);
 
-		assertThat(user.id()).isEqualTo(registration.userId());
-		assertThat(user.loginId()).isEqualTo(registration.loginId());
-		assertThat(user.passwordHash()).isEqualTo(registration.passwordHash());
-		assertThat(user.totpSecret()).isEqualTo(registration.totpSecret());
+		assertThat(user.id()).isEqualTo(this.registration.userId());
+		assertThat(user.loginId()).isEqualTo(this.registration.loginId());
+		assertThat(user.passwordHash()).isEqualTo(this.registration.passwordHash());
+		assertThat(user.totpSecret()).isEqualTo(this.registration.totpSecret());
 		assertThat(user.lastUsedTotpStep()).isEqualTo(step);
 		assertThat(user.createdAt()).isEqualTo(Instant.parse("2026-11-01T00:00:00Z"));
 		assertThat(user.passwordFailureCount()).isZero();
@@ -74,9 +74,9 @@ class RegistrationTests {
 	}
 
 	private Registration withOtpFailures(int count) {
-		return Registration.restore(registration.id(), registration.userId(), registration.loginId(),
-				registration.passwordHash(), registration.totpSecret(), count, registration.createdAt(),
-				registration.expiresAt());
+		return Registration.restore(this.registration.id(), this.registration.userId(), this.registration.loginId(),
+				this.registration.passwordHash(), this.registration.totpSecret(), count, this.registration.createdAt(),
+				this.registration.expiresAt());
 	}
 
 }

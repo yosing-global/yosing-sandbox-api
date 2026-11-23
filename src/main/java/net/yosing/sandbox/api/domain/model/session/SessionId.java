@@ -42,7 +42,6 @@ public final class SessionId {
 
 	/**
 	 * 新しいセッション ID をランダムに作る。
-	 *
 	 * @return セッション ID
 	 */
 	public static SessionId generate() {
@@ -54,7 +53,6 @@ public final class SessionId {
 	/**
 	 * クライアントから受け取った値をセッション ID にする。発行する形（43文字の Base64URL）でなければ空
 	 * （DB を読まずに、無効なセッションとして扱う）。
-	 *
 	 * @param value クライアントから受け取った値
 	 * @return セッション ID。形が違えば空
 	 */
@@ -70,7 +68,7 @@ public final class SessionId {
 	 */
 	public SessionIdHash hash() {
 		try {
-			byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.US_ASCII));
+			byte[] digest = MessageDigest.getInstance("SHA-256").digest(this.value.getBytes(StandardCharsets.US_ASCII));
 			return new SessionIdHash(HexFormat.of().formatHex(digest));
 		}
 		catch (NoSuchAlgorithmException ex) {
@@ -83,18 +81,18 @@ public final class SessionId {
 	 * @return セッション ID の元の値（クライアントに返すときだけ使う）
 	 */
 	public String value() {
-		return value;
+		return this.value;
 	}
 
 	@Override
 	public boolean equals(Object other) {
-		return other instanceof SessionId sessionId && MessageDigest.isEqual(value.getBytes(StandardCharsets.US_ASCII),
-				sessionId.value.getBytes(StandardCharsets.US_ASCII));
+		return other instanceof SessionId sessionId && MessageDigest.isEqual(
+				this.value.getBytes(StandardCharsets.US_ASCII), sessionId.value.getBytes(StandardCharsets.US_ASCII));
 	}
 
 	@Override
 	public int hashCode() {
-		return value.hashCode();
+		return this.value.hashCode();
 	}
 
 	@Override

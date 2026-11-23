@@ -21,7 +21,7 @@ public record VerifyLoginCommand(String loginToken, OtpCode code) {
 
 	@Override
 	public String toString() {
-		return "VerifyLoginCommand[loginToken=****, code=" + code + "]";
+		return "VerifyLoginCommand[loginToken=****, code=" + this.code + "]";
 	}
 
 }

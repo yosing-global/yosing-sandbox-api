@@ -26,17 +26,17 @@ public class FakeLoginCompletionStore implements LoginCompletionStore {
 
 	@Override
 	public boolean complete(User current, User verified, Session session) {
-		if (rejectNext) {
-			rejectNext = false;
+		if (this.rejectNext) {
+			this.rejectNext = false;
 			return false;
 		}
-		User stored = users.findById(current.id()).orElseThrow();
+		User stored = this.users.findById(current.id()).orElseThrow();
 		if (!stored.loginTokenId().equals(current.loginTokenId())
 				|| !verified.lastUsedTotpStep().isAfter(stored.lastUsedTotpStep())) {
 			return false;
 		}
-		users.replace(verified);
-		sessions.add(session);
+		this.users.replace(verified);
+		this.sessions.add(session);
 		return true;
 	}
 
@@ -44,14 +44,14 @@ public class FakeLoginCompletionStore implements LoginCompletionStore {
 	 * 次の保存を、条件に合わなかったことにする（同じコードが先に使われた。テストの準備）。
 	 */
 	public void rejectNext() {
-		rejectNext = true;
+		this.rejectNext = true;
 	}
 
 	/**
 	 * 作ったセッション（テストの確認用）。
 	 */
 	public List<Session> sessions() {
-		return List.copyOf(sessions);
+		return List.copyOf(this.sessions);
 	}
 
 }

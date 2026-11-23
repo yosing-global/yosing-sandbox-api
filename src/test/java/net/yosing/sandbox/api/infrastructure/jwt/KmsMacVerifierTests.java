@@ -17,10 +17,9 @@ import software.amazon.awssdk.services.kms.model.VerifyMacResponse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 /**
  * KMS の VerifyMac の呼び出し方と、結果（合う・合わない・KMS の失敗）の扱いを確かめる。実際の KMS での動きは PR 環境で確かめる。
@@ -37,19 +36,20 @@ class KmsMacVerifierTests {
 
 	private final KmsClient kms = mock(KmsClient.class);
 
-	private final KmsMacVerifier verifier = new KmsMacVerifier(kms, KEY_ARN);
+	private final KmsMacVerifier verifier = new KmsMacVerifier(this.kms, KEY_ARN);
 
 	/**
 	 * 鍵の ARN・HMAC_SHA_256・署名した内容・署名を KMS に渡し、合っていれば true を返す。
 	 */
 	@Test
 	void verifiesWithKeyAndHmacSha256() {
-		when(kms.verifyMac(any(VerifyMacRequest.class))).thenReturn(VerifyMacResponse.builder().macValid(true).build());
+		given(this.kms.verifyMac(any(VerifyMacRequest.class)))
+			.willReturn(VerifyMacResponse.builder().macValid(true).build());
 
-		boolean valid = verifier.verify(HS256, SIGNING_INPUT, SIGNATURE);
+		boolean valid = this.verifier.verify(HS256, SIGNING_INPUT, SIGNATURE);
 
 		ArgumentCaptor<VerifyMacRequest> request = ArgumentCaptor.forClass(VerifyMacRequest.class);
-		verify(kms).verifyMac(request.capture());
+		then(this.kms).should().verifyMac(request.capture());
 		assertThat(request.getValue().keyId()).isEqualTo(KEY_ARN);
 		assertThat(request.getValue().macAlgorithm()).isEqualTo(MacAlgorithmSpec.HMAC_SHA_256);
 		assertThat(request.getValue().message().asByteArray()).isEqualTo(SIGNING_INPUT);
@@ -62,10 +62,10 @@ class KmsMacVerifierTests {
 	 */
 	@Test
 	void returnsFalseForInvalidMac() {
-		when(kms.verifyMac(any(VerifyMacRequest.class)))
-			.thenThrow(KmsInvalidMacException.builder().message("dummy invalid mac").build());
+		given(this.kms.verifyMac(any(VerifyMacRequest.class)))
+			.willThrow(KmsInvalidMacException.builder().message("dummy invalid mac").build());
 
-		assertThat(verifier.verify(HS256, SIGNING_INPUT, SIGNATURE)).isFalse();
+		assertThat(this.verifier.verify(HS256, SIGNING_INPUT, SIGNATURE)).isFalse();
 	}
 
 	/**
@@ -73,11 +73,11 @@ class KmsMacVerifierTests {
 	 */
 	@Test
 	void propagatesOtherKmsFailure() {
-		when(kms.verifyMac(any(VerifyMacRequest.class)))
-			.thenThrow(KmsException.builder().message("dummy failure").build());
+		given(this.kms.verifyMac(any(VerifyMacRequest.class)))
+			.willThrow(KmsException.builder().message("dummy failure").build());
 
 		assertThatExceptionOfType(KmsException.class)
-			.isThrownBy(() -> verifier.verify(HS256, SIGNING_INPUT, SIGNATURE));
+			.isThrownBy(() -> this.verifier.verify(HS256, SIGNING_INPUT, SIGNATURE));
 	}
 
 	/**
@@ -85,8 +85,8 @@ class KmsMacVerifierTests {
 	 */
 	@Test
 	void rejectsOtherAlgorithm() {
-		assertThat(verifier.verify(new JWSHeader(JWSAlgorithm.HS512), SIGNING_INPUT, SIGNATURE)).isFalse();
-		verifyNoInteractions(kms);
+		assertThat(this.verifier.verify(new JWSHeader(JWSAlgorithm.HS512), SIGNING_INPUT, SIGNATURE)).isFalse();
+		then(this.kms).shouldHaveNoInteractions();
 	}
 
 }

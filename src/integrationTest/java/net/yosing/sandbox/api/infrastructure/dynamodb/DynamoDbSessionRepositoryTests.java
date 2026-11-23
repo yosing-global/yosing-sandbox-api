@@ -45,13 +45,13 @@ class DynamoDbSessionRepositoryTests {
 		Session session = Session.issue(UserId.generate(), NOW).session();
 		items().putSession(session);
 
-		assertThat(repository.findByIdHash(session.idHash())).hasValueSatisfying(found -> {
+		assertThat(this.repository.findByIdHash(session.idHash())).hasValueSatisfying((found) -> {
 			assertThat(found.userId()).isEqualTo(session.userId());
 			assertThat(found.createdAt()).isEqualTo(session.createdAt());
 			assertThat(found.lastAccessedAt()).isEqualTo(session.lastAccessedAt());
 			assertThat(found.expiresAt()).isEqualTo(session.expiresAt());
 		});
-		assertThat(repository.findByIdHash(SessionId.generate().hash())).isEmpty();
+		assertThat(this.repository.findByIdHash(SessionId.generate().hash())).isEmpty();
 	}
 
 	/**
@@ -63,15 +63,15 @@ class DynamoDbSessionRepositoryTests {
 		items().putSession(session);
 		Session touched = session.touch(NOW.plusSeconds(3600));
 
-		assertThat(repository.saveAccess(touched)).isTrue();
-		assertThat(items().sessionItem(session.idHash())).hasValueSatisfying(item -> {
+		assertThat(this.repository.saveAccess(touched)).isTrue();
+		assertThat(items().sessionItem(session.idHash())).hasValueSatisfying((item) -> {
 			assertThat(item.get(SessionItemMapper.LAST_ACCESSED_AT).s()).isEqualTo(touched.lastAccessedAt().toString());
 			assertThat(item.get(SessionItemMapper.EXPIRES_AT).n())
 				.isEqualTo(Long.toString(touched.expiresAt().getEpochSecond()));
 		});
 
 		Session missing = Session.issue(UserId.generate(), NOW).session();
-		assertThat(repository.saveAccess(missing.touch(NOW.plusSeconds(60)))).isFalse();
+		assertThat(this.repository.saveAccess(missing.touch(NOW.plusSeconds(60)))).isFalse();
 		assertThat(items().sessionItem(missing.idHash())).isEmpty();
 	}
 
@@ -83,14 +83,14 @@ class DynamoDbSessionRepositoryTests {
 		Session session = Session.issue(UserId.generate(), NOW).session();
 		items().putSession(session);
 
-		repository.delete(session.idHash());
-		repository.delete(session.idHash());
+		this.repository.delete(session.idHash());
+		this.repository.delete(session.idHash());
 
-		assertThat(repository.findByIdHash(session.idHash())).isEmpty();
+		assertThat(this.repository.findByIdHash(session.idHash())).isEmpty();
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, properties);
+		return new DynamoDbTestItems(this.dynamoDb, this.properties);
 	}
 
 }

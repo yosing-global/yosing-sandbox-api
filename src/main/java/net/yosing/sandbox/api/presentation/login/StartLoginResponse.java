@@ -18,7 +18,7 @@ record StartLoginResponse(String loginToken, Instant expiresAt) {
 
 	@Override
 	public String toString() {
-		return "StartLoginResponse[loginToken=****, expiresAt=" + expiresAt + "]";
+		return "StartLoginResponse[loginToken=****, expiresAt=" + this.expiresAt + "]";
 	}
 
 }

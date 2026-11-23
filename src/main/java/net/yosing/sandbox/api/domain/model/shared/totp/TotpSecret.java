@@ -30,7 +30,6 @@ public final class TotpSecret {
 
 	/**
 	 * 新しい秘密情報をランダムに作る（{@link TotpParameters#SECRET_BYTES} バイト）。
-	 *
 	 * @return 秘密情報
 	 */
 	public static TotpSecret generate() {
@@ -43,18 +42,18 @@ public final class TotpSecret {
 	 * @return 秘密情報のバイト列（コピー）
 	 */
 	public byte[] bytes() {
-		return value.clone();
+		return this.value.clone();
 	}
 
 	@Override
 	public boolean equals(Object other) {
 		// 比べる時間で中身が推測されないよう、一定時間で比べる
-		return other instanceof TotpSecret secret && MessageDigest.isEqual(value, secret.value);
+		return other instanceof TotpSecret secret && MessageDigest.isEqual(this.value, secret.value);
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(value);
+		return Arrays.hashCode(this.value);
 	}
 
 	@Override

@@ -86,7 +86,7 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
   - ログの詳しさは JVM 全体で1つのため、ログを確かめるテストは `@TestPropertySource` で詳しさを明示し、自分のコンテキストを持たせる（ほかのテストの設定を引き継がない）。
   - テストで確かめられないもの：KMS の呼び出し（PR 環境の CloudWatch Logs で確かめる）、リバースプロキシ・ALB 等のアクセスログ（`Authorization` を記録しない設定をインフラで確かめる）。
   - Spring の Web の部分を DEBUG にすると、入力の誤りの値（rejected value）がログに出ることがあるため、AWS の環境では DEBUG にしない。
-- 差し替えの方針：domain のテストは本物のオブジェクトだけ（時刻は引数で渡す）。application（ユースケース）のテストは、Repository・port を手書きのフェイク（メモリ上の実装 `InMemory*`、決まった動きの `Fake*`。`src/test` の、インターフェースと同じパッケージに置く。時計は `Clock.fixed`）に差し替え、結果の状態を確かめる。Mockito は、infrastructure で外のライブラリ（AWS SDK 等）の呼び出し方を確かめるときと、フェイクでは作りにくい失敗を起こすときだけに使う。presentation は単体で確かめず、結合テスト（API のテスト）で確かめる。
+- 差し替えの方針：domain のテストは本物のオブジェクトだけ（時刻は引数で渡す）。application（ユースケース）のテストは、Repository・port を手書きのフェイク（メモリ上の実装 `InMemory*`、決まった動きの `Fake*`。`src/test` の、インターフェースと同じパッケージに置く。時計は `Clock.fixed`）に差し替え、結果の状態を確かめる。Mockito は、infrastructure で外のライブラリ（AWS SDK 等）の呼び出し方を確かめるときと、フェイクでは作りにくい失敗を起こすときだけに使う（書き方は BDDMockito の `given(...).willReturn(...)`・`then(...).should()`。Checkstyle の Spring のルールで確かめる）。presentation は単体で確かめず、結合テスト（API のテスト）で確かめる。
 
 ### コードを書くときの注意
 

@@ -32,7 +32,7 @@ class DynamoDbRegistrationRepository implements RegistrationRepository {
 	@Override
 	public void add(Registration registration) {
 		// 同じキーの項目を上書きしない（あれば ConditionalCheckFailedException）
-		client.putItem(request -> request.tableName(tableName)
+		this.client.putItem((request) -> request.tableName(this.tableName)
 			.item(RegistrationItemMapper.toItem(registration))
 			.conditionExpression(ItemKeys.NOT_EXISTS)
 			.expressionAttributeNames(ItemKeys.PK_NAMES));
@@ -41,8 +41,8 @@ class DynamoDbRegistrationRepository implements RegistrationRepository {
 	@Override
 	public Optional<Registration> findById(RegistrationId id) {
 		// 認証の判定に使う読み取りは、強い整合性で行う
-		GetItemResponse response = client
-			.getItem(request -> request.tableName(tableName).key(ItemKeys.registration(id)).consistentRead(true));
+		GetItemResponse response = this.client.getItem(
+				(request) -> request.tableName(this.tableName).key(ItemKeys.registration(id)).consistentRead(true));
 		return response.hasItem() ? Optional.of(RegistrationItemMapper.fromItem(response.item())) : Optional.empty();
 	}
 
@@ -51,8 +51,8 @@ class DynamoDbRegistrationRepository implements RegistrationRepository {
 		// 読んでから書くのではなく DB の値に加えるため、同時に試されても数え漏れが無い。
 		// 上限に達していないときだけ数える（数えられた試行だけが照合に進む）。回数の条件は、仮登録があることも兼ねる
 		try {
-			Map<String, AttributeValue> updated = client
-				.updateItem(request -> request.tableName(tableName)
+			Map<String, AttributeValue> updated = this.client
+				.updateItem((request) -> request.tableName(this.tableName)
 					.key(ItemKeys.registration(id))
 					.updateExpression("ADD #count :one")
 					.conditionExpression("#count < :maxAttempts")
@@ -71,7 +71,7 @@ class DynamoDbRegistrationRepository implements RegistrationRepository {
 
 	@Override
 	public void delete(RegistrationId id) {
-		client.deleteItem(request -> request.tableName(tableName).key(ItemKeys.registration(id)));
+		this.client.deleteItem((request) -> request.tableName(this.tableName).key(ItemKeys.registration(id)));
 	}
 
 }

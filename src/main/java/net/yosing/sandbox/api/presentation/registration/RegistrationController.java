@@ -44,7 +44,7 @@ class RegistrationController {
 		// 形式は検証済みのため、ドメインの型にできる
 		StartRegistrationCommand command = new StartRegistrationCommand(LoginId.of(request.loginId()),
 				new Password(request.password()));
-		return StartRegistrationResponse.from(startRegistration.start(command));
+		return StartRegistrationResponse.from(this.startRegistration.start(command));
 	}
 
 	/**
@@ -56,7 +56,7 @@ class RegistrationController {
 			@Valid @RequestBody VerifyRegistrationRequest request) {
 		VerifyRegistrationCommand command = new VerifyRegistrationCommand(parseRegistrationId(registrationId),
 				new OtpCode(request.code()));
-		return VerifyRegistrationResponse.from(verifyRegistration.verify(command));
+		return VerifyRegistrationResponse.from(this.verifyRegistration.verify(command));
 	}
 
 	// UUID の形でない登録 ID は、無い登録 ID と同じ 404 にする

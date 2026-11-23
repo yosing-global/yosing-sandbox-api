@@ -31,8 +31,8 @@ class DynamoDbSessionRepository implements SessionRepository {
 	@Override
 	public Optional<Session> findByIdHash(SessionIdHash idHash) {
 		// 認証の判定に使う読み取りは、強い整合性で行う（ログアウトした直後のセッションを通さない）
-		GetItemResponse response = client
-			.getItem(request -> request.tableName(tableName).key(ItemKeys.session(idHash)).consistentRead(true));
+		GetItemResponse response = this.client
+			.getItem((request) -> request.tableName(this.tableName).key(ItemKeys.session(idHash)).consistentRead(true));
 		return response.hasItem() ? Optional.of(SessionItemMapper.fromItem(idHash, response.item())) : Optional.empty();
 	}
 
@@ -40,7 +40,7 @@ class DynamoDbSessionRepository implements SessionRepository {
 	public boolean saveAccess(Session touched) {
 		// 同時にログアウトされた（削除された）セッションを、作り直さない
 		try {
-			client.updateItem(request -> request.tableName(tableName)
+			this.client.updateItem((request) -> request.tableName(this.tableName)
 				.key(ItemKeys.session(touched.idHash()))
 				.updateExpression("SET #lastAccessedAt = :lastAccessedAt, #expiresAt = :expiresAt")
 				.conditionExpression(ItemKeys.EXISTS)
@@ -59,7 +59,7 @@ class DynamoDbSessionRepository implements SessionRepository {
 
 	@Override
 	public void delete(SessionIdHash idHash) {
-		client.deleteItem(request -> request.tableName(tableName).key(ItemKeys.session(idHash)));
+		this.client.deleteItem((request) -> request.tableName(this.tableName).key(ItemKeys.session(idHash)));
 	}
 
 }

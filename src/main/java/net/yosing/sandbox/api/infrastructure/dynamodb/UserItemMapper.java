@@ -65,8 +65,8 @@ final class UserItemMapper {
 		item.put(PASSWORD_FAILURE_COUNT, AttributeValue.fromN(Integer.toString(user.passwordFailureCount())));
 		item.put(OTP_FAILURE_COUNT, AttributeValue.fromN(Integer.toString(user.otpFailureCount())));
 		user.lockedUntil()
-			.ifPresent(lockedUntil -> item.put(LOCKED_UNTIL, AttributeValue.fromS(lockedUntil.toString())));
-		user.loginTokenId().ifPresent(tokenId -> item.put(LOGIN_TOKEN_ID, AttributeValue.fromS(tokenId)));
+			.ifPresent((lockedUntil) -> item.put(LOCKED_UNTIL, AttributeValue.fromS(lockedUntil.toString())));
+		user.loginTokenId().ifPresent((tokenId) -> item.put(LOGIN_TOKEN_ID, AttributeValue.fromS(tokenId)));
 		item.put(CREATED_AT, AttributeValue.fromS(user.createdAt().toString()));
 		return item;
 	}
@@ -78,7 +78,7 @@ final class UserItemMapper {
 				new TotpStep(Long.parseLong(item.get(LAST_USED_TOTP_STEP).n())),
 				Integer.parseInt(item.get(PASSWORD_FAILURE_COUNT).n()),
 				Integer.parseInt(item.get(OTP_FAILURE_COUNT).n()),
-				Optional.ofNullable(item.get(LOCKED_UNTIL)).map(value -> Instant.parse(value.s())),
+				Optional.ofNullable(item.get(LOCKED_UNTIL)).map((value) -> Instant.parse(value.s())),
 				Optional.ofNullable(item.get(LOGIN_TOKEN_ID)).map(AttributeValue::s),
 				Instant.parse(item.get(CREATED_AT).s()));
 	}

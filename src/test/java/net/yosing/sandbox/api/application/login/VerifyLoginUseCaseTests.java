@@ -41,7 +41,7 @@ class VerifyLoginUseCaseTests {
 
 	private final InMemoryUserRepository users = new InMemoryUserRepository();
 
-	private final FakeLoginCompletionStore completionStore = new FakeLoginCompletionStore(users);
+	private final FakeLoginCompletionStore completionStore = new FakeLoginCompletionStore(this.users);
 
 	private final FakeLoginTokenSigner signer = new FakeLoginTokenSigner();
 
@@ -49,14 +49,14 @@ class VerifyLoginUseCaseTests {
 
 	private final TotpVerifier totpVerifier = new TotpVerifier();
 
-	private final VerifyLoginUseCase useCase = new VerifyLoginUseCase(signer, users, completionStore, encryptor,
-			totpVerifier, Clock.fixed(NOW, ZoneOffset.UTC));
+	private final VerifyLoginUseCase useCase = new VerifyLoginUseCase(this.signer, this.users, this.completionStore,
+			this.encryptor, this.totpVerifier, Clock.fixed(NOW, ZoneOffset.UTC));
 
 	private final User user = addUser(TotpStep.at(NOW).plus(-5));
 
-	private final String loginToken = signToken(user.id(), TOKEN_ID);
+	private final String loginToken = signToken(this.user.id(), TOKEN_ID);
 
-	private final OtpCode validCode = totpVerifier.generate(SECRET, TotpStep.at(NOW));
+	private final OtpCode validCode = this.totpVerifier.generate(SECRET, TotpStep.at(NOW));
 
 	private final OtpCode wrongCode = codeOutsideWindow();
 
@@ -65,11 +65,11 @@ class VerifyLoginUseCaseTests {
 	 */
 	@Test
 	void completesLogin() {
-		VerifyLoginResult result = useCase.verify(new VerifyLoginCommand(loginToken, validCode));
+		VerifyLoginResult result = this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.validCode));
 
-		assertThat(completionStore.sessions()).hasSize(1);
-		Session session = completionStore.sessions().get(0);
-		assertThat(session.userId()).isEqualTo(user.id());
+		assertThat(this.completionStore.sessions()).hasSize(1);
+		Session session = this.completionStore.sessions().get(0);
+		assertThat(session.userId()).isEqualTo(this.user.id());
 		assertThat(session.idHash()).isEqualTo(result.sessionId().hash());
 		assertThat(result.sessionExpiresAt()).isEqualTo(session.expiresAt());
 		User saved = saved();
@@ -84,11 +84,11 @@ class VerifyLoginUseCaseTests {
 	@Test
 	void rejectsInvalidOrUsedLoginToken() {
 		assertThatExceptionOfType(LoginTokenInvalidException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand("dummy-unknown-token", validCode)));
+			.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand("dummy-unknown-token", this.validCode)));
 
-		useCase.verify(new VerifyLoginCommand(loginToken, validCode));
+		this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.validCode));
 		assertThatExceptionOfType(LoginTokenInvalidException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(loginToken, validCode)));
+			.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.validCode)));
 	}
 
 	/**
@@ -96,10 +96,10 @@ class VerifyLoginUseCaseTests {
 	 */
 	@Test
 	void rejectsReplacedLoginToken() {
-		String oldToken = signToken(user.id(), "dummy-old-jti");
+		String oldToken = signToken(this.user.id(), "dummy-old-jti");
 
 		assertThatExceptionOfType(LoginTokenInvalidException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(oldToken, validCode)));
+			.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(oldToken, this.validCode)));
 		assertThat(saved().otpFailureCount()).isZero();
 	}
 
@@ -109,7 +109,7 @@ class VerifyLoginUseCaseTests {
 	@Test
 	void countsWrongCode() {
 		assertThatExceptionOfType(OtpInvalidException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(loginToken, wrongCode)))
+			.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.wrongCode)))
 			.returns(4, OtpInvalidException::remainingAttempts);
 		assertThat(saved().otpFailureCount()).isEqualTo(1);
 		assertThat(saved().loginTokenId()).hasValue(TOKEN_ID);
@@ -122,15 +122,15 @@ class VerifyLoginUseCaseTests {
 	void locksAccountAtFifthFailure() {
 		for (int attempt = 1; attempt < User.MAX_OTP_FAILURES; attempt++) {
 			assertThatExceptionOfType(OtpInvalidException.class)
-				.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(loginToken, wrongCode)));
+				.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.wrongCode)));
 		}
 
 		assertThatExceptionOfType(OtpAttemptsExceededException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(loginToken, wrongCode)));
+			.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.wrongCode)));
 		assertThat(saved().lockedUntil()).hasValue(NOW.plus(User.LOCK_DURATION));
 		assertThat(saved().loginTokenId()).isEmpty();
 		assertThatExceptionOfType(LoginTokenInvalidException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(loginToken, validCode)));
+			.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.validCode)));
 	}
 
 	/**
@@ -140,13 +140,13 @@ class VerifyLoginUseCaseTests {
 	void countsFailuresAcrossLoginTokens() {
 		for (int attempt = 1; attempt < User.MAX_OTP_FAILURES; attempt++) {
 			assertThatExceptionOfType(OtpInvalidException.class)
-				.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(loginToken, wrongCode)));
+				.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.wrongCode)));
 		}
-		users.replace(saved().passwordVerified("dummy-new-jti"));
-		String newToken = signToken(user.id(), "dummy-new-jti");
+		this.users.replace(saved().passwordVerified("dummy-new-jti"));
+		String newToken = signToken(this.user.id(), "dummy-new-jti");
 
 		assertThatExceptionOfType(OtpAttemptsExceededException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(newToken, wrongCode)));
+			.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(newToken, this.wrongCode)));
 		assertThat(saved().lockedUntil()).isPresent();
 	}
 
@@ -157,10 +157,10 @@ class VerifyLoginUseCaseTests {
 	void resetsFailuresOnSuccess() {
 		for (int attempt = 1; attempt < User.MAX_OTP_FAILURES; attempt++) {
 			assertThatExceptionOfType(OtpInvalidException.class)
-				.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(loginToken, wrongCode)));
+				.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.wrongCode)));
 		}
 
-		useCase.verify(new VerifyLoginCommand(loginToken, validCode));
+		this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.validCode));
 
 		assertThat(saved().otpFailureCount()).isZero();
 	}
@@ -170,14 +170,14 @@ class VerifyLoginUseCaseTests {
 	 */
 	@Test
 	void locksWhenAlreadyExhausted() {
-		users.replace(
-				User.restore(user.id(), user.loginId(), user.passwordHash(), user.totpSecret(), user.lastUsedTotpStep(),
-						0, User.MAX_OTP_FAILURES, Optional.empty(), Optional.of(TOKEN_ID), user.createdAt()));
+		this.users.replace(User.restore(this.user.id(), this.user.loginId(), this.user.passwordHash(),
+				this.user.totpSecret(), this.user.lastUsedTotpStep(), 0, User.MAX_OTP_FAILURES, Optional.empty(),
+				Optional.of(TOKEN_ID), this.user.createdAt()));
 
 		assertThatExceptionOfType(OtpAttemptsExceededException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(loginToken, validCode)));
+			.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.validCode)));
 		assertThat(saved().lockedUntil()).isPresent();
-		assertThat(completionStore.sessions()).isEmpty();
+		assertThat(this.completionStore.sessions()).isEmpty();
 	}
 
 	/**
@@ -189,7 +189,7 @@ class VerifyLoginUseCaseTests {
 		String token = signToken(usedNow.id(), TOKEN_ID);
 
 		assertThatExceptionOfType(OtpInvalidException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(token, validCode)));
+			.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(token, this.validCode)));
 	}
 
 	/**
@@ -197,12 +197,12 @@ class VerifyLoginUseCaseTests {
 	 */
 	@Test
 	void rejectsWhenCodeUsedConcurrently() {
-		completionStore.rejectNext();
+		this.completionStore.rejectNext();
 
 		assertThatExceptionOfType(OtpInvalidException.class)
-			.isThrownBy(() -> useCase.verify(new VerifyLoginCommand(loginToken, validCode)))
+			.isThrownBy(() -> this.useCase.verify(new VerifyLoginCommand(this.loginToken, this.validCode)))
 			.returns(4, OtpInvalidException::remainingAttempts);
-		assertThat(completionStore.sessions()).isEmpty();
+		assertThat(this.completionStore.sessions()).isEmpty();
 	}
 
 	// 前後1ステップのどのコードとも違うコード（偶然一致しないようにする）
@@ -210,28 +210,28 @@ class VerifyLoginUseCaseTests {
 		TotpStep step = TotpStep.at(NOW);
 		return Stream.of("000000", "111111", "222222", "333333")
 			.map(OtpCode::new)
-			.filter(code -> totpVerifier.verify(SECRET, code, step, Optional.empty()).isEmpty())
+			.filter((code) -> this.totpVerifier.verify(SECRET, code, step, Optional.empty()).isEmpty())
 			.findFirst()
 			.orElseThrow();
 	}
 
 	private String signToken(UserId userId, String tokenId) {
 		Instant issuedAt = NOW.minusSeconds(60);
-		return signer.sign(
+		return this.signer.sign(
 				new LoginTokenClaims(userId, tokenId, issuedAt, issuedAt.plus(StartLoginUseCase.LOGIN_TOKEN_VALIDITY)));
 	}
 
 	private User saved() {
-		return users.findById(user.id()).orElseThrow();
+		return this.users.findById(this.user.id()).orElseThrow();
 	}
 
 	// パスワードが合って、仮認証（jti）が始まっているユーザー
 	private User addUser(TotpStep lastUsedStep) {
 		UserId userId = UserId.generate();
 		User registered = User.register(userId, LoginId.of("dummy_alice"), new PasswordHash("{dummy}dummy-hash"),
-				encryptor.encrypt(SECRET, userId), lastUsedStep, NOW.minusSeconds(3600));
+				this.encryptor.encrypt(SECRET, userId), lastUsedStep, NOW.minusSeconds(3600));
 		User started = registered.passwordVerified(TOKEN_ID);
-		users.addUser(started);
+		this.users.addUser(started);
 		return started;
 	}
 

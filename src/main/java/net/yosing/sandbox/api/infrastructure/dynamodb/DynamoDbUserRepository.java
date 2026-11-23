@@ -47,13 +47,13 @@ class DynamoDbUserRepository implements UserRepository {
 	public boolean existsByLoginId(LoginId loginId) {
 		// 認証の判定に使う読み取りは、強い整合性で行う。キーだけ取れば足りる
 		GetItemRequest request = GetItemRequest.builder()
-			.tableName(tableName)
+			.tableName(this.tableName)
 			.key(ItemKeys.loginId(loginId))
 			.consistentRead(true)
 			.projectionExpression(ItemKeys.PK_REF)
 			.expressionAttributeNames(ItemKeys.PK_NAMES)
 			.build();
-		return client.getItem(request).hasItem();
+		return this.client.getItem(request).hasItem();
 	}
 
 	@Override
@@ -61,7 +61,7 @@ class DynamoDbUserRepository implements UserRepository {
 		// ログイン ID の項目 → ユーザーの項目の順に読む（GSI は使わない）
 		return get(ItemKeys.loginId(loginId)).map(UserItemMapper::userIdOfLoginIdItem)
 			.flatMap(this::findById)
-			.filter(user -> user.loginId().equals(loginId));
+			.filter((user) -> user.loginId().equals(loginId));
 	}
 
 	@Override
@@ -74,7 +74,7 @@ class DynamoDbUserRepository implements UserRepository {
 		// 読んでから書くのではなく DB の値に加えるため、同時に試されても数え漏れが無い。
 		// 今の仮認証で、上限に達していないときだけ数える（数えられた試行だけが照合に進む）
 		try {
-			Map<String, AttributeValue> updated = client.updateItem(request -> request.tableName(tableName)
+			Map<String, AttributeValue> updated = this.client.updateItem((request) -> request.tableName(this.tableName)
 				.key(ItemKeys.user(id))
 				.updateExpression("ADD " + OTP_FAILURE_COUNT_REF + " :one")
 				.conditionExpression(
@@ -98,7 +98,7 @@ class DynamoDbUserRepository implements UserRepository {
 		Instant lockedUntil = locked.lockedUntil().orElseThrow(() -> new IllegalArgumentException("ロックの期限が無い"));
 		// 今の仮認証のときだけ、ロックして仮認証を終える（新しい仮認証は消さない）
 		try {
-			client.updateItem(request -> request.tableName(tableName)
+			this.client.updateItem((request) -> request.tableName(this.tableName)
 				.key(ItemKeys.user(current.id()))
 				.updateExpression("SET " + LOCKED_UNTIL_REF + " = :lockedUntil REMOVE " + LOGIN_TOKEN_ID_REF)
 				.conditionExpression(LOGIN_TOKEN_ID_REF + " = :loginTokenId")
@@ -151,7 +151,7 @@ class DynamoDbUserRepository implements UserRepository {
 		String updateExpression = update;
 
 		try {
-			client.updateItem(request -> request.tableName(tableName)
+			this.client.updateItem((request) -> request.tableName(this.tableName)
 				.key(ItemKeys.user(current.id()))
 				.updateExpression(updateExpression)
 				.conditionExpression(conditionExpression)
@@ -175,7 +175,7 @@ class DynamoDbUserRepository implements UserRepository {
 				AttributeValue.fromS(loginTokenId));
 		// パスワードの失敗回数を戻してロックを解き、新しい jti に置き換える（前の仮認証の JWT は使えなくなる）。
 		// OTP の失敗回数は変えない（OTP が合ったときだけ戻す）
-		client.updateItem(request -> request.tableName(tableName)
+		this.client.updateItem((request) -> request.tableName(this.tableName)
 			.key(ItemKeys.user(verified.id()))
 			.updateExpression("SET " + FAILURE_COUNT_REF + " = :failureCount, " + LOGIN_TOKEN_ID_REF
 					+ " = :loginTokenId REMOVE " + LOCKED_UNTIL_REF)
@@ -186,8 +186,8 @@ class DynamoDbUserRepository implements UserRepository {
 
 	private Optional<Map<String, AttributeValue>> get(Map<String, AttributeValue> key) {
 		// 認証の判定に使う読み取りは、強い整合性で行う
-		GetItemResponse response = client
-			.getItem(request -> request.tableName(tableName).key(key).consistentRead(true));
+		GetItemResponse response = this.client
+			.getItem((request) -> request.tableName(this.tableName).key(key).consistentRead(true));
 		return response.hasItem() ? Optional.of(response.item()) : Optional.empty();
 	}
 

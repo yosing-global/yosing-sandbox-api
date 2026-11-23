@@ -15,7 +15,6 @@ public interface TotpSecretEncryptor {
 
 	/**
 	 * 暗号化する。
-	 *
 	 * @param secret 秘密情報
 	 * @param userId 秘密情報の持ち主
 	 * @return 暗号文
@@ -24,7 +23,6 @@ public interface TotpSecretEncryptor {
 
 	/**
 	 * 復号する。
-	 *
 	 * @param encrypted 暗号文
 	 * @param userId 秘密情報の持ち主（暗号化したときと同じであること）
 	 * @return 秘密情報

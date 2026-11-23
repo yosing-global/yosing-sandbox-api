@@ -49,9 +49,9 @@ class DynamoDbLoginCompletionStoreTests {
 		User current = putLoggingInUser("dummy_login_store_ok", "dummy-jti");
 		Session session = Session.issue(current.id(), NOW).session();
 
-		assertThat(store.complete(current, current.otpVerified(new TotpStep(124)), session)).isTrue();
+		assertThat(this.store.complete(current, current.otpVerified(new TotpStep(124)), session)).isTrue();
 
-		assertThat(items().user(current.id())).hasValueSatisfying(saved -> {
+		assertThat(items().user(current.id())).hasValueSatisfying((saved) -> {
 			assertThat(saved.lastUsedTotpStep()).isEqualTo(new TotpStep(124));
 			assertThat(saved.otpFailureCount()).isZero();
 			assertThat(saved.loginTokenId()).isEmpty();
@@ -67,9 +67,9 @@ class DynamoDbLoginCompletionStoreTests {
 		User current = putLoggingInUser("dummy_login_store_used", "dummy-jti");
 		Session first = Session.issue(current.id(), NOW).session();
 		Session second = Session.issue(current.id(), NOW).session();
-		store.complete(current, current.otpVerified(new TotpStep(124)), first);
+		this.store.complete(current, current.otpVerified(new TotpStep(124)), first);
 
-		assertThat(store.complete(current, current.otpVerified(new TotpStep(124)), second)).isFalse();
+		assertThat(this.store.complete(current, current.otpVerified(new TotpStep(124)), second)).isFalse();
 
 		assertThat(items().sessionItem(second.idHash())).isEmpty();
 	}
@@ -83,9 +83,9 @@ class DynamoDbLoginCompletionStoreTests {
 		items().putUser(current.passwordVerified("dummy-new-jti"));
 		Session session = Session.issue(current.id(), NOW).session();
 
-		assertThat(store.complete(current, current.otpVerified(new TotpStep(124)), session)).isFalse();
+		assertThat(this.store.complete(current, current.otpVerified(new TotpStep(124)), session)).isFalse();
 
-		assertThat(items().user(current.id())).hasValueSatisfying(saved -> {
+		assertThat(items().user(current.id())).hasValueSatisfying((saved) -> {
 			assertThat(saved.lastUsedTotpStep()).isEqualTo(new TotpStep(123));
 			assertThat(saved.loginTokenId()).hasValue("dummy-new-jti");
 		});
@@ -103,7 +103,7 @@ class DynamoDbLoginCompletionStoreTests {
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, properties);
+		return new DynamoDbTestItems(this.dynamoDb, this.properties);
 	}
 
 }

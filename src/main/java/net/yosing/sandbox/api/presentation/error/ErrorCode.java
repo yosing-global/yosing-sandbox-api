@@ -46,11 +46,11 @@ enum ErrorCode {
 	}
 
 	HttpStatus status() {
-		return status;
+		return this.status;
 	}
 
 	String detail() {
-		return detail;
+		return this.detail;
 	}
 
 }

@@ -63,7 +63,7 @@ class InvalidInputLoggingTests {
 	}
 
 	private void postExpectingBadRequest(String path, String json) throws Exception {
-		mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(json))
+		this.mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(json))
 			.andExpect(status().isBadRequest());
 	}
 

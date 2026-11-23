@@ -54,7 +54,7 @@ class StartRegistrationApiTests {
 	 */
 	@Test
 	void startsRegistration() throws Exception {
-		String body = mockMvc
+		String body = this.mockMvc
 			.perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"loginId\":\"Dummy_Start_OK\",\"password\":\"dummy correct horse battery\"}"))
 			.andExpect(status().isCreated())
@@ -65,7 +65,7 @@ class StartRegistrationApiTests {
 			.getContentAsString();
 
 		String registrationId = JsonPath.read(body, "$.registrationId");
-		assertThat(items().registration(RegistrationId.parse(registrationId))).hasValueSatisfying(saved -> {
+		assertThat(items().registration(RegistrationId.parse(registrationId))).hasValueSatisfying((saved) -> {
 			assertThat(saved.loginId()).isEqualTo(LoginId.of("dummy_start_ok"));
 			assertThat(saved.passwordHash().value()).startsWith("{bcrypt}$2a$12$");
 			assertThat(saved.totpSecret().bytes()).isNotEmpty();
@@ -78,7 +78,7 @@ class StartRegistrationApiTests {
 	 */
 	@Test
 	void rejectsInvalidInput() throws Exception {
-		mockMvc
+		this.mockMvc
 			.perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"loginId\":\"ab\",\"password\":\"dummy\"}"))
 			.andExpect(status().isBadRequest())
@@ -94,7 +94,7 @@ class StartRegistrationApiTests {
 	 */
 	@Test
 	void rejectsMissingFields() throws Exception {
-		mockMvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content("{}"))
+		this.mockMvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content("{}"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
 			.andExpect(jsonPath("$.errors[0].field").value("loginId"))
@@ -106,7 +106,7 @@ class StartRegistrationApiTests {
 	 */
 	@Test
 	void rejectsMalformedJson() throws Exception {
-		mockMvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content("{"))
+		this.mockMvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content("{"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
 			.andExpect(jsonPath("$.errors", empty()));
@@ -119,7 +119,7 @@ class StartRegistrationApiTests {
 	void rejectsTakenLoginId() throws Exception {
 		items().putLoginId(LoginId.of("dummy_taken_id"), UserId.generate());
 
-		mockMvc
+		this.mockMvc
 			.perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"loginId\":\"Dummy_Taken_ID\",\"password\":\"dummy correct horse battery\"}"))
 			.andExpect(status().isConflict())
@@ -129,7 +129,7 @@ class StartRegistrationApiTests {
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, dynamoDbProperties);
+		return new DynamoDbTestItems(this.dynamoDb, this.dynamoDbProperties);
 	}
 
 }

@@ -54,7 +54,7 @@ class DynamoDbTestUserCleanupStore implements TestUserCleanupStore {
 	public List<TestUser> findByLoginIdPrefix(String loginIdPrefix) {
 		requireTestPrefix(loginIdPrefix);
 		ScanRequest request = ScanRequest.builder()
-			.tableName(tableName)
+			.tableName(this.tableName)
 			.filterExpression("begins_with(" + ItemKeys.PK_REF + ", :userPkPrefix) AND begins_with(" + LOGIN_ID_REF
 					+ ", :loginIdPrefix)")
 			.projectionExpression(USER_ID_REF + ", " + LOGIN_ID_REF + ", " + CREATED_AT_REF)
@@ -65,7 +65,7 @@ class DynamoDbTestUserCleanupStore implements TestUserCleanupStore {
 			.build();
 		List<TestUser> users = new ArrayList<>();
 		// 1回の Scan で返るのは 1MB まで。続きはページを順に読む
-		for (Map<String, AttributeValue> item : client.scanPaginator(request).items()) {
+		for (Map<String, AttributeValue> item : this.client.scanPaginator(request).items()) {
 			users.add(new TestUser(UserId.parse(item.get(UserItemMapper.USER_ID).s()),
 					new LoginId(item.get(UserItemMapper.LOGIN_ID).s()),
 					Instant.parse(item.get(UserItemMapper.CREATED_AT).s())));
@@ -77,7 +77,7 @@ class DynamoDbTestUserCleanupStore implements TestUserCleanupStore {
 	public boolean delete(TestUser user) {
 		requireTestPrefix(user.loginId().value());
 		Delete userDelete = Delete.builder()
-			.tableName(tableName)
+			.tableName(this.tableName)
 			.key(ItemKeys.user(user.id()))
 			.conditionExpression(LOGIN_ID_REF + " = :loginId AND begins_with(" + LOGIN_ID_REF + ", :loginIdPrefix)")
 			.expressionAttributeNames(Map.of(LOGIN_ID_REF, UserItemMapper.LOGIN_ID))
@@ -85,7 +85,7 @@ class DynamoDbTestUserCleanupStore implements TestUserCleanupStore {
 					":loginIdPrefix", AttributeValue.fromS(TEST_LOGIN_ID_PREFIX)))
 			.build();
 		Delete loginIdDelete = Delete.builder()
-			.tableName(tableName)
+			.tableName(this.tableName)
 			.key(ItemKeys.loginId(user.loginId()))
 			.conditionExpression(USER_ID_REF + " = :userId")
 			.expressionAttributeNames(Map.of(USER_ID_REF, UserItemMapper.USER_ID))
@@ -94,7 +94,7 @@ class DynamoDbTestUserCleanupStore implements TestUserCleanupStore {
 		List<TransactWriteItem> items = List.of(TransactWriteItem.builder().delete(userDelete).build(),
 				TransactWriteItem.builder().delete(loginIdDelete).build());
 		try {
-			client.transactWriteItems(request -> request.transactItems(items));
+			this.client.transactWriteItems((request) -> request.transactItems(items));
 			return true;
 		}
 		catch (TransactionCanceledException ex) {

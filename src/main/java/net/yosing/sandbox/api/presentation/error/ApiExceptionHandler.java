@@ -47,7 +47,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 		List<FieldErrorResponse> errors = ex.getBindingResult()
 			.getFieldErrors()
 			.stream()
-			.map(error -> new FieldErrorResponse(error.getField(), Objects.toString(error.getDefaultMessage(), "")))
+			.map((error) -> new FieldErrorResponse(error.getField(), Objects.toString(error.getDefaultMessage(), "")))
 			.sorted(Comparator.comparing(FieldErrorResponse::field).thenComparing(FieldErrorResponse::message))
 			.toList();
 		return validationFailed(errors);

@@ -35,13 +35,13 @@ final class KmsMacVerifier implements JWSVerifier {
 			return false;
 		}
 		VerifyMacRequest request = VerifyMacRequest.builder()
-			.keyId(keyArn)
+			.keyId(this.keyArn)
 			.macAlgorithm(MacAlgorithmSpec.HMAC_SHA_256)
 			.message(SdkBytes.fromByteArray(signingInput))
 			.mac(SdkBytes.fromByteArray(signature.decode()))
 			.build();
 		try {
-			return Boolean.TRUE.equals(kms.verifyMac(request).macValid());
+			return Boolean.TRUE.equals(this.kms.verifyMac(request).macValid());
 		}
 		catch (KmsInvalidMacException ex) {
 			// 署名が合わないとき、KMS は false ではなくこの例外を返す

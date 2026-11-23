@@ -20,8 +20,8 @@ record StartRegistrationResponse(String registrationId, String otpauthUri, Insta
 
 	@Override
 	public String toString() {
-		return "StartRegistrationResponse[registrationId=" + registrationId + ", otpauthUri=****, expiresAt="
-				+ expiresAt + "]";
+		return "StartRegistrationResponse[registrationId=" + this.registrationId + ", otpauthUri=****, expiresAt="
+				+ this.expiresAt + "]";
 	}
 
 }

@@ -21,11 +21,10 @@ public class LogoutUseCase {
 
 	/**
 	 * ログアウトする。
-	 *
 	 * @param sessionId クライアントから受け取ったセッション ID
 	 */
 	public void logout(SessionId sessionId) {
-		sessions.delete(sessionId.hash());
+		this.sessions.delete(sessionId.hash());
 	}
 
 }

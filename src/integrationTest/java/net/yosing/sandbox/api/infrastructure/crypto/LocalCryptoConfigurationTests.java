@@ -32,8 +32,8 @@ class LocalCryptoConfigurationTests {
 		UserId userId = UserId.generate();
 		TotpSecret secret = new TotpSecret(new byte[] { 1, 2, 3 });
 
-		assertThat(encryptor).isInstanceOf(LocalTotpSecretEncryptor.class);
-		assertThat(encryptor.decrypt(encryptor.encrypt(secret, userId), userId)).isEqualTo(secret);
+		assertThat(this.encryptor).isInstanceOf(LocalTotpSecretEncryptor.class);
+		assertThat(this.encryptor.decrypt(this.encryptor.encrypt(secret, userId), userId)).isEqualTo(secret);
 	}
 
 }
