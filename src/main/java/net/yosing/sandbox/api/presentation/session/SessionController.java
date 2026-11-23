@@ -2,6 +2,7 @@ package net.yosing.sandbox.api.presentation.session;
 
 import net.yosing.sandbox.api.application.session.GetCurrentUserUseCase;
 import net.yosing.sandbox.api.application.session.LogoutUseCase;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,20 +27,20 @@ class SessionController {
 	}
 
 	/**
-	 * ログイン中のユーザーの情報。
+	 * ログイン中のユーザーの情報
 	 */
 	@GetMapping("/v1/me")
 	MeResponse me(@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-		return MeResponse.from(getCurrentUser.get(BearerSessionId.parse(authorization)));
+		return MeResponse.from(this.getCurrentUser.get(BearerSessionId.parse(authorization)));
 	}
 
 	/**
-	 * ログアウト。
+	 * ログアウト
 	 */
 	@DeleteMapping("/v1/sessions/current")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void logout(@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-		logout.logout(BearerSessionId.parse(authorization));
+		this.logout.logout(BearerSessionId.parse(authorization));
 	}
 
 }

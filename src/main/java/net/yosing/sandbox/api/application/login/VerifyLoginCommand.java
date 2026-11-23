@@ -5,7 +5,7 @@ import java.util.Objects;
 import net.yosing.sandbox.api.domain.model.shared.totp.OtpCode;
 
 /**
- * ログインの確定の入力。
+ * ログイン確定の入力
  *
  * <p>仮認証 JWT はログ等に出ないよう、toString では中身を出さない。
  *
@@ -21,7 +21,7 @@ public record VerifyLoginCommand(String loginToken, OtpCode code) {
 
 	@Override
 	public String toString() {
-		return "VerifyLoginCommand[loginToken=****, code=" + code + "]";
+		return "VerifyLoginCommand[loginToken=****, code=" + this.code + "]";
 	}
 
 }

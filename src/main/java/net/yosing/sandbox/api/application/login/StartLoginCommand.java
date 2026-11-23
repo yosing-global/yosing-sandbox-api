@@ -6,7 +6,7 @@ import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.Password;
 
 /**
- * ログインの開始の入力。
+ * ログイン開始の入力
  *
  * @param loginId ログイン ID（小文字にそろえたもの）
  * @param password パスワード

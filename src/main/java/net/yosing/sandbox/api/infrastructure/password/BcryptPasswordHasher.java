@@ -5,6 +5,7 @@ import java.util.Map;
 import net.yosing.sandbox.api.application.port.PasswordHasher;
 import net.yosing.sandbox.api.domain.model.user.Password;
 import net.yosing.sandbox.api.domain.model.user.PasswordHash;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,7 +32,7 @@ final class BcryptPasswordHasher implements PasswordHasher {
 	public PasswordHash hash(Password password) {
 		// encode は、渡したパスワードが null のときだけ null を返す（Spring Security 7 で戻り値が @Nullable になった）。
 		// ここでは null を渡さないが、null のまま進めないよう確かめる
-		String hash = encoder.encode(password.value());
+		String hash = this.encoder.encode(password.value());
 		if (hash == null) {
 			throw new IllegalStateException("パスワードのハッシュを作れなかった");
 		}
@@ -40,7 +41,7 @@ final class BcryptPasswordHasher implements PasswordHasher {
 
 	@Override
 	public boolean matches(Password password, PasswordHash hash) {
-		return encoder.matches(password.value(), hash.value());
+		return this.encoder.matches(password.value(), hash.value());
 	}
 
 }

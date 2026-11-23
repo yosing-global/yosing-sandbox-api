@@ -14,10 +14,11 @@ import net.yosing.sandbox.api.domain.model.user.Password;
 import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserRepository;
+
 import org.springframework.stereotype.Service;
 
 /**
- * ログインの開始（POST /v1/logins）。
+ * ログインの開始（POST /v1/logins）
  *
  * <ol>
  * <li>ログイン ID でユーザーを取り出す。無ければ 401</li>
@@ -34,7 +35,7 @@ import org.springframework.stereotype.Service;
 public class StartLoginUseCase {
 
 	/**
-	 * 仮認証 JWT の有効期間。
+	 * 仮認証 JWT の有効期間
 	 */
 	public static final Duration LOGIN_TOKEN_VALIDITY = Duration.ofMinutes(5);
 
@@ -60,38 +61,37 @@ public class StartLoginUseCase {
 
 	/**
 	 * ログインを始める。
-	 *
 	 * @param command 入力
 	 * @return 仮認証 JWT と期限
 	 * @throws InvalidCredentialsException ログイン ID かパスワードが違う、またはロック中の場合
 	 */
 	public StartLoginResult start(StartLoginCommand command) {
-		Instant now = clock.instant();
-		Optional<User> found = users.findByLoginId(command.loginId());
+		Instant now = this.clock.instant();
+		Optional<User> found = this.users.findByLoginId(command.loginId());
 		if (found.isEmpty() || found.get().isLocked(now)) {
 			throw rejectWithoutVerifying(command.password());
 		}
 		User user = found.get();
 
 		User counted = user.countPasswordAttempt(now);
-		if (!users.savePasswordAttempt(user, counted)) {
+		if (!this.users.savePasswordAttempt(user, counted)) {
 			throw rejectWithoutVerifying(command.password());
 		}
-		if (!passwordHasher.matches(command.password(), user.passwordHash())) {
+		if (!this.passwordHasher.matches(command.password(), user.passwordHash())) {
 			throw new InvalidCredentialsException();
 		}
 
 		String tokenId = UUID.randomUUID().toString();
-		users.savePasswordVerified(counted.passwordVerified(tokenId));
+		this.users.savePasswordVerified(counted.passwordVerified(tokenId));
 		// JWT の日時は秒の単位のため、そろえておく
 		Instant issuedAt = now.truncatedTo(ChronoUnit.SECONDS);
 		Instant expiresAt = issuedAt.plus(LOGIN_TOKEN_VALIDITY);
-		String token = loginTokenSigner.sign(new LoginTokenClaims(user.id(), tokenId, issuedAt, expiresAt));
+		String token = this.loginTokenSigner.sign(new LoginTokenClaims(user.id(), tokenId, issuedAt, expiresAt));
 		return new StartLoginResult(token, expiresAt);
 	}
 
 	private InvalidCredentialsException rejectWithoutVerifying(Password password) {
-		passwordHasher.matches(password, timingHash);
+		this.passwordHasher.matches(password, this.timingHash);
 		return new InvalidCredentialsException();
 	}
 

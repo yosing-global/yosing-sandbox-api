@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.jwt;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.time.Instant;
@@ -16,6 +14,8 @@ import com.nimbusds.jwt.SignedJWT;
 import net.yosing.sandbox.api.application.port.LoginTokenClaims;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 仮認証 JWT の組み立てと検証を、ローカルの鍵（HmacSHA256）で確かめる。
@@ -41,7 +41,7 @@ class NimbusLoginTokenSignerTests {
 	 */
 	@Test
 	void verifiesWhatItSigned() {
-		assertThat(signer.verify(signer.sign(claims), ISSUED_AT)).contains(claims);
+		assertThat(this.signer.verify(this.signer.sign(this.claims), ISSUED_AT)).contains(this.claims);
 	}
 
 	/**
@@ -49,7 +49,7 @@ class NimbusLoginTokenSignerTests {
 	 */
 	@Test
 	void signsWithHs256AndAppEnvAudience() throws ParseException {
-		SignedJWT jwt = SignedJWT.parse(signer.sign(claims));
+		SignedJWT jwt = SignedJWT.parse(this.signer.sign(this.claims));
 
 		assertThat(jwt.getHeader().getAlgorithm()).isEqualTo(JWSAlgorithm.HS256);
 		assertThat(jwt.getJWTClaimsSet().getAudience()).isEqualTo(List.of("dummy-pr12"));
@@ -60,9 +60,9 @@ class NimbusLoginTokenSignerTests {
 	 */
 	@Test
 	void rejectsTokenForAnotherEnvironment() {
-		String token = signer(KEY, "dummy-pr13").sign(claims);
+		String token = signer(KEY, "dummy-pr13").sign(this.claims);
 
-		assertThat(signer.verify(token, ISSUED_AT)).isEmpty();
+		assertThat(this.signer.verify(token, ISSUED_AT)).isEmpty();
 	}
 
 	/**
@@ -70,10 +70,10 @@ class NimbusLoginTokenSignerTests {
 	 */
 	@Test
 	void rejectsExpiredToken() {
-		String token = signer.sign(claims);
+		String token = this.signer.sign(this.claims);
 
-		assertThat(signer.verify(token, EXPIRES_AT.minusSeconds(1))).isPresent();
-		assertThat(signer.verify(token, EXPIRES_AT)).isEmpty();
+		assertThat(this.signer.verify(token, EXPIRES_AT.minusSeconds(1))).isPresent();
+		assertThat(this.signer.verify(token, EXPIRES_AT)).isEmpty();
 	}
 
 	/**
@@ -82,9 +82,9 @@ class NimbusLoginTokenSignerTests {
 	@Test
 	void rejectsTokenSignedWithAnotherKey() {
 		byte[] anotherKey = "dummy-another-key-0123456789abcd".getBytes(StandardCharsets.US_ASCII);
-		String token = signer(anotherKey, "dummy-pr12").sign(claims);
+		String token = signer(anotherKey, "dummy-pr12").sign(this.claims);
 
-		assertThat(signer.verify(token, ISSUED_AT)).isEmpty();
+		assertThat(this.signer.verify(token, ISSUED_AT)).isEmpty();
 	}
 
 	/**
@@ -92,12 +92,12 @@ class NimbusLoginTokenSignerTests {
 	 */
 	@Test
 	void rejectsTamperedToken() {
-		String[] original = signer.sign(claims).split("\\.");
+		String[] original = this.signer.sign(this.claims).split("\\.");
 		LoginTokenClaims anotherUser = new LoginTokenClaims(UserId.generate(), "dummy-token-id", ISSUED_AT, EXPIRES_AT);
-		String[] another = signer.sign(anotherUser).split("\\.");
+		String[] another = this.signer.sign(anotherUser).split("\\.");
 		String tampered = original[0] + "." + another[1] + "." + original[2];
 
-		assertThat(signer.verify(tampered, ISSUED_AT)).isEmpty();
+		assertThat(this.signer.verify(tampered, ISSUED_AT)).isEmpty();
 	}
 
 	/**
@@ -105,9 +105,9 @@ class NimbusLoginTokenSignerTests {
 	 */
 	@Test
 	void rejectsUnsignedToken() throws ParseException {
-		String unsigned = new PlainJWT(SignedJWT.parse(signer.sign(claims)).getJWTClaimsSet()).serialize();
+		String unsigned = new PlainJWT(SignedJWT.parse(this.signer.sign(this.claims)).getJWTClaimsSet()).serialize();
 
-		assertThat(signer.verify(unsigned, ISSUED_AT)).isEmpty();
+		assertThat(this.signer.verify(unsigned, ISSUED_AT)).isEmpty();
 	}
 
 	/**
@@ -115,14 +115,15 @@ class NimbusLoginTokenSignerTests {
 	 */
 	@Test
 	void rejectsMalformedOrTooLongToken() {
-		assertThat(signer.verify("dummy-not-a-jwt", ISSUED_AT)).isEmpty();
-		assertThat(signer.verify("a".repeat(1025), ISSUED_AT)).isEmpty();
+		assertThat(this.signer.verify("dummy-not-a-jwt", ISSUED_AT)).isEmpty();
+		assertThat(this.signer.verify("a".repeat(1025), ISSUED_AT)).isEmpty();
 	}
 
 	private static NimbusLoginTokenSigner signer(byte[] key, String appEnv) {
 		try {
 			return new NimbusLoginTokenSigner(new MACSigner(key), new MACVerifier(key), appEnv);
-		} catch (JOSEException ex) {
+		}
+		catch (JOSEException ex) {
 			throw new IllegalStateException(ex);
 		}
 	}

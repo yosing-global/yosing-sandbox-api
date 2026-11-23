@@ -1,12 +1,9 @@
 package net.yosing.sandbox.api;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -17,6 +14,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * 入力の誤り（400）のとき、入力した値（形式の違うパスワード・コード）がログに出ないことを、本番と同じログの詳しさで確かめる。
@@ -31,8 +32,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import(DynamoDbLocalContainerConfiguration.class)
 // ログの詳しさは JVM 全体で1つのため、先に動いた DEBUG のテスト（SensitiveDataLoggingTests）の設定が残らないよう、
 // 本番と同じ INFO を明示し、このクラス用のコンテキストを作る（コンテキストを作るときに、ログの設定が読み直される）
-@TestPropertySource(properties = { "logging.level.net.yosing.sandbox.api=INFO",
-		"logging.level.org.springframework.web=INFO" })
+@TestPropertySource(
+		properties = { "logging.level.net.yosing.sandbox.api=INFO", "logging.level.org.springframework.web=INFO" })
 @ExtendWith(OutputCaptureExtension.class)
 class InvalidInputLoggingTests {
 
@@ -62,7 +63,7 @@ class InvalidInputLoggingTests {
 	}
 
 	private void postExpectingBadRequest(String path, String json) throws Exception {
-		mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(json))
+		this.mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(json))
 			.andExpect(status().isBadRequest());
 	}
 

@@ -1,13 +1,5 @@
 package net.yosing.sandbox.api.presentation.session;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import java.time.Clock;
 import java.time.Instant;
 
@@ -24,6 +16,8 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbProperties;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbTestItems;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -32,7 +26,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * セッションの API（GET /v1/me・DELETE /v1/sessions/current）を、DynamoDB Local で確かめる。
@@ -64,9 +65,9 @@ class SessionApiTests {
 	@Test
 	void returnsCurrentUserAndExtendsSession() throws Exception {
 		User user = putUser("dummy_me_ok");
-		IssuedSession issued = putSession(user, clock.instant().minusSeconds(3600));
+		IssuedSession issued = putSession(user, this.clock.instant().minusSeconds(3600));
 
-		String body = mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, bearer(issued)))
+		String body = this.mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, bearer(issued)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.loginId").value("dummy_me_ok"))
 			.andExpect(jsonPath("$.createdAt").value(user.createdAt().toString()))
@@ -75,7 +76,7 @@ class SessionApiTests {
 			.getContentAsString();
 
 		Instant sessionExpiresAt = Instant.parse(JsonPath.read(body, "$.sessionExpiresAt"));
-		assertThat(items().session(issued.session().idHash())).hasValueSatisfying(saved -> {
+		assertThat(items().session(issued.session().idHash())).hasValueSatisfying((saved) -> {
 			assertThat(saved.lastAccessedAt()).isAfter(issued.session().lastAccessedAt());
 			assertThat(saved.expiresAt()).isAfter(issued.session().expiresAt());
 			assertThat(saved.expiresAt()).isEqualTo(sessionExpiresAt);
@@ -88,14 +89,14 @@ class SessionApiTests {
 	 */
 	@Test
 	void rejectsMissingOrInvalidAuthorization() throws Exception {
-		mockMvc.perform(get("/v1/me"))
+		this.mockMvc.perform(get("/v1/me"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
 			.andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"))
 			.andExpect(jsonPath("$.code").value("SESSION_INVALID"));
 		for (String authorization : new String[] { "Basic dummy", "Bearer dummy-session-id",
-				"Bearer " + Session.issue(UserId.generate(), clock.instant()).sessionId().value() }) {
-			mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, authorization))
+				"Bearer " + Session.issue(UserId.generate(), this.clock.instant()).sessionId().value() }) {
+			this.mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, authorization))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("SESSION_INVALID"));
 		}
@@ -107,9 +108,9 @@ class SessionApiTests {
 	@Test
 	void rejectsExpiredSession() throws Exception {
 		User user = putUser("dummy_me_expired");
-		IssuedSession issued = putSession(user, clock.instant().minus(Session.IDLE_TIMEOUT).minusSeconds(1));
+		IssuedSession issued = putSession(user, this.clock.instant().minus(Session.IDLE_TIMEOUT).minusSeconds(1));
 
-		mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, bearer(issued)))
+		this.mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, bearer(issued)))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("SESSION_INVALID"));
 	}
@@ -120,15 +121,15 @@ class SessionApiTests {
 	@Test
 	void logsOut() throws Exception {
 		User user = putUser("dummy_logout");
-		IssuedSession issued = putSession(user, clock.instant().minusSeconds(60));
+		IssuedSession issued = putSession(user, this.clock.instant().minusSeconds(60));
 
-		mockMvc.perform(delete("/v1/sessions/current").header(HttpHeaders.AUTHORIZATION, bearer(issued)))
+		this.mockMvc.perform(delete("/v1/sessions/current").header(HttpHeaders.AUTHORIZATION, bearer(issued)))
 			.andExpect(status().isNoContent());
 
 		assertThat(items().session(issued.session().idHash())).isEmpty();
-		mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, bearer(issued)))
+		this.mockMvc.perform(get("/v1/me").header(HttpHeaders.AUTHORIZATION, bearer(issued)))
 			.andExpect(status().isUnauthorized());
-		mockMvc
+		this.mockMvc
 			.perform(delete("/v1/sessions/current").header(HttpHeaders.AUTHORIZATION,
 					"bearer " + issued.sessionId().value()))
 			.andExpect(status().isNoContent());
@@ -139,7 +140,7 @@ class SessionApiTests {
 	 */
 	@Test
 	void rejectsLogoutWithoutAuthorization() throws Exception {
-		mockMvc.perform(delete("/v1/sessions/current"))
+		this.mockMvc.perform(delete("/v1/sessions/current"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("SESSION_INVALID"));
 	}
@@ -162,7 +163,7 @@ class SessionApiTests {
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, dynamoDbProperties);
+		return new DynamoDbTestItems(this.dynamoDb, this.dynamoDbProperties);
 	}
 
 }

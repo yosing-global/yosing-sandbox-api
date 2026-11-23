@@ -1,12 +1,13 @@
 package net.yosing.sandbox.api;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.jupiter.api.Test;
+
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 認証アプリに表示されるサービスの名前（sandbox.otpauth.issuer）が、環境ごとに決まった値になることを確認する。

@@ -26,8 +26,8 @@ public class FakeTestUserCleanupStore implements TestUserCleanupStore {
 		if (!loginIdPrefix.startsWith(TEST_LOGIN_ID_PREFIX)) {
 			throw new IllegalArgumentException("テストのユーザーのログイン ID ではない");
 		}
-		findCount++;
-		return users.stream().filter(user -> user.loginId().value().startsWith(loginIdPrefix)).toList();
+		this.findCount++;
+		return this.users.stream().filter((user) -> user.loginId().value().startsWith(loginIdPrefix)).toList();
 	}
 
 	@Override
@@ -35,38 +35,38 @@ public class FakeTestUserCleanupStore implements TestUserCleanupStore {
 		if (!user.loginId().value().startsWith(TEST_LOGIN_ID_PREFIX)) {
 			throw new IllegalArgumentException("テストのユーザーのログイン ID ではない");
 		}
-		if (rejected.contains(user.id())) {
+		if (this.rejected.contains(user.id())) {
 			return false;
 		}
-		return users.remove(user);
+		return this.users.remove(user);
 	}
 
 	/**
 	 * ユーザーを置く（テストの準備）。
 	 */
 	public void add(TestUser user) {
-		users.add(user);
+		this.users.add(user);
 	}
 
 	/**
 	 * このユーザーの削除を、条件に合わなかったことにする（既に消えた等。テストの準備）。
 	 */
 	public void rejectDelete(UserId id) {
-		rejected.add(id);
+		this.rejected.add(id);
 	}
 
 	/**
-	 * 残っているユーザー。
+	 * 残っているユーザー
 	 */
 	public List<TestUser> users() {
-		return List.copyOf(users);
+		return List.copyOf(this.users);
 	}
 
 	/**
-	 * 探した回数。
+	 * 探した回数
 	 */
 	public int findCount() {
-		return findCount;
+		return this.findCount;
 	}
 
 }

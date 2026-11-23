@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.time.Instant;
 
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
@@ -19,14 +16,18 @@ import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
- * 登録の確定のトランザクション（すべて書くか何も書かないか、取り消しの理由の見分け）を、DynamoDB Local で確かめる。
+ * 登録確定のトランザクション（すべて書くか何も書かないか、取り消しの理由の見分け）を、DynamoDB Local で確かめる。
  *
  * <p>テーブルはテストの間で共有するため、テストごとに違うログイン ID を使う。
  */
@@ -58,18 +59,18 @@ class DynamoDbRegistrationCompletionStoreTests {
 		User user = registration.complete(new TotpStep(123), NOW);
 		Session session = Session.issue(user.id(), NOW).session();
 
-		store.complete(registration, user, session);
+		this.store.complete(registration, user, session);
 
 		DynamoDbTestItems items = items();
-		assertThat(items.userItem(user.id())).hasValueSatisfying(item -> {
+		assertThat(items.userItem(user.id())).hasValueSatisfying((item) -> {
 			assertThat(item.get(UserItemMapper.LOGIN_ID).s()).isEqualTo("dummy_store_ok");
 			assertThat(item.get(UserItemMapper.LAST_USED_TOTP_STEP).n()).isEqualTo("123");
 			assertThat(item).doesNotContainKeys(UserItemMapper.LOCKED_UNTIL, UserItemMapper.LOGIN_TOKEN_ID);
 		});
 		assertThat(items.loginIdItem(user.loginId())).hasValueSatisfying(
-				item -> assertThat(item.get(UserItemMapper.USER_ID).s()).isEqualTo(user.id().toString()));
+				(item) -> assertThat(item.get(UserItemMapper.USER_ID).s()).isEqualTo(user.id().toString()));
 		assertThat(items.sessionItem(session.idHash())).hasValueSatisfying(
-				item -> assertThat(item.get(SessionItemMapper.USER_ID).s()).isEqualTo(user.id().toString()));
+				(item) -> assertThat(item.get(SessionItemMapper.USER_ID).s()).isEqualTo(user.id().toString()));
 		assertThat(items.registration(registration.id())).isEmpty();
 	}
 
@@ -84,7 +85,7 @@ class DynamoDbRegistrationCompletionStoreTests {
 		IssuedSession issued = Session.issue(user.id(), NOW);
 
 		assertThatExceptionOfType(LoginIdTakenException.class)
-			.isThrownBy(() -> store.complete(registration, user, issued.session()));
+			.isThrownBy(() -> this.store.complete(registration, user, issued.session()));
 
 		assertThat(items().userItem(user.id())).isEmpty();
 		assertThat(items().sessionItem(issued.session().idHash())).isEmpty();
@@ -102,7 +103,7 @@ class DynamoDbRegistrationCompletionStoreTests {
 		User user = registration.complete(new TotpStep(123), NOW);
 
 		assertThatExceptionOfType(RegistrationNotFoundException.class)
-			.isThrownBy(() -> store.complete(registration, user, Session.issue(user.id(), NOW).session()));
+			.isThrownBy(() -> this.store.complete(registration, user, Session.issue(user.id(), NOW).session()));
 
 		assertThat(items().userItem(user.id())).isEmpty();
 		assertThat(items().loginIdItem(user.loginId())).isEmpty();
@@ -112,12 +113,12 @@ class DynamoDbRegistrationCompletionStoreTests {
 		Registration registration = Registration.start(RegistrationId.generate(), UserId.generate(),
 				LoginId.of(loginId), new PasswordHash("{bcrypt}dummy-hash"), new EncryptedTotpSecret(new byte[] { 1 }),
 				NOW);
-		registrations.add(registration);
+		this.registrations.add(registration);
 		return registration;
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, properties);
+		return new DynamoDbTestItems(this.dynamoDb, this.properties);
 	}
 
 }

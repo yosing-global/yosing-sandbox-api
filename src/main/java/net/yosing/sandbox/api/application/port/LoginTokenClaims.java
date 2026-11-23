@@ -6,7 +6,7 @@ import java.util.Objects;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 
 /**
- * 仮認証 JWT（loginToken）の中身。
+ * 仮認証 JWT（loginToken）の中身
  *
  * <p>JWT の日時は秒の単位のため、署名して検証すると、日時の秒未満は切り捨てられる。
  *

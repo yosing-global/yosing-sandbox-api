@@ -1,0 +1,8 @@
+# blame で飛ばすコミット（整形・機械的な直しだけで、中身を変えていないもの）
+#   GitHub の blame は、このファイルを自動で読む。手元は次の設定で読む
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: Spotless で整形する（コードだけ。コメントは変えない）
+3ec57ee717a844e99474f3ff605edb20786e6457
+# style: Checkstyle の Spring のルールに合わせる（this.、ラムダのかっこ、BDDMockito 等）
+973515e4a8f9d73ce531d8383b3d5d930244e96a

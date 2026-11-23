@@ -6,7 +6,7 @@ import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
 import net.yosing.sandbox.api.domain.model.shared.totp.OtpCode;
 
 /**
- * 登録の確定の入力。
+ * 登録確定の入力
  *
  * @param registrationId 登録 ID
  * @param code 入力された OTP コード

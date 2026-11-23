@@ -20,7 +20,7 @@ public class OtpInvalidException extends RuntimeException {
 	}
 
 	public int remainingAttempts() {
-		return remainingAttempts;
+		return this.remainingAttempts;
 	}
 
 }

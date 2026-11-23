@@ -1,11 +1,11 @@
 package net.yosing.sandbox.api.domain.model.user;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
  * ログイン ID の規則（3〜32文字の英小文字・数字・_・-、大文字は小文字にそろえる）を確かめる。

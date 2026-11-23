@@ -17,10 +17,11 @@ import net.yosing.sandbox.api.domain.model.shared.totp.TotpStep;
 import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserRepository;
 import net.yosing.sandbox.api.domain.service.TotpVerifier;
+
 import org.springframework.stereotype.Service;
 
 /**
- * ログインの確定（POST /v1/logins/verify）。
+ * ログインの確定（POST /v1/logins/verify）
  *
  * <ol>
  * <li>仮認証 JWT（署名・aud・期限）を検証し、ユーザーを取り出して jti が今の仮認証のものかを確かめる。違えば 401
@@ -61,7 +62,6 @@ public class VerifyLoginUseCase {
 
 	/**
 	 * ログインを確定する。
-	 *
 	 * @param command 入力
 	 * @return セッション ID と期限
 	 * @throws LoginTokenInvalidException 仮認証 JWT が無効・期限切れ・使用済みの場合
@@ -69,12 +69,12 @@ public class VerifyLoginUseCase {
 	 * @throws OtpAttemptsExceededException OTP の試行が上限に達した場合
 	 */
 	public VerifyLoginResult verify(VerifyLoginCommand command) {
-		Instant now = clock.instant();
-		LoginTokenClaims claims = loginTokenSigner.verify(command.loginToken(), now)
+		Instant now = this.clock.instant();
+		LoginTokenClaims claims = this.loginTokenSigner.verify(command.loginToken(), now)
 			.orElseThrow(LoginTokenInvalidException::new);
 		String tokenId = claims.tokenId();
-		User user = users.findById(claims.userId())
-			.filter(found -> found.hasLoginToken(tokenId))
+		User user = this.users.findById(claims.userId())
+			.filter((found) -> found.hasLoginToken(tokenId))
 			.orElseThrow(LoginTokenInvalidException::new);
 		if (user.otpAttemptsExhausted()) {
 			// 上限に達したときにロックできていなかった場合（その間に新しい仮認証が始まった等）
@@ -82,16 +82,16 @@ public class VerifyLoginUseCase {
 		}
 
 		// 同時のほかの試行で、仮認証が終わったか上限に達していれば数えられない
-		User counted = users.countOtpAttempt(user.id(), tokenId).orElseThrow(LoginTokenInvalidException::new);
-		TotpSecret secret = totpSecretEncryptor.decrypt(user.totpSecret(), user.id());
-		Optional<TotpStep> matchedStep = totpVerifier.verify(secret, command.code(), TotpStep.at(now),
+		User counted = this.users.countOtpAttempt(user.id(), tokenId).orElseThrow(LoginTokenInvalidException::new);
+		TotpSecret secret = this.totpSecretEncryptor.decrypt(user.totpSecret(), user.id());
+		Optional<TotpStep> matchedStep = this.totpVerifier.verify(secret, command.code(), TotpStep.at(now),
 				Optional.of(user.lastUsedTotpStep()));
 		if (matchedStep.isEmpty()) {
 			throw otpFailure(counted, now);
 		}
 
 		IssuedSession issued = Session.issue(user.id(), now);
-		if (!completionStore.complete(counted, counted.otpVerified(matchedStep.get()), issued.session())) {
+		if (!this.completionStore.complete(counted, counted.otpVerified(matchedStep.get()), issued.session())) {
 			// 同じコード（ステップ）が同時に使われた、または仮認証が置き換わった
 			throw otpFailure(counted, now);
 		}
@@ -107,7 +107,7 @@ public class VerifyLoginUseCase {
 
 	// アカウントをロックし、仮認証を終える。仮認証が置き換わっていて書けなくても、失敗回数が上限のため照合には進めない
 	private OtpAttemptsExceededException lockForOtpFailures(User current, Instant now) {
-		users.saveOtpLock(current, current.lockForOtpFailures(now));
+		this.users.saveOtpLock(current, current.lockForOtpFailures(now));
 		return new OtpAttemptsExceededException();
 	}
 

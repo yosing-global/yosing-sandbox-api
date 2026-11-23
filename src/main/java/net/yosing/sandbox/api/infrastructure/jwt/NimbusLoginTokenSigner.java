@@ -46,7 +46,7 @@ final class NimbusLoginTokenSigner implements LoginTokenSigner {
 
 	@Override
 	public String sign(LoginTokenClaims claims) {
-		JWTClaimsSet claimsSet = new JWTClaimsSet.Builder().audience(appEnv)
+		JWTClaimsSet claimsSet = new JWTClaimsSet.Builder().audience(this.appEnv)
 			.subject(claims.userId().toString())
 			.jwtID(claims.tokenId())
 			.issueTime(Date.from(claims.issuedAt()))
@@ -54,8 +54,9 @@ final class NimbusLoginTokenSigner implements LoginTokenSigner {
 			.build();
 		SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(ALGORITHM).type(JOSEObjectType.JWT).build(), claimsSet);
 		try {
-			jwt.sign(signer);
-		} catch (JOSEException ex) {
+			jwt.sign(this.signer);
+		}
+		catch (JOSEException ex) {
 			throw new IllegalStateException("仮認証 JWT の署名に失敗した", ex);
 		}
 		return jwt.serialize();
@@ -73,21 +74,23 @@ final class NimbusLoginTokenSigner implements LoginTokenSigner {
 				return Optional.empty();
 			}
 			Optional<LoginTokenClaims> claims = toClaims(jwt.getJWTClaimsSet(), now);
-			if (claims.isEmpty() || !jwt.verify(verifier)) {
+			if (claims.isEmpty() || !jwt.verify(this.verifier)) {
 				return Optional.empty();
 			}
 			return claims;
-		} catch (ParseException ex) {
+		}
+		catch (ParseException ex) {
 			// JWT の形式でない（alg が none の JWT もここ）
 			return Optional.empty();
-		} catch (JOSEException ex) {
+		}
+		catch (JOSEException ex) {
 			throw new IllegalStateException("仮認証 JWT の検証に失敗した", ex);
 		}
 	}
 
 	private Optional<LoginTokenClaims> toClaims(JWTClaimsSet claimsSet, Instant now) {
 		// 他の環境（PR 環境どうしを含む）で発行した JWT は受け付けない
-		if (!List.of(appEnv).equals(claimsSet.getAudience())) {
+		if (!List.of(this.appEnv).equals(claimsSet.getAudience())) {
 			return Optional.empty();
 		}
 		String subject = claimsSet.getSubject();
@@ -101,9 +104,10 @@ final class NimbusLoginTokenSigner implements LoginTokenSigner {
 			return Optional.empty();
 		}
 		try {
-			return Optional.of(new LoginTokenClaims(UserId.parse(subject), tokenId, issuedAt.toInstant(),
-					expiresAt.toInstant()));
-		} catch (IllegalArgumentException ex) {
+			return Optional
+				.of(new LoginTokenClaims(UserId.parse(subject), tokenId, issuedAt.toInstant(), expiresAt.toInstant()));
+		}
+		catch (IllegalArgumentException ex) {
 			// sub が UUID でない
 			return Optional.empty();
 		}

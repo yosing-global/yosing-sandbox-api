@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
- * 利用者が入力した OTP コード（数字6桁）。
+ * 利用者が入力した OTP コード（数字6桁）
  *
  * <p>ログ等に出ないよう、toString では中身を出さない。
  *

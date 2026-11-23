@@ -12,10 +12,11 @@ import net.yosing.sandbox.api.domain.model.shared.totp.TotpSecret;
 import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import net.yosing.sandbox.api.domain.model.user.UserRepository;
+
 import org.springframework.stereotype.Service;
 
 /**
- * 登録の開始（POST /v1/registrations）。
+ * 登録の開始（POST /v1/registrations）
  *
  * <p>ログイン ID が使われていないことを確かめ、TOTP の秘密情報を作って仮登録を保存し、認証アプリの設定 URI を返す。
  * 秘密情報は、仮登録のときに採番した userId で暗号化する。
@@ -48,23 +49,22 @@ public class StartRegistrationUseCase {
 
 	/**
 	 * 登録を始める。
-	 *
 	 * @param command 入力
 	 * @return 登録 ID・設定 URI・期限
 	 * @throws LoginIdTakenException ログイン ID が使われている場合
 	 */
 	public StartRegistrationResult start(StartRegistrationCommand command) {
-		if (users.existsByLoginId(command.loginId())) {
+		if (this.users.existsByLoginId(command.loginId())) {
 			throw new LoginIdTakenException();
 		}
-		PasswordHash passwordHash = passwordHasher.hash(command.password());
+		PasswordHash passwordHash = this.passwordHasher.hash(command.password());
 		TotpSecret secret = TotpSecret.generate();
 		UserId userId = UserId.generate();
 		Registration registration = Registration.start(RegistrationId.generate(), userId, command.loginId(),
-				passwordHash, totpSecretEncryptor.encrypt(secret, userId), clock.instant());
-		registrations.add(registration);
+				passwordHash, this.totpSecretEncryptor.encrypt(secret, userId), this.clock.instant());
+		this.registrations.add(registration);
 		return new StartRegistrationResult(registration.id(),
-				OtpauthUri.create(issuer, command.loginId().value(), secret), registration.expiresAt());
+				OtpauthUri.create(this.issuer, command.loginId().value(), secret), registration.expiresAt());
 	}
 
 }

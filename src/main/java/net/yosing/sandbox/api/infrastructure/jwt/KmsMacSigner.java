@@ -33,11 +33,11 @@ final class KmsMacSigner implements JWSSigner {
 			throw new JOSEException("HS256 にだけ対応する: " + header.getAlgorithm());
 		}
 		GenerateMacRequest request = GenerateMacRequest.builder()
-			.keyId(keyArn)
+			.keyId(this.keyArn)
 			.macAlgorithm(MacAlgorithmSpec.HMAC_SHA_256)
 			.message(SdkBytes.fromByteArray(signingInput))
 			.build();
-		return Base64URL.encode(kms.generateMac(request).mac().asByteArray());
+		return Base64URL.encode(this.kms.generateMac(request).mac().asByteArray());
 	}
 
 	@Override

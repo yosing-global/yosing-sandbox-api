@@ -8,6 +8,7 @@ import java.util.Set;
 
 import net.yosing.sandbox.api.application.port.TestUserCleanupStore;
 import net.yosing.sandbox.api.application.port.TestUserCleanupStore.TestUser;
+
 import org.springframework.stereotype.Service;
 
 /**
@@ -44,7 +45,6 @@ public class CleanupTestUsersUseCase {
 
 	/**
 	 * テストのユーザーを掃除する。
-	 *
 	 * @param environment 動いている環境（ROLE_ENV）
 	 * @return 件数
 	 * @throws IllegalStateException 掃除してよい環境でない場合（何も探さず、消さない）
@@ -54,8 +54,8 @@ public class CleanupTestUsersUseCase {
 			throw new IllegalStateException("テストのユーザーの掃除は、この環境では行わない：" + environment);
 		}
 		// ちょうど残す期間の境目のユーザーは残す（境目より前に登録したユーザーだけを消す）
-		Instant cutoff = clock.instant().minus(RETENTION);
-		List<TestUser> found = store.findByLoginIdPrefix(TestUserCleanupStore.TEST_LOGIN_ID_PREFIX);
+		Instant cutoff = this.clock.instant().minus(RETENTION);
+		List<TestUser> found = this.store.findByLoginIdPrefix(TestUserCleanupStore.TEST_LOGIN_ID_PREFIX);
 		int expired = 0;
 		int deleted = 0;
 		for (TestUser user : found) {
@@ -63,7 +63,7 @@ public class CleanupTestUsersUseCase {
 				continue;
 			}
 			expired++;
-			if (store.delete(user)) {
+			if (this.store.delete(user)) {
 				deleted++;
 			}
 		}

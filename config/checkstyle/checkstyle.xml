@@ -4,9 +4,10 @@
 	"https://checkstyle.org/dtds/configuration_1_3.dtd">
 
 <!--
-	Checkstyle の設定（独自）
-	  字下げはタブ（Spring Initializr の形）。Google・Sun の既定のルールはスペース前提のため使わず、
-	  名前の付け方・import・書き間違いの検出を中心にする
+	Checkstyle の設定
+	  Spring のルール（SpringChecks。Spring Java Format に付いている、Spring Boot の開発の決まり）に、
+	  独自のルール（名前の付け方・import・書き間違いの検出）を足す。字下げはタブ（Spring の流儀）
+	  Spring のルールのうち、このプロジェクトに合わないものだけを SpringChecks の excludes で外し、理由を書く
 	  例外的に外す場合は @SuppressWarnings("checkstyle:<チェック名>") を付け、理由をコメントに書く
 -->
 <module name="Checker">
@@ -14,6 +15,20 @@
 	<property name="severity" value="error"/>
 	<!-- メッセージは英語にする（日本語だと、Windows のコンソールで文字化けするため） -->
 	<property name="localeLanguage" value="en"/>
+
+	<!--
+		Spring のルール。次のものは、このプロジェクトに合わないため外す
+		  SpringHeaderCheck：ファイルの先頭のライセンスのヘッダー（ライセンスのヘッダーを付ける方針ではない）
+		  JavadocTypeCheck：クラスの JavaDoc の @author（1人の開発で、作者は git に残る）
+		  SummaryJavadocCheck：JavaDoc の最初の文が「.」で終わること（日本語の「。」が認められない）
+		  JavadocMethodCheck：public のメソッドの @param・@return（JavaDoc は、期待する動きを1文で書く方針）
+		  JavadocPackageCheck：パッケージごとの package-info.java（パッケージの説明は CLAUDE.md にある。
+		    null の扱いを @NullMarked で揃える等、要るようになったら作る）
+	-->
+	<module name="io.spring.javaformat.checkstyle.SpringChecks">
+		<!-- 区切りはカンマだけ（空白・改行を入れると、名前の一部と読まれるおそれがあるため、1行に書く） -->
+		<property name="excludes" value="io.spring.javaformat.checkstyle.check.SpringHeaderCheck,com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocTypeCheck,com.puppycrawl.tools.checkstyle.checks.javadoc.SummaryJavadocCheck,com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck,com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocPackageCheck"/>
+	</module>
 
 	<module name="NewlineAtEndOfFile"/>
 	<module name="SuppressWarningsFilter"/>
@@ -39,10 +54,9 @@
 		<module name="StaticVariableName"/>
 		<module name="ConstantName"/>
 
-		<!-- ブロック -->
+		<!-- ブロック（RightCurly は使わない。Spring の流儀では else・catch を } の次の行に書くため、整形の結果とぶつかる） -->
 		<module name="NeedBraces"/>
 		<module name="LeftCurly"/>
-		<module name="RightCurly"/>
 		<module name="EmptyBlock">
 			<property name="option" value="text"/>
 		</module>

@@ -16,13 +16,13 @@ public class FakeLoginTokenSigner implements LoginTokenSigner {
 	public String sign(LoginTokenClaims claims) {
 		// 同じ jti でもユーザーが違えば別のトークンにする
 		String token = "dummy-token-" + claims.userId() + "-" + claims.tokenId();
-		issued.put(token, claims);
+		this.issued.put(token, claims);
 		return token;
 	}
 
 	@Override
 	public Optional<LoginTokenClaims> verify(String token, Instant now) {
-		return Optional.ofNullable(issued.get(token)).filter(claims -> now.isBefore(claims.expiresAt()));
+		return Optional.ofNullable(this.issued.get(token)).filter((claims) -> now.isBefore(claims.expiresAt()));
 	}
 
 }

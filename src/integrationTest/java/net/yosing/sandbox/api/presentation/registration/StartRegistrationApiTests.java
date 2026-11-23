@@ -1,13 +1,5 @@
 package net.yosing.sandbox.api.presentation.registration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.startsWith;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
 import net.yosing.sandbox.api.domain.model.registration.RegistrationId;
@@ -16,6 +8,8 @@ import net.yosing.sandbox.api.domain.model.user.UserId;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbProperties;
 import net.yosing.sandbox.api.infrastructure.dynamodb.DynamoDbTestItems;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -23,7 +17,14 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * 登録の開始（POST /v1/registrations）の API を、DynamoDB Local とローカルの暗号化で確かめる。
@@ -53,7 +54,7 @@ class StartRegistrationApiTests {
 	 */
 	@Test
 	void startsRegistration() throws Exception {
-		String body = mockMvc
+		String body = this.mockMvc
 			.perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"loginId\":\"Dummy_Start_OK\",\"password\":\"dummy correct horse battery\"}"))
 			.andExpect(status().isCreated())
@@ -64,7 +65,7 @@ class StartRegistrationApiTests {
 			.getContentAsString();
 
 		String registrationId = JsonPath.read(body, "$.registrationId");
-		assertThat(items().registration(RegistrationId.parse(registrationId))).hasValueSatisfying(saved -> {
+		assertThat(items().registration(RegistrationId.parse(registrationId))).hasValueSatisfying((saved) -> {
 			assertThat(saved.loginId()).isEqualTo(LoginId.of("dummy_start_ok"));
 			assertThat(saved.passwordHash().value()).startsWith("{bcrypt}$2a$12$");
 			assertThat(saved.totpSecret().bytes()).isNotEmpty();
@@ -77,7 +78,7 @@ class StartRegistrationApiTests {
 	 */
 	@Test
 	void rejectsInvalidInput() throws Exception {
-		mockMvc
+		this.mockMvc
 			.perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"loginId\":\"ab\",\"password\":\"dummy\"}"))
 			.andExpect(status().isBadRequest())
@@ -93,7 +94,7 @@ class StartRegistrationApiTests {
 	 */
 	@Test
 	void rejectsMissingFields() throws Exception {
-		mockMvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content("{}"))
+		this.mockMvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content("{}"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
 			.andExpect(jsonPath("$.errors[0].field").value("loginId"))
@@ -105,7 +106,7 @@ class StartRegistrationApiTests {
 	 */
 	@Test
 	void rejectsMalformedJson() throws Exception {
-		mockMvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content("{"))
+		this.mockMvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content("{"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
 			.andExpect(jsonPath("$.errors", empty()));
@@ -118,7 +119,7 @@ class StartRegistrationApiTests {
 	void rejectsTakenLoginId() throws Exception {
 		items().putLoginId(LoginId.of("dummy_taken_id"), UserId.generate());
 
-		mockMvc
+		this.mockMvc
 			.perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"loginId\":\"Dummy_Taken_ID\",\"password\":\"dummy correct horse battery\"}"))
 			.andExpect(status().isConflict())
@@ -128,7 +129,7 @@ class StartRegistrationApiTests {
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, dynamoDbProperties);
+		return new DynamoDbTestItems(this.dynamoDb, this.dynamoDbProperties);
 	}
 
 }

@@ -1,8 +1,5 @@
 package net.yosing.sandbox.api.application.registration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -19,8 +16,11 @@ import net.yosing.sandbox.api.domain.model.user.Password;
 import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 /**
- * 登録の開始の流れ（仮登録の保存と、設定 URI の返し方、使用済みのログイン ID の扱い）を確かめる。
+ * 登録開始の流れ（仮登録の保存と、設定 URI の返し方、使用済みのログイン ID の扱い）を確かめる。
  */
 class StartRegistrationUseCaseTests {
 
@@ -32,8 +32,9 @@ class StartRegistrationUseCaseTests {
 
 	private final FakeTotpSecretEncryptor encryptor = new FakeTotpSecretEncryptor();
 
-	private final StartRegistrationUseCase useCase = new StartRegistrationUseCase(users, registrations,
-			new FakePasswordHasher(), encryptor, Clock.fixed(NOW, ZoneOffset.UTC), new OtpauthProperties("dummy-sandbox"));
+	private final StartRegistrationUseCase useCase = new StartRegistrationUseCase(this.users, this.registrations,
+			new FakePasswordHasher(), this.encryptor, Clock.fixed(NOW, ZoneOffset.UTC),
+			new OtpauthProperties("dummy-sandbox"));
 
 	private final StartRegistrationCommand command = new StartRegistrationCommand(LoginId.of("dummy_alice"),
 			new Password("dummy correct horse battery"));
@@ -44,16 +45,16 @@ class StartRegistrationUseCaseTests {
 	 */
 	@Test
 	void savesRegistrationAndReturnsOtpauthUri() {
-		StartRegistrationResult result = useCase.start(command);
+		StartRegistrationResult result = this.useCase.start(this.command);
 
-		assertThat(registrations.all()).hasSize(1);
-		Registration saved = registrations.all().get(0);
+		assertThat(this.registrations.all()).hasSize(1);
+		Registration saved = this.registrations.all().get(0);
 		assertThat(saved.id()).isEqualTo(result.registrationId());
 		assertThat(saved.loginId()).isEqualTo(LoginId.of("dummy_alice"));
 		assertThat(saved.passwordHash()).isEqualTo(new PasswordHash("{dummy}dummy correct horse battery"));
 		assertThat(saved.expiresAt()).isEqualTo(NOW.plus(Registration.VALIDITY)).isEqualTo(result.expiresAt());
 
-		TotpSecret secret = encryptor.decrypt(saved.totpSecret(), saved.userId());
+		TotpSecret secret = this.encryptor.decrypt(saved.totpSecret(), saved.userId());
 		assertThat(result.otpauthUri()).isEqualTo(OtpauthUri.create("dummy-sandbox", "dummy_alice", secret));
 	}
 
@@ -62,10 +63,10 @@ class StartRegistrationUseCaseTests {
 	 */
 	@Test
 	void rejectsTakenLoginId() {
-		users.addLoginId(LoginId.of("dummy_alice"));
+		this.users.addLoginId(LoginId.of("dummy_alice"));
 
-		assertThatExceptionOfType(LoginIdTakenException.class).isThrownBy(() -> useCase.start(command));
-		assertThat(registrations.all()).isEmpty();
+		assertThatExceptionOfType(LoginIdTakenException.class).isThrownBy(() -> this.useCase.start(this.command));
+		assertThat(this.registrations.all()).isEmpty();
 	}
 
 }

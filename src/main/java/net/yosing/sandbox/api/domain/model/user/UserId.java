@@ -18,7 +18,6 @@ public record UserId(UUID value) {
 
 	/**
 	 * 新しい ID を採番する。
-	 *
 	 * @return 新しい ID
 	 */
 	public static UserId generate() {
@@ -27,7 +26,6 @@ public record UserId(UUID value) {
 
 	/**
 	 * 文字列（保存した値・JWT の sub 等）から ID を作る。
-	 *
 	 * @param value UUID の文字列
 	 * @return ID
 	 * @throws IllegalArgumentException UUID の形式でない場合
@@ -38,7 +36,7 @@ public record UserId(UUID value) {
 
 	@Override
 	public String toString() {
-		return value.toString();
+		return this.value.toString();
 	}
 
 }

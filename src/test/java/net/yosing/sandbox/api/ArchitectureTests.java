@@ -1,12 +1,11 @@
 package net.yosing.sandbox.api;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-import static com.tngtech.archunit.library.Architectures.onionArchitecture;
-
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
+import com.tngtech.archunit.library.Architectures;
 
 /**
  * パッケージの依存の決まり（オニオンアーキテクチャ）を確認する。
@@ -18,13 +17,17 @@ import com.tngtech.archunit.lang.ArchRule;
  * </ul>
  */
 @AnalyzeClasses(packages = "net.yosing.sandbox.api", importOptions = ImportOption.DoNotIncludeTests.class)
-class ArchitectureTests {
+final class ArchitectureTests {
+
+	// ルールは static のフィールドだけで、ArchUnit はインスタンスを作らない
+	private ArchitectureTests() {
+	}
 
 	/**
 	 * 層の依存が、内側（domain）に向かう向きだけになっている。
 	 */
 	@ArchTest
-	static final ArchRule ONION_ARCHITECTURE = onionArchitecture()
+	static final ArchRule ONION_ARCHITECTURE = Architectures.onionArchitecture()
 		.domainModels("..domain.model..")
 		.domainServices("..domain.service..")
 		.applicationServices("..application..")
@@ -37,7 +40,8 @@ class ArchitectureTests {
 	 * domain が Spring・AWS SDK・Nimbus・Jakarta・Jackson に依存していない。
 	 */
 	@ArchTest
-	static final ArchRule DOMAIN_IS_PLAIN_JAVA = noClasses().that()
+	static final ArchRule DOMAIN_IS_PLAIN_JAVA = ArchRuleDefinition.noClasses()
+		.that()
 		.resideInAPackage("..domain..")
 		.should()
 		.dependOnClassesThat()

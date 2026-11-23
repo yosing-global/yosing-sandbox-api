@@ -1,11 +1,11 @@
 package net.yosing.sandbox.api.domain.model.user;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
  * パスワードの規則（12〜64文字の表示できる ASCII）と、中身を漏らさないことを確かめる。
@@ -37,8 +37,7 @@ class PasswordTests {
 	@Test
 	void doesNotShowValue() {
 		assertThat(new Password("dummy correct horse battery").toString()).doesNotContain("correct");
-		assertThatIllegalArgumentException().isThrownBy(() -> new Password("dummy"))
-			.withMessageNotContaining("dummy");
+		assertThatIllegalArgumentException().isThrownBy(() -> new Password("dummy")).withMessageNotContaining("dummy");
 	}
 
 	/**

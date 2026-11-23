@@ -11,7 +11,6 @@ public interface RegistrationRepository {
 
 	/**
 	 * 新しい仮登録を保存する（AP2）。期限が過ぎたら DB からも消える（TTL）。
-	 *
 	 * @param registration 仮登録
 	 * @throws RuntimeException 同じ登録 ID の仮登録が既にある場合（ID はランダムなため、ふつうは起きない）
 	 */
@@ -19,7 +18,6 @@ public interface RegistrationRepository {
 
 	/**
 	 * 仮登録を取り出す（AP3）。期限が切れていても、DB から消えるまでは返す（期限の確認は呼ぶ側で行う）。
-	 *
 	 * @param id 登録 ID
 	 * @return 仮登録。無ければ空
 	 */
@@ -30,7 +28,6 @@ public interface RegistrationRepository {
 	 *
 	 * <p>仮登録があり、試行が上限（{@link Registration#MAX_OTP_FAILURES}）に達していないことを条件にする
 	 * （数えられた試行だけが照合に進むため、同時に試されても上限を超えて照合しない）。
-	 *
 	 * @param id 登録 ID
 	 * @return 数えた後の仮登録。条件に合わなければ空（仮登録が無い、または上限に達した）
 	 */
@@ -38,7 +35,6 @@ public interface RegistrationRepository {
 
 	/**
 	 * 仮登録を削除する（OTP の失敗が上限に達したとき）。無くても失敗しない。
-	 *
 	 * @param id 登録 ID
 	 */
 	void delete(RegistrationId id);

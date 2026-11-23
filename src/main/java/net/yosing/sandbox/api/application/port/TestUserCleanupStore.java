@@ -22,7 +22,6 @@ public interface TestUserCleanupStore {
 
 	/**
 	 * ログイン ID が {@code loginIdPrefix} で始まるユーザーを、すべて探す。
-	 *
 	 * @param loginIdPrefix ログイン ID の先頭（{@link #TEST_LOGIN_ID_PREFIX} で始まること）
 	 * @return 見つかったユーザー
 	 * @throws IllegalArgumentException 先頭が {@link #TEST_LOGIN_ID_PREFIX} で始まらない場合
@@ -34,7 +33,6 @@ public interface TestUserCleanupStore {
 	 *
 	 * <p>ユーザーのログイン ID が {@code user} と同じで {@link #TEST_LOGIN_ID_PREFIX} で始まること、ログイン ID の項目が
 	 * このユーザーを指していることを条件にする。
-	 *
 	 * @param user 消すユーザー（{@link #findByLoginIdPrefix} の結果）
 	 * @return 消したら true。条件に合わなければ false（既に消えた等）
 	 * @throws IllegalArgumentException ログイン ID が {@link #TEST_LOGIN_ID_PREFIX} で始まらない場合

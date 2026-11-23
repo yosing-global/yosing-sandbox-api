@@ -1,9 +1,9 @@
 package net.yosing.sandbox.api.domain.model.user;
 
+import org.junit.jupiter.api.Test;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-
-import org.junit.jupiter.api.Test;
 
 /**
  * ユーザー ID の生成と、文字列からの復元を確かめる。

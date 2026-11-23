@@ -19,7 +19,6 @@ public record OtpauthUri(String value) {
 
 	/**
 	 * 設定 URI を作る。認証アプリには「発行者:アカウント名」で表示される。
-	 *
 	 * @param issuer 発行者（サービスの名前）
 	 * @param accountName アカウント名（ログイン ID）
 	 * @param secret 秘密情報
@@ -27,12 +26,9 @@ public record OtpauthUri(String value) {
 	 */
 	public static OtpauthUri create(String issuer, String accountName, TotpSecret secret) {
 		String encodedIssuer = encode(issuer);
-		return new OtpauthUri("otpauth://totp/" + encodedIssuer + ":" + encode(accountName)
-				+ "?secret=" + Base32.encode(secret.bytes())
-				+ "&issuer=" + encodedIssuer
-				+ "&algorithm=" + TotpParameters.ALGORITHM
-				+ "&digits=" + TotpParameters.DIGITS
-				+ "&period=" + TotpParameters.PERIOD.toSeconds());
+		return new OtpauthUri("otpauth://totp/" + encodedIssuer + ":" + encode(accountName) + "?secret="
+				+ Base32.encode(secret.bytes()) + "&issuer=" + encodedIssuer + "&algorithm=" + TotpParameters.ALGORITHM
+				+ "&digits=" + TotpParameters.DIGITS + "&period=" + TotpParameters.PERIOD.toSeconds());
 	}
 
 	// URLEncoder は空白を「+」にするため、URI の形（%20）に直す

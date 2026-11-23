@@ -17,26 +17,26 @@ public class InMemorySessionRepository implements SessionRepository {
 	 * セッションを足す（テストの準備）。
 	 */
 	public void add(Session session) {
-		sessions.put(session.idHash(), session);
+		this.sessions.put(session.idHash(), session);
 	}
 
 	@Override
 	public Optional<Session> findByIdHash(SessionIdHash idHash) {
-		return Optional.ofNullable(sessions.get(idHash));
+		return Optional.ofNullable(this.sessions.get(idHash));
 	}
 
 	@Override
 	public boolean saveAccess(Session touched) {
-		if (!sessions.containsKey(touched.idHash())) {
+		if (!this.sessions.containsKey(touched.idHash())) {
 			return false;
 		}
-		sessions.put(touched.idHash(), touched);
+		this.sessions.put(touched.idHash(), touched);
 		return true;
 	}
 
 	@Override
 	public void delete(SessionIdHash idHash) {
-		sessions.remove(idHash);
+		this.sessions.remove(idHash);
 	}
 
 }

@@ -34,25 +34,25 @@ final class KmsTotpSecretEncryptor implements TotpSecretEncryptor {
 	@Override
 	public EncryptedTotpSecret encrypt(TotpSecret secret, UserId userId) {
 		EncryptRequest request = EncryptRequest.builder()
-			.keyId(keyArn)
+			.keyId(this.keyArn)
 			.plaintext(SdkBytes.fromByteArray(secret.bytes()))
 			.encryptionContext(encryptionContext(userId))
 			.build();
-		return new EncryptedTotpSecret(kms.encrypt(request).ciphertextBlob().asByteArray());
+		return new EncryptedTotpSecret(this.kms.encrypt(request).ciphertextBlob().asByteArray());
 	}
 
 	@Override
 	public TotpSecret decrypt(EncryptedTotpSecret encrypted, UserId userId) {
 		DecryptRequest request = DecryptRequest.builder()
-			.keyId(keyArn)
+			.keyId(this.keyArn)
 			.ciphertextBlob(SdkBytes.fromByteArray(encrypted.bytes()))
 			.encryptionContext(encryptionContext(userId))
 			.build();
-		return new TotpSecret(kms.decrypt(request).plaintext().asByteArray());
+		return new TotpSecret(this.kms.decrypt(request).plaintext().asByteArray());
 	}
 
 	private Map<String, String> encryptionContext(UserId userId) {
-		return Map.of("userId", userId.toString(), "env", roleEnv);
+		return Map.of("userId", userId.toString(), "env", this.roleEnv);
 	}
 
 }

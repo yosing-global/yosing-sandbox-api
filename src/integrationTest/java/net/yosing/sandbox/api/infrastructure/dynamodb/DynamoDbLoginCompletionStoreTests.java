@@ -1,7 +1,5 @@
 package net.yosing.sandbox.api.infrastructure.dynamodb;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Instant;
 
 import net.yosing.sandbox.api.DynamoDbLocalContainerConfiguration;
@@ -13,14 +11,17 @@ import net.yosing.sandbox.api.domain.model.user.PasswordHash;
 import net.yosing.sandbox.api.domain.model.user.User;
 import net.yosing.sandbox.api.domain.model.user.UserId;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * ログインの確定のトランザクション（ユーザーの条件付き更新とセッションの作成を、すべて行うか何もしないか）を、DynamoDB Local で確かめる。
+ * ログイン確定のトランザクション（ユーザーの条件付き更新とセッションの作成を、すべて行うか何もしないか）を、DynamoDB Local で確かめる。
  *
  * <p>テーブルはテストの間で共有するため、テストごとに違うログイン ID を使う。
  */
@@ -48,9 +49,9 @@ class DynamoDbLoginCompletionStoreTests {
 		User current = putLoggingInUser("dummy_login_store_ok", "dummy-jti");
 		Session session = Session.issue(current.id(), NOW).session();
 
-		assertThat(store.complete(current, current.otpVerified(new TotpStep(124)), session)).isTrue();
+		assertThat(this.store.complete(current, current.otpVerified(new TotpStep(124)), session)).isTrue();
 
-		assertThat(items().user(current.id())).hasValueSatisfying(saved -> {
+		assertThat(items().user(current.id())).hasValueSatisfying((saved) -> {
 			assertThat(saved.lastUsedTotpStep()).isEqualTo(new TotpStep(124));
 			assertThat(saved.otpFailureCount()).isZero();
 			assertThat(saved.loginTokenId()).isEmpty();
@@ -66,9 +67,9 @@ class DynamoDbLoginCompletionStoreTests {
 		User current = putLoggingInUser("dummy_login_store_used", "dummy-jti");
 		Session first = Session.issue(current.id(), NOW).session();
 		Session second = Session.issue(current.id(), NOW).session();
-		store.complete(current, current.otpVerified(new TotpStep(124)), first);
+		this.store.complete(current, current.otpVerified(new TotpStep(124)), first);
 
-		assertThat(store.complete(current, current.otpVerified(new TotpStep(124)), second)).isFalse();
+		assertThat(this.store.complete(current, current.otpVerified(new TotpStep(124)), second)).isFalse();
 
 		assertThat(items().sessionItem(second.idHash())).isEmpty();
 	}
@@ -82,9 +83,9 @@ class DynamoDbLoginCompletionStoreTests {
 		items().putUser(current.passwordVerified("dummy-new-jti"));
 		Session session = Session.issue(current.id(), NOW).session();
 
-		assertThat(store.complete(current, current.otpVerified(new TotpStep(124)), session)).isFalse();
+		assertThat(this.store.complete(current, current.otpVerified(new TotpStep(124)), session)).isFalse();
 
-		assertThat(items().user(current.id())).hasValueSatisfying(saved -> {
+		assertThat(items().user(current.id())).hasValueSatisfying((saved) -> {
 			assertThat(saved.lastUsedTotpStep()).isEqualTo(new TotpStep(123));
 			assertThat(saved.loginTokenId()).hasValue("dummy-new-jti");
 		});
@@ -93,15 +94,16 @@ class DynamoDbLoginCompletionStoreTests {
 
 	// パスワードが合って、仮認証（jti）が始まっているユーザー（最後に使ったステップは 123）
 	private User putLoggingInUser(String loginId, String loginTokenId) {
-		User user = User.register(UserId.generate(), LoginId.of(loginId), new PasswordHash("{bcrypt}dummy-hash"),
-				new EncryptedTotpSecret(new byte[] { 1 }), new TotpStep(123), NOW)
+		User user = User
+			.register(UserId.generate(), LoginId.of(loginId), new PasswordHash("{bcrypt}dummy-hash"),
+					new EncryptedTotpSecret(new byte[] { 1 }), new TotpStep(123), NOW)
 			.passwordVerified(loginTokenId);
 		items().putUser(user);
 		return user;
 	}
 
 	private DynamoDbTestItems items() {
-		return new DynamoDbTestItems(dynamoDb, properties);
+		return new DynamoDbTestItems(this.dynamoDb, this.properties);
 	}
 
 }

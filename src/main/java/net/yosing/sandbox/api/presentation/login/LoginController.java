@@ -8,13 +8,14 @@ import net.yosing.sandbox.api.application.login.VerifyLoginUseCase;
 import net.yosing.sandbox.api.domain.model.shared.totp.OtpCode;
 import net.yosing.sandbox.api.domain.model.user.LoginId;
 import net.yosing.sandbox.api.domain.model.user.Password;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * ログインの API（Notion の 4.2 API設計の 3・4）。
+ * ログインの API（Notion の 4.2 API設計の 3・4）
  */
 @RestController
 @RequestMapping("/v1/logins")
@@ -30,23 +31,23 @@ class LoginController {
 	}
 
 	/**
-	 * ログインの開始。
+	 * ログインの開始
 	 */
 	@PostMapping
 	StartLoginResponse start(@Valid @RequestBody StartLoginRequest request) {
 		// 形式は検証済みのため、ドメインの型にできる
 		StartLoginCommand command = new StartLoginCommand(LoginId.of(request.loginId()),
 				new Password(request.password()));
-		return StartLoginResponse.from(startLogin.start(command));
+		return StartLoginResponse.from(this.startLogin.start(command));
 	}
 
 	/**
-	 * ログインの確定。
+	 * ログインの確定
 	 */
 	@PostMapping("/verify")
 	VerifyLoginResponse verify(@Valid @RequestBody VerifyLoginRequest request) {
 		VerifyLoginCommand command = new VerifyLoginCommand(request.loginToken(), new OtpCode(request.code()));
-		return VerifyLoginResponse.from(verifyLogin.verify(command));
+		return VerifyLoginResponse.from(this.verifyLogin.verify(command));
 	}
 
 }

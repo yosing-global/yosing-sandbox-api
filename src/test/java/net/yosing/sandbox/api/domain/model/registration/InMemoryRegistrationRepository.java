@@ -15,37 +15,37 @@ public class InMemoryRegistrationRepository implements RegistrationRepository {
 
 	@Override
 	public void add(Registration registration) {
-		if (registrations.putIfAbsent(registration.id(), registration) != null) {
+		if (this.registrations.putIfAbsent(registration.id(), registration) != null) {
 			throw new IllegalStateException("同じ登録 ID の仮登録がある");
 		}
 	}
 
 	@Override
 	public Optional<Registration> findById(RegistrationId id) {
-		return Optional.ofNullable(registrations.get(id));
+		return Optional.ofNullable(this.registrations.get(id));
 	}
 
 	@Override
 	public Optional<Registration> countOtpAttempt(RegistrationId id) {
-		return findById(id).filter(found -> !found.otpAttemptsExhausted()).map(found -> {
+		return findById(id).filter((found) -> !found.otpAttemptsExhausted()).map((found) -> {
 			Registration counted = Registration.restore(found.id(), found.userId(), found.loginId(),
 					found.passwordHash(), found.totpSecret(), found.otpFailureCount() + 1, found.createdAt(),
 					found.expiresAt());
-			registrations.put(id, counted);
+			this.registrations.put(id, counted);
 			return counted;
 		});
 	}
 
 	@Override
 	public void delete(RegistrationId id) {
-		registrations.remove(id);
+		this.registrations.remove(id);
 	}
 
 	/**
-	 * 保存した仮登録（テストの確認用）。
+	 * 保存した仮登録（テストの確認用）
 	 */
 	public List<Registration> all() {
-		return new ArrayList<>(registrations.values());
+		return new ArrayList<>(this.registrations.values());
 	}
 
 }
