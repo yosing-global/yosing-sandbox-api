@@ -24,7 +24,8 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 | AWS | AWS SDK for Java 2.x（`dynamodb`、`kms`）。Enhanced Client は使わず、ドメインの型と DynamoDB の項目の変換は infrastructure で書く。Spring Cloud AWS は使わない |
 | ヘルスチェック | Actuator の `/actuator/health`（`/healthz` はリバースプロキシの NGINX が先に応答するため使わない） |
 | テスト | JUnit。単体テスト（`src/test`）と結合テスト（`src/integrationTest`。Testcontainers の DynamoDB Local）に分ける。`./gradlew build` で両方を流す（下の「テスト」） |
-| 静的チェック | Checkstyle（独自の設定 `config/checkstyle/checkstyle.xml`。字下げはタブのため、字下げのルールは使わない）、SpotBugs ＋ Find Security Bugs（`config/spotbugs/exclude.xml`。テストのコードは対象外）。`./gradlew build` で動き、1件でも検出したら失敗する |
+| 静的チェック | Checkstyle（`config/checkstyle/checkstyle.xml`。Spring のルールと独自のルール）、SpotBugs ＋ Find Security Bugs（`config/spotbugs/exclude.xml`。テストのコードは対象外）。`./gradlew build` で動き、1件でも検出したら失敗する |
+| 整形 | Spotless ＋ Eclipse のフォーマッター。設定（`config/formatter/eclipse-formatter.prefs`）は Spring Java Format の設定をそのまま写し、コメントの整形だけを切っている（Spring Boot 自身と同じ流儀にして、好みで変えず、ほかの現場でも通じる形にする。日本語のコメントは詰め直すと崩れるため、書いたとおりに残す）。`./gradlew spotlessApply` で整形し、`./gradlew build`（`spotlessCheck`）で崩れを確かめる。Checkstyle も Spring のルール（`SpringChecks`。フィールドの `this.`、static import の制限等）に、独自のルールを足して使う（`config/checkstyle/checkstyle.xml`。合わないものだけを外し、理由を書く）。IntelliJ は「Eclipse Code Formatter」のプラグインで同じ設定のファイルを読ませると、整形（Reformat Code）が同じになる |
 | イメージ | Dockerfile。jar は先に `./gradlew build` で作り（`build/libs/app.jar`）、Dockerfile では層に分けて入れるだけ。層に分ける段は `--platform=$BUILDPLATFORM` で動かすため、x86 のランナーでも arm64 のイメージをエミュレーションなしで作れる（ARM64 のランナー `ubuntu-24.04-arm` は、公開リポジトリなら無料）。ベースは `eclipse-temurin:25-jre-noble`（ダイジェストで固定） |
 
 ### プロファイル
@@ -95,6 +96,9 @@ sandbox の api（バックエンド）のリポジトリ。Spring Boot（Java�
 ### 手元のビルド
 
 Norton の TLS 検査で、Claude のシェルからの Gradle の通信（wrapper・依存ライブラリ・JDK のダウンロード）が PKIX のエラーで失敗する。`./gradlew build` はユーザーに PowerShell か IntelliJ で実行してもらう。
+
+- コードを変えたら、ビルドの前に `./gradlew spotlessApply` を流してもらう（整形が崩れていると `build` が失敗する）。
+- 整形だけのコミットは、中身の変更と分け、`.git-blame-ignore-revs` に足す（GitHub の blame で飛ばすため。手元は `git config blame.ignoreRevsFile .git-blame-ignore-revs`）。
 
 ## 関連リポジトリ（`../` に clone 済み）
 
